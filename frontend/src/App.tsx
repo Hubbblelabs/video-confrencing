@@ -1,16 +1,18 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState, useEffect } from 'react';
 import type { Socket } from 'socket.io-client';
 import { AuthPage } from './pages/AuthPage';
 import { LobbyPage } from './pages/LobbyPage';
 import { RoomPage } from './pages/RoomPage';
+import { WaitingLobby } from './components/WaitingLobby';
 import { useAuthStore } from './store/auth.store';
 import { useRoomStore } from './store/room.store';
 import { useMediaStore } from './store/media.store';
 import { useParticipantsStore } from './store/participants.store';
 import { useSignaling } from './hooks/useSignaling';
+import { WS_EVENTS } from './constants';
 import type { NewProducerEvent } from './types';
 
-type AppView = 'auth' | 'lobby' | 'room';
+type AppView = 'auth' | 'lobby' | 'waiting' | 'room';
 
 function App() {
   const token = useAuthStore((s) => s.token);
@@ -21,8 +23,17 @@ function App() {
     Array<{ producerId: string; userId: string; kind: string }>
   >([]);
 
+  // Waiting room state
+  const [isInWaitingRoom, setIsInWaitingRoom] = useState(false);
+  const [waitingRoomId, setWaitingRoomId] = useState<string | null>(null);
+  const [wasRejected, setWasRejected] = useState(false);
+  const [rejectionMessage, setRejectionMessage] = useState('');
+
   // Ref that RoomPage will populate with its consumeProducer handler
   const newProducerHandlerRef = useRef<((data: NewProducerEvent) => Promise<void>) | null>(null);
+  
+  // Track if we've attempted auto-rejoin
+  const hasAttemptedRejoin = useRef(false);
 
   // ─── Signaling with event listeners ───────────────────────────
 
@@ -81,6 +92,71 @@ function App() {
       useRoomStore.getState().setError(data.message);
     },
   });
+
+  // ─── Waiting room event listeners ─────────────────────────────
+
+  useEffect(() => {
+    const socket = signaling.socketRef.current;
+    if (!socket) return;
+
+    // Handle admission to room (completes the join flow)
+    const handleAdmitted = async (data: { roomId: string; message: string }) => {
+      if (!isInWaitingRoom || data.roomId !== waitingRoomId) return;
+
+      try {
+        // Now actually join the room
+        const joined = await signaling.joinRoom(data.roomId);
+
+        const localId = useAuthStore.getState().userId ?? '';
+        useParticipantsStore.getState().syncParticipants(
+          joined.participants.map((p) => ({
+            userId: p.userId,
+            displayName: p.displayName,
+            role: p.role,
+            isMuted: p.isMuted,
+            isVideoOff: p.isVideoOff,
+          })),
+          localId,
+        );
+
+        setExistingProducers(
+          joined.existingProducers.map((p) => ({ ...p, kind: p.kind })),
+        );
+
+        useRoomStore.getState().setRoom(data.roomId, null, joined.role);
+        
+        // Clear waiting room state
+        setIsInWaitingRoom(false);
+        setWaitingRoomId(null);
+      } catch (error) {
+        console.error('Failed to join room after admission:', error);
+        setIsInWaitingRoom(false);
+        setWaitingRoomId(null);
+        useRoomStore.getState().setError('Failed to join room');
+      }
+    };
+
+    // Handle rejection from waiting room
+    const handleRejected = (data: { roomId: string; message: string }) => {
+      if (!isInWaitingRoom || data.roomId !== waitingRoomId) return;
+
+      setIsInWaitingRoom(false);
+      setWaitingRoomId(null);
+      setWasRejected(true);
+      setRejectionMessage(data.message || 'Access denied by host');
+      
+      // Disconnect socket
+      signaling.disconnect();
+    };
+
+    socket.on(WS_EVENTS.PARTICIPANT_ADMITTED, handleAdmitted);
+    socket.on(WS_EVENTS.PARTICIPANT_REJECTED, handleRejected);
+
+    return () => {
+      socket.off(WS_EVENTS.PARTICIPANT_ADMITTED, handleAdmitted);
+      socket.off(WS_EVENTS.PARTICIPANT_REJECTED, handleRejected);
+    };
+  }, [signaling, isInWaitingRoom, waitingRoomId]);
 
   // ─── Room lifecycle ───────────────────────────────────────────
 
@@ -175,35 +251,62 @@ function App() {
       checkReady();
     });
 
-    const joined = await signaling.joinRoom(id);
+    // Join waiting room first (backend will auto-admit hosts)
+    setWaitingRoomId(id);
+    setIsInWaitingRoom(true);
+    setWasRejected(false);
+    setRejectionMessage('');
 
-    // Use the actual room ID returned from the server (may be different if auto-created)
-    const actualRoomId = joined.roomId;
-
-    const localId = useAuthStore.getState().userId ?? '';
-    useParticipantsStore.getState().syncParticipants(
-      joined.participants.map((p) => ({
-        userId: p.userId,
-        displayName: p.displayName,
-        role: p.role,
-        isMuted: p.isMuted,
-        isVideoOff: p.isVideoOff,
-      })),
-      localId,
-    );
-
-    setExistingProducers(
-      joined.existingProducers.map((p) => ({ ...p, kind: p.kind })),
-    );
-
-    useRoomStore.getState().setRoom(actualRoomId, null, joined.role);
+    socket.emit(WS_EVENTS.JOIN_WAITING_ROOM, { roomId: id }, (response: any) => {
+      if (!response.success) {
+        setIsInWaitingRoom(false);
+        setWaitingRoomId(null);
+        useRoomStore.getState().setError(response.error || 'Failed to join waiting room');
+      }
+    });
   }, [signaling]);
+
+  // ─── Auto-rejoin on refresh ───────────────────────────────────
+
+  useEffect(() => {
+    // Only auto-rejoin once on mount if there's a persisted room but we're not connected
+    const persistedRoomId = useRoomStore.getState().roomId;
+    
+    if (
+      token && 
+      persistedRoomId && 
+      !roomId && 
+      !isInWaitingRoom &&
+      !hasAttemptedRejoin.current
+    ) {
+      hasAttemptedRejoin.current = true;
+      
+      // Automatically rejoin the room
+      handleJoinRoom(persistedRoomId).catch((err) => {
+        console.error('Auto-rejoin failed:', err);
+        // Clear persisted room on failure
+        useRoomStore.getState().reset();
+      });
+    }
+  }, [token, roomId, isInWaitingRoom, handleJoinRoom]);
 
   const handleLeaveRoom = useCallback(() => {
     useParticipantsStore.getState().reset();
     useMediaStore.getState().reset();
     useRoomStore.getState().reset();
     setExistingProducers([]);
+    setIsInWaitingRoom(false);
+    setWaitingRoomId(null);
+    setWasRejected(false);
+    setRejectionMessage('');
+    signaling.disconnect();
+  }, [signaling]);
+
+  const handleBackToLobby = useCallback(() => {
+    setIsInWaitingRoom(false);
+    setWaitingRoomId(null);
+    setWasRejected(false);
+    setRejectionMessage('');
     signaling.disconnect();
   }, [signaling]);
 
@@ -211,6 +314,7 @@ function App() {
 
   let view: AppView = 'auth';
   if (token) view = 'lobby';
+  if (token && isInWaitingRoom) view = 'waiting';
   if (token && roomId) view = 'room';
 
   switch (view) {
@@ -221,6 +325,14 @@ function App() {
         <LobbyPage
           onCreateRoom={handleCreateRoom}
           onJoinRoom={handleJoinRoom}
+        />
+      );
+    case 'waiting':
+      return (
+        <WaitingLobby
+          message={wasRejected ? rejectionMessage : 'Waiting for host approval...'}
+          wasRejected={wasRejected}
+          onLeave={handleBackToLobby}
         />
       );
     case 'room':

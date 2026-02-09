@@ -3,11 +3,18 @@ import { VideoGrid } from '../components/VideoGrid';
 import { Controls } from '../components/Controls';
 import { StatusBanner } from '../components/StatusBanner';
 import { ParticipantsPanel } from '../components/ParticipantsPanel';
+import { Whiteboard } from '../components/Whiteboard';
+import { Chat } from '../components/Chat';
+import { WaitingRoom } from '../components/WaitingRoom';
 import { useRoomStore } from '../store/room.store';
 import { useMediaStore } from '../store/media.store';
 import { useAuthStore } from '../store/auth.store';
+import { useParticipantsStore } from '../store/participants.store';
 import { useWebRTC } from '../hooks/useWebRTC';
 import { useMedia } from '../hooks/useMedia';
+import { useWhiteboard } from '../hooks/useWhiteboard';
+import { useChat } from '../hooks/useChat';
+import { useWaitingRoom } from '../hooks/useWaitingRoom';
 import type { useSignaling } from '../hooks/useSignaling';
 import type { NewProducerEvent } from '../types';
 
@@ -37,9 +44,44 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
   const isScreenSharing = useMediaStore((s) => s.isScreenSharing);
 
   const [showParticipants, setShowParticipants] = useState(false);
+  const [showWhiteboard, setShowWhiteboard] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+  const [showWaitingRoom, setShowWaitingRoom] = useState(false);
+
+  const isHost = role === 'host' || role === 'co_host';
 
   const webrtc = useWebRTC(signaling);
   const media = useMedia();
+  
+  // Whiteboard hook
+  const whiteboardSocket = signaling.socketRef.current;
+  const whiteboard = useWhiteboard({
+    socket: whiteboardSocket,
+    roomId: roomId || '',
+    userId: userId || '',
+  });
+
+  // Chat hook
+  const chatSocket = signaling.socketRef.current;
+  const participantsData = useParticipantsStore((s) => s.participants);
+  const participants = Object.entries(participantsData).map(([userId, participant]) => ({
+    userId,
+    displayName: participant.displayName,
+  }));
+  
+  const chat = useChat({
+    socket: chatSocket,
+    roomId: roomId || '',
+    userId: userId || '',
+  });
+
+  // Waiting Room hook
+  const waitingRoomSocket = signaling.socketRef.current;
+  const waitingRoom = useWaitingRoom({
+    socket: waitingRoomSocket,
+    roomId: roomId || '',
+    isHost,
+  });
 
   const joinedRef = useRef(false);
   const producingRef = useRef(false);
@@ -77,6 +119,12 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
     onNewProducerRef.current = consumeProducer;
     return () => { onNewProducerRef.current = null; };
   }, [consumeProducer, onNewProducerRef]);
+
+  // Setup whiteboard listeners
+  useEffect(() => {
+    const cleanup = whiteboard.setupListeners();
+    return cleanup;
+  }, [whiteboard]);
 
   // ─── Bootstrap: media → transports → produce → consume existing ──
 
@@ -187,8 +235,6 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
     }
   }, [roomId, signaling]);
 
-  const isHost = role === 'host' || role === 'co_host';
-
   return (
     <div className="h-screen w-screen bg-background flex flex-col overflow-hidden">
       <StatusBanner />
@@ -238,6 +284,55 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
             </svg>
             {showParticipants ? 'Hide' : 'Participants'}
           </button>
+          <button
+            onClick={() => setShowWhiteboard((p) => !p)}
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+              showWhiteboard 
+                ? 'bg-[var(--primary)] text-[var(--primary-foreground)] shadow-md' 
+                : 'text-card-foreground bg-muted hover:bg-muted/80'
+            }`}
+            style={{ borderRadius: 'var(--radius)', boxShadow: showWhiteboard ? 'var(--shadow-md)' : 'var(--shadow-xs)' }}
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            {showWhiteboard ? 'Hide' : 'Whiteboard'}
+          </button>
+          <button
+            onClick={() => setShowChat((p) => !p)}
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+              showChat 
+                ? 'bg-[var(--primary)] text-[var(--primary-foreground)] shadow-md' 
+                : 'text-card-foreground bg-muted hover:bg-muted/80'
+            }`}
+            style={{ borderRadius: 'var(--radius)', boxShadow: showChat ? 'var(--shadow-md)' : 'var(--shadow-xs)' }}
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+            {showChat ? 'Hide' : 'Chat'}
+          </button>
+          {isHost && (
+            <button
+              onClick={() => setShowWaitingRoom((p) => !p)}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 relative ${
+                showWaitingRoom 
+                  ? 'bg-[var(--primary)] text-[var(--primary-foreground)] shadow-md' 
+                  : 'text-card-foreground bg-muted hover:bg-muted/80'
+              }`}
+              style={{ borderRadius: 'var(--radius)', boxShadow: showWaitingRoom ? 'var(--shadow-md)' : 'var(--shadow-xs)' }}
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              {showWaitingRoom ? 'Hide' : 'Waiting Room'}
+              {waitingRoom.waitingParticipants.length > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center animate-pulse">
+                  {waitingRoom.waitingParticipants.length}
+                </span>
+              )}
+            </button>
+          )}
         </div>
       </div>
 
@@ -246,6 +341,48 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
         <div className="flex-1 min-w-0">
           <VideoGrid />
         </div>
+        {showWhiteboard && (
+          <Whiteboard
+            roomId={roomId!}
+            userId={userId!}
+            displayName={displayName!}
+            onObjectAdded={whiteboard.sendObjectAdded}
+            onObjectModified={whiteboard.sendObjectModified}
+            onObjectRemoved={whiteboard.sendObjectRemoved}
+            onCursorMove={whiteboard.sendCursorPosition}
+            onClear={whiteboard.sendClear}
+            onSave={(dataUrl) => {
+              const a = document.createElement('a');
+              a.href = dataUrl;
+              a.download = `whiteboard-${Date.now()}.png`;
+              a.click();
+            }}
+            remoteCursors={whiteboard.remoteCursors}
+            remoteObjects={whiteboard.remoteObjects}
+          />
+        )}
+        {showChat && (
+          <Chat
+            messages={chat.messages}
+            typingUsers={chat.typingUsers}
+            currentUserId={userId!}
+            participants={participants}
+            onSendMessage={chat.sendMessage}
+            onSendPrivateMessage={chat.sendPrivateMessage}
+            onSendFile={chat.sendFile}
+            onTyping={chat.handleTyping}
+            onExport={chat.exportMessages}
+            onClear={chat.clearMessages}
+          />
+        )}
+        {showWaitingRoom && isHost && (
+          <WaitingRoom
+            participants={waitingRoom.waitingParticipants}
+            onAdmit={waitingRoom.admitParticipant}
+            onReject={waitingRoom.rejectParticipant}
+            onAdmitAll={waitingRoom.admitAll}
+          />
+        )}
         {showParticipants && (
           <ParticipantsPanel
             localUserId={userId ?? ''}

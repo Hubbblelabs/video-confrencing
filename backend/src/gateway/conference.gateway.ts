@@ -138,6 +138,9 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
 
   // Track which room each socket is in for disconnect cleanup
   private readonly socketRoomMap = new Map<string, string>();
+  
+  // Track waiting room participants: roomId -> userId -> participant data
+  private readonly waitingRooms = new Map<string, Map<string, { userId: string; displayName: string; socketId: string; joinedAt: number }>>();
 
   constructor(
     private readonly wsAuth: WsAuthService,
@@ -588,6 +591,389 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
     });
 
     return { resumed: true };
+  }
+  // ─── Whiteboard Events ────────────────────────────────────────
+
+  @SubscribeMessage(WsEvents.WHITEBOARD_DRAW)
+  async handleWhiteboardDraw(
+    @ConnectedSocket() socket: AppSocket,
+    @MessageBody() payload: { roomId: string; object: any },
+  ) {
+    this.assertAuthenticated(socket);
+    
+    // Broadcast to all other users in the room
+    socket.to(payload.roomId).emit(WsEvents.WHITEBOARD_OBJECT_ADDED, {
+      userId: socket.data.userId,
+      displayName: socket.data.displayName,
+      object: payload.object,
+    });
+
+    return { success: true };
+  }
+
+  @SubscribeMessage(WsEvents.WHITEBOARD_CURSOR)
+  async handleWhiteboardCursor(
+    @ConnectedSocket() socket: AppSocket,
+    @MessageBody() payload: { roomId: string; x: number; y: number },
+  ) {
+    this.assertAuthenticated(socket);
+    
+    // Broadcast cursor position to all other users
+    socket.to(payload.roomId).emit(WsEvents.WHITEBOARD_CURSOR, {
+      userId: socket.data.userId,
+      displayName: socket.data.displayName,
+      x: payload.x,
+      y: payload.y,
+    });
+
+    return { success: true };
+  }
+
+  @SubscribeMessage(WsEvents.WHITEBOARD_CLEAR)
+  async handleWhiteboardClear(
+    @ConnectedSocket() socket: AppSocket,
+    @MessageBody() payload: { roomId: string },
+  ) {
+    this.assertAuthenticated(socket);
+    
+    // Broadcast clear to all users in the room
+    this.server.to(payload.roomId).emit(WsEvents.WHITEBOARD_CLEAR, {
+      userId: socket.data.userId,
+    });
+
+    return { success: true };
+  }
+
+  @SubscribeMessage(WsEvents.WHITEBOARD_OBJECT_MODIFIED)
+  async handleWhiteboardModified(
+    @ConnectedSocket() socket: AppSocket,
+    @MessageBody() payload: { roomId: string; object: any },
+  ) {
+    this.assertAuthenticated(socket);
+    
+    socket.to(payload.roomId).emit(WsEvents.WHITEBOARD_OBJECT_MODIFIED, {
+      userId: socket.data.userId,
+      object: payload.object,
+    });
+
+    return { success: true };
+  }
+
+  @SubscribeMessage(WsEvents.WHITEBOARD_OBJECT_REMOVED)
+  async handleWhiteboardRemoved(
+    @ConnectedSocket() socket: AppSocket,
+    @MessageBody() payload: { roomId: string; objectId: string },
+  ) {
+    this.assertAuthenticated(socket);
+    
+    socket.to(payload.roomId).emit(WsEvents.WHITEBOARD_OBJECT_REMOVED, {
+      userId: socket.data.userId,
+      objectId: payload.objectId,
+    });
+
+    return { success: true };
+  }
+
+  // ─── Chat Events ──────────────────────────────────────────────
+
+  @SubscribeMessage(WsEvents.CHAT_MESSAGE)
+  async handleChatMessage(
+    @ConnectedSocket() socket: AppSocket,
+    @MessageBody() payload: { roomId: string; message: string },
+  ) {
+    this.assertAuthenticated(socket);
+    
+    const messageData = {
+      id: `${Date.now()}-${socket.data.userId}`,
+      roomId: payload.roomId,
+      userId: socket.data.userId,
+      displayName: socket.data.displayName,
+      message: payload.message,
+      timestamp: new Date().toISOString(),
+      type: 'text',
+    };
+
+    // Broadcast to all users in the room (including sender)
+    this.server.to(payload.roomId).emit(WsEvents.CHAT_MESSAGE_RECEIVED, messageData);
+
+    return { success: true, messageId: messageData.id };
+  }
+
+  @SubscribeMessage(WsEvents.CHAT_PRIVATE_MESSAGE)
+  async handlePrivateMessage(
+    @ConnectedSocket() socket: AppSocket,
+    @MessageBody() payload: { roomId: string; targetUserId: string; message: string },
+  ) {
+    this.assertAuthenticated(socket);
+    
+    const messageData = {
+      id: `${Date.now()}-${socket.data.userId}`,
+      roomId: payload.roomId,
+      userId: socket.data.userId,
+      displayName: socket.data.displayName,
+      targetUserId: payload.targetUserId,
+      message: payload.message,
+      timestamp: new Date().toISOString(),
+      type: 'private',
+    };
+
+    // Find target socket and send to both sender and target
+    const sockets = await this.server.in(payload.roomId).fetchSockets();
+    const targetSocket = sockets.find((s: any) => s.data.userId === payload.targetUserId);
+    
+    if (targetSocket) {
+      // Send to target
+      targetSocket.emit(WsEvents.CHAT_PRIVATE_MESSAGE_RECEIVED, messageData);
+      // Send back to sender
+      socket.emit(WsEvents.CHAT_PRIVATE_MESSAGE_RECEIVED, messageData);
+      return { success: true, messageId: messageData.id };
+    }
+
+    return { success: false, error: 'User not found' };
+  }
+
+  @SubscribeMessage(WsEvents.CHAT_FILE_UPLOAD)
+  async handleFileUpload(
+    @ConnectedSocket() socket: AppSocket,
+    @MessageBody() payload: { roomId: string; fileName: string; fileType: string; fileData: string; fileSize: number },
+  ) {
+    this.assertAuthenticated(socket);
+    
+    const messageData = {
+      id: `${Date.now()}-${socket.data.userId}`,
+      roomId: payload.roomId,
+      userId: socket.data.userId,
+      displayName: socket.data.displayName,
+      fileName: payload.fileName,
+      fileType: payload.fileType,
+      fileData: payload.fileData,
+      fileSize: payload.fileSize,
+      timestamp: new Date().toISOString(),
+      type: 'file',
+    };
+
+    // Broadcast to all users in the room
+    this.server.to(payload.roomId).emit(WsEvents.CHAT_FILE_RECEIVED, messageData);
+
+    return { success: true, messageId: messageData.id };
+  }
+
+  @SubscribeMessage(WsEvents.CHAT_TYPING)
+  async handleTyping(
+    @ConnectedSocket() socket: AppSocket,
+    @MessageBody() payload: { roomId: string; isTyping: boolean },
+  ) {
+    this.assertAuthenticated(socket);
+    
+    // Broadcast typing status to all other users
+    socket.to(payload.roomId).emit(WsEvents.CHAT_USER_TYPING, {
+      userId: socket.data.userId,
+      displayName: socket.data.displayName,
+      isTyping: payload.isTyping,
+    });
+
+    return { success: true };
+  }
+
+  // ─── Waiting Room Events ──────────────────────────────────────
+
+  @SubscribeMessage(WsEvents.JOIN_WAITING_ROOM)
+  async handleJoinWaitingRoom(
+    @ConnectedSocket() socket: AppSocket,
+    @MessageBody() payload: { roomId: string },
+  ) {
+    this.assertAuthenticated(socket);
+    
+    // Check if user is host - if so, auto-admit
+    const room = await this.rooms.getRoomState(payload.roomId);
+    if (room && room.hostUserId === socket.data.userId) {
+      // Host joins directly, emit admission event
+      socket.emit(WsEvents.PARTICIPANT_ADMITTED, {
+        roomId: payload.roomId,
+        message: 'Welcome back, host!',
+      });
+
+      this.logger.log(`Host ${socket.data.userId} auto-admitted to room ${payload.roomId}`);
+      
+      return { 
+        success: true, 
+        message: 'You are the host. Joining room...',
+        isHost: true,
+      };
+    }
+    
+    const participant = {
+      userId: socket.data.userId,
+      displayName: socket.data.displayName,
+      socketId: socket.id,
+      joinedAt: Date.now(),
+    };
+
+    // Initialize waiting room for this roomId if it doesn't exist
+    if (!this.waitingRooms.has(payload.roomId)) {
+      this.waitingRooms.set(payload.roomId, new Map());
+    }
+
+    const roomWaitingList = this.waitingRooms.get(payload.roomId)!;
+    roomWaitingList.set(socket.data.userId, participant);
+
+    // Notify host/moderators about new participant in waiting room
+    this.server.to(payload.roomId).emit(WsEvents.WAITING_PARTICIPANT_JOINED, {
+      participant,
+      waitingCount: roomWaitingList.size,
+    });
+
+    this.logger.log(`User ${socket.data.userId} joined waiting room for ${payload.roomId}`);
+
+    return { 
+      success: true, 
+      message: 'You are in the waiting room. The host will let you in soon.',
+      position: roomWaitingList.size,
+    };
+  }
+
+  @SubscribeMessage(WsEvents.ADMIT_PARTICIPANT)
+  async handleAdmitParticipant(
+    @ConnectedSocket() socket: AppSocket,
+    @MessageBody() payload: { roomId: string; userId: string },
+  ) {
+    this.assertAuthenticated(socket);
+
+    // Check if user is host
+    const room = await this.rooms.getRoomState(payload.roomId);
+    if (!room || room.hostUserId !== socket.data.userId) {
+      return { success: false, error: 'Only the host can admit participants' };
+    }
+
+    const roomWaitingList = this.waitingRooms.get(payload.roomId);
+    if (!roomWaitingList) {
+      return { success: false, error: 'No waiting room found' };
+    }
+
+    const participant = roomWaitingList.get(payload.userId);
+    if (!participant) {
+      return { success: false, error: 'Participant not found in waiting room' };
+    }
+
+    // Get the socket of the waiting participant
+    const sockets = await this.server.fetchSockets();
+    const participantSocket = sockets.find(s => s.id === participant.socketId);
+
+    if (participantSocket) {
+      // Notify participant they've been admitted
+      participantSocket.emit(WsEvents.PARTICIPANT_ADMITTED, {
+        roomId: payload.roomId,
+      });
+
+      // Remove from waiting room
+      roomWaitingList.delete(payload.userId);
+
+      // Notify host about updated waiting room
+      this.server.to(payload.roomId).emit(WsEvents.WAITING_ROOM_UPDATED, {
+        participants: Array.from(roomWaitingList.values()),
+        waitingCount: roomWaitingList.size,
+      });
+
+      this.logger.log(`User ${payload.userId} admitted to ${payload.roomId}`);
+      return { success: true };
+    }
+
+    return { success: false, error: 'Participant socket not found' };
+  }
+
+  @SubscribeMessage(WsEvents.REJECT_PARTICIPANT)
+  async handleRejectParticipant(
+    @ConnectedSocket() socket: AppSocket,
+    @MessageBody() payload: { roomId: string; userId: string },
+  ) {
+    this.assertAuthenticated(socket);
+
+    // Check if user is host
+    const room = await this.rooms.getRoomState(payload.roomId);
+    if (!room || room.hostUserId !== socket.data.userId) {
+      return { success: false, error: 'Only the host can reject participants' };
+    }
+
+    const roomWaitingList = this.waitingRooms.get(payload.roomId);
+    if (!roomWaitingList) {
+      return { success: false, error: 'No waiting room found' };
+    }
+
+    const participant = roomWaitingList.get(payload.userId);
+    if (!participant) {
+      return { success: false, error: 'Participant not found in waiting room' };
+    }
+
+    // Get the socket of the waiting participant
+    const sockets = await this.server.fetchSockets();
+    const participantSocket = sockets.find(s => s.id === participant.socketId);
+
+    if (participantSocket) {
+      // Notify participant they've been rejected
+      participantSocket.emit(WsEvents.PARTICIPANT_REJECTED, {
+        roomId: payload.roomId,
+        message: 'The host denied your request to join',
+      });
+
+      // Remove from waiting room
+      roomWaitingList.delete(payload.userId);
+
+      // Notify host about updated waiting room
+      this.server.to(payload.roomId).emit(WsEvents.WAITING_ROOM_UPDATED, {
+        participants: Array.from(roomWaitingList.values()),
+        waitingCount: roomWaitingList.size,
+      });
+
+      this.logger.log(`User ${payload.userId} rejected from ${payload.roomId}`);
+      return { success: true };
+    }
+
+    return { success: false, error: 'Participant socket not found' };
+  }
+
+  @SubscribeMessage(WsEvents.ADMIT_ALL)
+  async handleAdmitAll(
+    @ConnectedSocket() socket: AppSocket,
+    @MessageBody() payload: { roomId: string },
+  ) {
+    this.assertAuthenticated(socket);
+
+    // Check if user is host
+    const room = await this.rooms.getRoomState(payload.roomId);
+    if (!room || room.hostUserId !== socket.data.userId) {
+      return { success: false, error: 'Only the host can admit participants' };
+    }
+
+    const roomWaitingList = this.waitingRooms.get(payload.roomId);
+    if (!roomWaitingList || roomWaitingList.size === 0) {
+      return { success: false, error: 'No participants in waiting room' };
+    }
+
+    const sockets = await this.server.fetchSockets();
+    let admittedCount = 0;
+
+    // Admit all participants
+    for (const participant of roomWaitingList.values()) {
+      const participantSocket = sockets.find(s => s.id === participant.socketId);
+      if (participantSocket) {
+        participantSocket.emit(WsEvents.PARTICIPANT_ADMITTED, {
+          roomId: payload.roomId,
+        });
+        admittedCount++;
+      }
+    }
+
+    // Clear waiting room
+    roomWaitingList.clear();
+
+    // Notify host about updated waiting room
+    this.server.to(payload.roomId).emit(WsEvents.WAITING_ROOM_UPDATED, {
+      participants: [],
+      waitingCount: 0,
+    });
+
+    this.logger.log(`${admittedCount} participants admitted to ${payload.roomId}`);
+    return { success: true, admittedCount };
   }
 
   // ─── Guards ───────────────────────────────────────────────────

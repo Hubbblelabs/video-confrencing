@@ -1,11 +1,12 @@
 🔴 High Priority (Core Functionality)
-In-Call Text Chat
+<!-- In-Call Text Chat
 
 Real-time messaging during meetings
 Private messages between participants
 File/image sharing capability
 Message history/export
-Status: Backend has WebSocket infrastructure ready
+Status: Backend has WebSocket infrastructure ready -->
+
 Hand Raise / Reactions
 
 Virtual hand raise for participant engagement
@@ -13,6 +14,7 @@ Emoji reactions (👍 ❤️ 😂 👏)
 Visual indicators on video tiles
 Host notification system
 Status: Easy to implement with existing event system
+
 Recording Functionality
 
 Backend already has Recording entity in database schema
@@ -21,13 +23,14 @@ Save to cloud storage (S3/GCS integration)
 Playback interface
 Recording indicator for participants
 Status: Database schema exists, needs implementation
-Waiting Room
+
+<!-- Waiting Room
 
 Host approval required to join
 Queue management interface
 Admit all / Admit individually
 Participant preview (name, device status)
-Status: Requires new room status and admission workflow
+Status: Requires new room status and admission workflow -->
 
 Virtual Backgrounds / Background Blur
 
@@ -61,6 +64,7 @@ Multiple language support
 Download transcript after meeting
 Integration: Web Speech API or Google Cloud Speech
 Status: Requires external API integration
+
 Screen Annotation Tools
 
 Draw/highlight on shared screen

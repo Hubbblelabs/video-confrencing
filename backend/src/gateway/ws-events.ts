@@ -37,5 +37,37 @@ export const WsEvents = {
   PRODUCER_PAUSED: 'media:producerPaused',
   PRODUCER_RESUMED: 'media:producerResumed',
 
+  // Whiteboard
+  WHITEBOARD_DRAW: 'whiteboard:draw',
+  WHITEBOARD_CLEAR: 'whiteboard:clear',
+  WHITEBOARD_UNDO: 'whiteboard:undo',
+  WHITEBOARD_CURSOR: 'whiteboard:cursor',
+  WHITEBOARD_OBJECT_ADDED: 'whiteboard:objectAdded',
+  WHITEBOARD_OBJECT_MODIFIED: 'whiteboard:objectModified',
+  WHITEBOARD_OBJECT_REMOVED: 'whiteboard:objectRemoved',
+  WHITEBOARD_LOAD: 'whiteboard:load',
+  WHITEBOARD_STATE: 'whiteboard:state',
+
+  // Chat
+  CHAT_MESSAGE: 'chat:message',
+  CHAT_PRIVATE_MESSAGE: 'chat:privateMessage',
+  CHAT_FILE_UPLOAD: 'chat:fileUpload',
+  CHAT_TYPING: 'chat:typing',
+  CHAT_HISTORY: 'chat:history',
+  CHAT_MESSAGE_RECEIVED: 'chat:messageReceived',
+  CHAT_PRIVATE_MESSAGE_RECEIVED: 'chat:privateMessageReceived',
+  CHAT_FILE_RECEIVED: 'chat:fileReceived',
+  CHAT_USER_TYPING: 'chat:userTyping',
+
+  // Waiting Room
+  JOIN_WAITING_ROOM: 'waitingRoom:join',
+  ADMIT_PARTICIPANT: 'waitingRoom:admit',
+  REJECT_PARTICIPANT: 'waitingRoom:reject',
+  ADMIT_ALL: 'waitingRoom:admitAll',
+  WAITING_PARTICIPANT_JOINED: 'waitingRoom:participantJoined',
+  PARTICIPANT_ADMITTED: 'waitingRoom:participantAdmitted',
+  PARTICIPANT_REJECTED: 'waitingRoom:participantRejected',
+  WAITING_ROOM_UPDATED: 'waitingRoom:updated',
+
   ERROR: 'error',
 } as const;
