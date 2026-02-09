@@ -3,3 +3,8 @@ dist/
 .env
 *.js
 !jest.config.js
+
+# Prisma
+prisma/migrations/
+.env.local
+.env.*.local
