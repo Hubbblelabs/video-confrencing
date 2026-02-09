@@ -3,6 +3,7 @@ import type { RoomRole } from '../enums';
 export interface JwtPayload {
   sub: string;
   email: string;
+  displayName: string;
   iat?: number;
   exp?: number;
 }
@@ -11,12 +12,14 @@ export interface AuthenticatedSocket {
   id: string;
   userId: string;
   email: string;
+  displayName: string;
   roomId?: string;
   role?: RoomRole;
 }
 
 export interface RoomParticipant {
   userId: string;
+  displayName: string;
   socketId: string;
   role: RoomRole;
   joinedAt: number;

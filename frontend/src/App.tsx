@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
+import type { Socket } from 'socket.io-client';
 import { AuthPage } from './pages/AuthPage';
 import { LobbyPage } from './pages/LobbyPage';
 import { RoomPage } from './pages/RoomPage';
@@ -27,7 +28,7 @@ function App() {
 
   const signaling = useSignaling({
     onUserJoined: (data) => {
-      useParticipantsStore.getState().addParticipant(data.userId, data.role);
+      useParticipantsStore.getState().addParticipant(data.userId, data.displayName, data.role);
     },
     onUserLeft: (data) => {
       useParticipantsStore.getState().removeParticipant(data.userId);
@@ -62,6 +63,20 @@ function App() {
     onProducerClosed: (data) => {
       useParticipantsStore.getState().removeConsumer(data.userId, data.producerId);
     },
+    onProducerPaused: (data) => {
+      // Update participant mute state when their audio producer is paused
+      const participant = useParticipantsStore.getState().participants.get(data.userId);
+      if (participant && participant.audioTrack) {
+        useParticipantsStore.getState().setParticipantMuted(data.userId, true);
+      }
+    },
+    onProducerResumed: (data) => {
+      // Update participant mute state when their audio producer is resumed
+      const participant = useParticipantsStore.getState().participants.get(data.userId);
+      if (participant && participant.audioTrack) {
+        useParticipantsStore.getState().setParticipantMuted(data.userId, false);
+      }
+    },
     onError: (data) => {
       useRoomStore.getState().setError(data.message);
     },
@@ -79,7 +94,9 @@ function App() {
         if (socket.connected && (socket as Socket & { isAuthenticated?: boolean }).isAuthenticated) {
           cleanup();
           resolve();
+          return true;
         }
+        return false;
       };
       
       if (checkReady()) return;
@@ -109,6 +126,7 @@ function App() {
     useParticipantsStore.getState().syncParticipants(
       joined.participants.map((p) => ({
         userId: p.userId,
+        displayName: p.displayName,
         role: p.role,
         isMuted: p.isMuted,
         isVideoOff: p.isVideoOff,
@@ -133,7 +151,9 @@ function App() {
         if (socket.connected && (socket as Socket & { isAuthenticated?: boolean }).isAuthenticated) {
           cleanup();
           resolve();
+          return true;
         }
+        return false;
       };
       
       if (checkReady()) return;
@@ -157,10 +177,14 @@ function App() {
 
     const joined = await signaling.joinRoom(id);
 
+    // Use the actual room ID returned from the server (may be different if auto-created)
+    const actualRoomId = joined.roomId;
+
     const localId = useAuthStore.getState().userId ?? '';
     useParticipantsStore.getState().syncParticipants(
       joined.participants.map((p) => ({
         userId: p.userId,
+        displayName: p.displayName,
         role: p.role,
         isMuted: p.isMuted,
         isVideoOff: p.isVideoOff,
@@ -172,7 +196,7 @@ function App() {
       joined.existingProducers.map((p) => ({ ...p, kind: p.kind })),
     );
 
-    useRoomStore.getState().setRoom(id, null, joined.role);
+    useRoomStore.getState().setRoom(actualRoomId, null, joined.role);
   }, [signaling]);
 
   const handleLeaveRoom = useCallback(() => {

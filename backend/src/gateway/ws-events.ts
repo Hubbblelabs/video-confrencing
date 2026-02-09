@@ -34,6 +34,8 @@ export const WsEvents = {
 
   NEW_PRODUCER: 'media:newProducer',
   PRODUCER_CLOSED: 'media:producerClosed',
+  PRODUCER_PAUSED: 'media:producerPaused',
+  PRODUCER_RESUMED: 'media:producerResumed',
 
   ERROR: 'error',
 } as const;

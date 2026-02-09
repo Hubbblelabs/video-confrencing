@@ -6,7 +6,7 @@ import { ConfigService } from '@nestjs/config';
 import { RedisService } from '../redis/redis.service';
 import { RedisKeys } from '../redis/redis-keys';
 import { AuditService } from '../audit/audit.service';
-import { MeetingEntity } from '../database/entities';
+import { MeetingEntity, UserEntity } from '../database/entities';
 import { RoomRole, RoomStatus, AuditAction } from '../shared/enums';
 import type { RoomParticipant, RedisRoomState } from '../shared/interfaces';
 import { WsRoomException } from '../shared/exceptions';
@@ -19,6 +19,8 @@ export class RoomsService {
   constructor(
     @InjectRepository(MeetingEntity)
     private readonly meetingRepo: Repository<MeetingEntity>,
+    @InjectRepository(UserEntity)
+    private readonly userRepo: Repository<UserEntity>,
     private readonly redis: RedisService,
     private readonly audit: AuditService,
     private readonly config: ConfigService,
@@ -76,22 +78,75 @@ export class RoomsService {
 
   /**
    * Adds a participant to a room in Redis. Enforces max participant limit.
+   * If room doesn't exist, creates it automatically with a generated UUID.
    */
   async joinRoom(params: {
     roomId: string;
     userId: string;
     socketId: string;
-  }): Promise<{ role: RoomRole; participants: RoomParticipant[] }> {
-    const roomData = await this.redis.hgetall(RedisKeys.room(params.roomId));
+  }): Promise<{ roomId: string; role: RoomRole; participants: RoomParticipant[] }> {
+    let roomData = await this.redis.hgetall(RedisKeys.room(params.roomId));
+    let actualRoomId = params.roomId;
+    
+    // If room doesn't exist, create it automatically
     if (!roomData || !roomData['roomId']) {
-      throw new WsRoomException('Room not found');
+      this.logger.log(`Room ${params.roomId} not found, creating automatically...`);
+      
+      const roomCode = this.generateRoomCode();
+      
+      // Persist to PostgreSQL - let TypeORM generate the UUID automatically
+      const meeting = this.meetingRepo.create({
+        title: `Room ${params.roomId}`,
+        roomCode,
+        hostId: params.userId,
+        status: RoomStatus.WAITING,
+        maxParticipants: this.maxParticipants,
+      });
+      const saved = await this.meetingRepo.save(meeting);
+
+      // Use the generated UUID as the actual room ID
+      actualRoomId = saved.id;
+
+      // Initialize Redis state with the generated UUID
+      const roomState: Record<string, string> = {
+        roomId: actualRoomId,
+        hostUserId: params.userId,
+        status: RoomStatus.WAITING,
+        createdAt: String(Date.now()),
+        maxParticipants: String(this.maxParticipants),
+        routerId: '',
+      };
+
+      const pipeline = this.redis.pipeline();
+      pipeline.hmset(RedisKeys.room(actualRoomId), roomState);
+      pipeline.expire(RedisKeys.room(actualRoomId), RedisKeys.ROOM_TTL);
+      pipeline.sadd(RedisKeys.activeRooms, actualRoomId);
+      await pipeline.exec();
+
+      await this.audit.log({
+        action: AuditAction.ROOM_CREATED,
+        userId: params.userId,
+        roomId: actualRoomId,
+        metadata: { 
+          title: saved.title, 
+          roomCode, 
+          maxParticipants: this.maxParticipants, 
+          autoCreated: true,
+          requestedRoomId: params.roomId, // Track what user requested
+        },
+      });
+
+      this.logger.log(`Room auto-created with ID ${actualRoomId} (requested: ${params.roomId}) by user ${params.userId}`);
+      
+      // Reload room data with the actual room ID
+      roomData = await this.redis.hgetall(RedisKeys.room(actualRoomId));
     }
 
     if (roomData['status'] === RoomStatus.CLOSED) {
       throw new WsRoomException('Room is closed');
     }
 
-    const currentCount = await this.redis.hlen(RedisKeys.roomParticipants(params.roomId));
+    const currentCount = await this.redis.hlen(RedisKeys.roomParticipants(actualRoomId));
     const maxP = parseInt(roomData['maxParticipants'] || '100', 10);
 
     if (currentCount >= maxP) {
@@ -102,8 +157,13 @@ export class RoomsService {
     const isHost = roomData['hostUserId'] === params.userId;
     const role = isHost ? RoomRole.HOST : RoomRole.PARTICIPANT;
 
+    // Fetch user's display name from database
+    const user = await this.userRepo.findOne({ where: { id: params.userId } });
+    const displayName = user?.displayName || 'Unknown User';
+
     const participant: RoomParticipant = {
       userId: params.userId,
+      displayName,
       socketId: params.socketId,
       role,
       joinedAt: Date.now(),
@@ -115,7 +175,7 @@ export class RoomsService {
     // Store in Redis with pipeline
     const pipeline = this.redis.pipeline();
     pipeline.hset(
-      RedisKeys.roomParticipants(params.roomId),
+      RedisKeys.roomParticipants(actualRoomId),
       params.userId,
       JSON.stringify(participant),
     );
@@ -124,7 +184,7 @@ export class RoomsService {
 
     // Activate room on first join
     if (roomData['status'] === RoomStatus.WAITING && isHost) {
-      pipeline.hset(RedisKeys.room(params.roomId), 'status', RoomStatus.ACTIVE);
+      pipeline.hset(RedisKeys.room(actualRoomId), 'status', RoomStatus.ACTIVE);
     }
     await pipeline.exec();
 
@@ -137,18 +197,18 @@ export class RoomsService {
         peakParticipants: () => `GREATEST("peakParticipants", ${newCount})`,
         startedAt: () => `COALESCE("startedAt", NOW())`,
       })
-      .where('id = :id', { id: params.roomId })
+      .where('id = :id', { id: actualRoomId })
       .execute();
 
     await this.audit.log({
       action: AuditAction.USER_JOINED,
       userId: params.userId,
-      roomId: params.roomId,
+      roomId: actualRoomId,
       metadata: { role, socketId: params.socketId },
     });
 
-    const participants = await this.getParticipants(params.roomId);
-    return { role, participants };
+    const participants = await this.getParticipants(actualRoomId);
+    return { roomId: actualRoomId, role, participants };
   }
 
   /**
@@ -332,6 +392,27 @@ export class RoomsService {
     return Object.values(participantsMap).map(
       (data) => JSON.parse(data) as RoomParticipant,
     );
+  }
+
+  /**
+   * Gets the room ID for a given user if they are in any room.
+   */
+  async getRoomIdByUserId(userId: string): Promise<string | null> {
+    const socketId = await this.redis.get(RedisKeys.userToSocket(userId));
+    if (!socketId) return null;
+
+    // Search through all active rooms to find the user
+    const activeRooms = await this.redis.smembers(RedisKeys.activeRooms);
+    for (const roomId of activeRooms) {
+      const participantData = await this.redis.hget(
+        RedisKeys.roomParticipants(roomId),
+        userId,
+      );
+      if (participantData) {
+        return roomId;
+      }
+    }
+    return null;
   }
 
   /**

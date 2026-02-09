@@ -16,6 +16,8 @@ import type {
   RoleChangedEvent,
   NewProducerEvent,
   ProducerClosedEvent,
+  ProducerPausedEvent,
+  ProducerResumedEvent,
 } from '../types';
 import type { types as mediasoupTypes } from 'mediasoup-client';
 
@@ -30,6 +32,8 @@ interface SignalingListeners {
   onRoleChanged?: (data: RoleChangedEvent) => void;
   onNewProducer?: (data: NewProducerEvent) => void;
   onProducerClosed?: (data: ProducerClosedEvent) => void;
+  onProducerPaused?: (data: ProducerPausedEvent) => void;
+  onProducerResumed?: (data: ProducerResumedEvent) => void;
   onError?: (data: { message: string }) => void;
 }
 
@@ -149,6 +153,14 @@ export function useSignaling(listeners: SignalingListeners = {}) {
 
     socket.on(WS_EVENTS.PRODUCER_CLOSED, (data: ProducerClosedEvent) => {
       listenersRef.current.onProducerClosed?.(data);
+    });
+
+    socket.on(WS_EVENTS.PRODUCER_PAUSED, (data: ProducerPausedEvent) => {
+      listenersRef.current.onProducerPaused?.(data);
+    });
+
+    socket.on(WS_EVENTS.PRODUCER_RESUMED, (data: ProducerResumedEvent) => {
+      listenersRef.current.onProducerResumed?.(data);
     });
 
     socket.on(WS_EVENTS.ERROR, (data: { message: string }) => {

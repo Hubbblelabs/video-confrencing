@@ -7,7 +7,7 @@ interface ParticipantsState {
 }
 
 interface ParticipantsActions {
-  addParticipant: (userId: string, role: RoomRole) => void;
+  addParticipant: (userId: string, displayName: string, role: RoomRole) => void;
   removeParticipant: (userId: string) => void;
   setParticipantAudioTrack: (userId: string, track: MediaStreamTrack | null) => void;
   setParticipantVideoTrack: (userId: string, track: MediaStreamTrack | null) => void;
@@ -17,7 +17,7 @@ interface ParticipantsActions {
   addConsumer: (userId: string, consumerId: string, consumer: import('mediasoup-client').types.Consumer) => void;
   removeConsumer: (userId: string, consumerId: string) => void;
   setActiveSpeaker: (userId: string | null) => void;
-  syncParticipants: (serverParticipants: Array<{ userId: string; role: RoomRole; isMuted: boolean; isVideoOff: boolean }>, localUserId: string) => void;
+  syncParticipants: (serverParticipants: Array<{ userId: string; displayName: string; role: RoomRole; isMuted: boolean; isVideoOff: boolean }>, localUserId: string) => void;
   reset: () => void;
 }
 
@@ -25,12 +25,13 @@ export const useParticipantsStore = create<ParticipantsState & ParticipantsActio
   participants: new Map(),
   activeSpeakerId: null,
 
-  addParticipant: (userId, role) => {
+  addParticipant: (userId, displayName, role) => {
     const current = get().participants;
     if (current.has(userId)) return;
     const next = new Map(current);
     next.set(userId, {
       userId,
+      displayName,
       role,
       audioTrack: null,
       videoTrack: null,
@@ -149,6 +150,7 @@ export const useParticipantsStore = create<ParticipantsState & ParticipantsActio
       if (!next.has(sp.userId)) {
         next.set(sp.userId, {
           userId: sp.userId,
+          displayName: sp.displayName,
           role: sp.role,
           audioTrack: null,
           videoTrack: null,
@@ -160,6 +162,7 @@ export const useParticipantsStore = create<ParticipantsState & ParticipantsActio
         const existing = next.get(sp.userId)!;
         next.set(sp.userId, {
           ...existing,
+          displayName: sp.displayName,
           role: sp.role,
           isMuted: sp.isMuted,
           isVideoOff: sp.isVideoOff,

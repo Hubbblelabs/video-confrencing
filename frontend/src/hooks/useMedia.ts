@@ -125,20 +125,46 @@ export function useMedia() {
 
   // ─── Toggle camera ───────────────────────────────────────────
 
-  const toggleCamera = useCallback((): boolean => {
+  const toggleCamera = useCallback(async (): Promise<boolean> => {
     const stream = localStreamRef.current;
     if (!stream) return false;
 
-    const videoTracks = stream.getVideoTracks();
     const newState = !isCameraOn;
 
-    videoTracks.forEach((t) => {
-      t.enabled = newState;
-    });
+    if (!newState) {
+      // Turning camera OFF - stop all video tracks to release camera hardware
+      const videoTracks = stream.getVideoTracks();
+      videoTracks.forEach((t) => {
+        stream.removeTrack(t);
+        t.stop();
+      });
+      setCameraOn(false);
+      return false;
+    } else {
+      // Turning camera ON - acquire new video stream
+      try {
+        const videoStream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            deviceId: selectedVideoDeviceId ?? undefined,
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            frameRate: { ideal: 30, max: 30 },
+          },
+        });
 
-    setCameraOn(newState);
-    return newState;
-  }, [isCameraOn, setCameraOn]);
+        const newTrack = videoStream.getVideoTracks()[0];
+        if (newTrack) {
+          stream.addTrack(newTrack);
+        }
+        setCameraOn(true);
+        return true;
+      } catch (err) {
+        console.error('Failed to re-enable camera:', err);
+        setMediaError('Failed to turn on camera');
+        return false;
+      }
+    }
+  }, [isCameraOn, setCameraOn, selectedVideoDeviceId, setMediaError]);
 
   // ─── Screen sharing ──────────────────────────────────────────
 

@@ -53,6 +53,7 @@ export class WsAuthService {
         id: socket.id,
         userId: user.id,
         email: user.email,
+        displayName: user.displayName,
       };
 
       this.logger.debug(`Socket ${socket.id} - Data attached: ${JSON.stringify(appSocket.data)}`);

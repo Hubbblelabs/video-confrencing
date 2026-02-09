@@ -8,17 +8,28 @@ interface ControlButtonProps {
 }
 
 function ControlButton({ label, active = true, danger = false, disabled = false, onClick, icon }: ControlButtonProps) {
-  const base = 'flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-colors disabled:opacity-40';
-  const color = danger
-    ? 'bg-white text-black hover:bg-neutral-200'
-    : active
-      ? 'bg-neutral-800 text-white hover:bg-neutral-700'
-      : 'bg-neutral-600 text-neutral-300 hover:bg-neutral-500';
+  const getButtonStyles = () => {
+    if (danger) {
+      return 'bg-[var(--destructive)] hover:bg-[var(--destructive)]/90 text-[var(--destructive-foreground)] shadow-lg hover:shadow-xl';
+    }
+    if (active) {
+      return 'bg-card hover:bg-muted text-card-foreground border border-border shadow-md hover:shadow-lg';
+    }
+    return 'bg-muted/50 hover:bg-muted text-muted-foreground border border-border shadow-md hover:shadow-lg';
+  };
 
   return (
-    <button className={`${base} ${color}`} onClick={onClick} disabled={disabled} title={label}>
-      <span className="w-6 h-6">{icon}</span>
-      <span className="text-[10px] font-medium">{label}</span>
+    <button 
+      className={`group flex flex-col items-center gap-2 px-6 py-4 rounded-xl transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 ${getButtonStyles()}`}
+      onClick={onClick} 
+      disabled={disabled} 
+      title={label}
+      style={{ borderRadius: 'calc(var(--radius) + 4px)' }}
+    >
+      <div className="w-6 h-6 transition-transform duration-200 group-hover:scale-110">
+        {icon}
+      </div>
+      <span className="text-xs font-medium whitespace-nowrap">{label}</span>
     </button>
   );
 }
@@ -95,31 +106,36 @@ export function Controls({
   onLeave,
 }: ControlsProps) {
   return (
-    <div className="flex items-center justify-center gap-3 px-6 py-3 bg-black border-t border-neutral-800">
-      <ControlButton
-        label={isMicOn ? 'Mute' : 'Unmute'}
-        active={isMicOn}
-        onClick={onToggleMic}
-        icon={isMicOn ? MicOn : MicOff}
-      />
-      <ControlButton
-        label={isCameraOn ? 'Stop Video' : 'Start Video'}
-        active={isCameraOn}
-        onClick={onToggleCamera}
-        icon={isCameraOn ? CameraOn : CameraOff}
-      />
-      <ControlButton
-        label={isScreenSharing ? 'Stop Share' : 'Share Screen'}
-        active={!isScreenSharing}
-        onClick={onToggleScreen}
-        icon={ScreenShareIcon}
-      />
-      <ControlButton
-        label="Leave"
-        danger
-        onClick={onLeave}
-        icon={LeaveIcon}
-      />
+    <div className="flex items-center justify-center gap-4 px-8 py-6 bg-card border-t border-border backdrop-blur-xl" style={{ boxShadow: 'var(--shadow-lg)' }}>
+      <div className="flex items-center gap-3">
+        <ControlButton
+          label={isMicOn ? 'Mute' : 'Unmute'}
+          active={isMicOn}
+          onClick={onToggleMic}
+          icon={isMicOn ? MicOn : MicOff}
+        />
+        <ControlButton
+          label={isCameraOn ? 'Stop Video' : 'Start Video'}
+          active={isCameraOn}
+          onClick={onToggleCamera}
+          icon={isCameraOn ? CameraOn : CameraOff}
+        />
+        <ControlButton
+          label={isScreenSharing ? 'Stop Share' : 'Share Screen'}
+          active={!isScreenSharing}
+          onClick={onToggleScreen}
+          icon={ScreenShareIcon}
+        />
+        
+        <div className="w-px h-12 bg-border mx-2" />
+        
+        <ControlButton
+          label="Leave"
+          danger
+          onClick={onLeave}
+          icon={LeaveIcon}
+        />
+      </div>
     </div>
   );
 }

@@ -30,6 +30,7 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
   const roomId = useRoomStore((s) => s.roomId);
   const role = useRoomStore((s) => s.role);
   const userId = useAuthStore((s) => s.userId);
+  const displayName = useAuthStore((s) => s.displayName);
 
   const isMicOn = useMediaStore((s) => s.isMicOn);
   const isCameraOn = useMediaStore((s) => s.isCameraOn);
@@ -189,27 +190,52 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
   const isHost = role === 'host' || role === 'co_host';
 
   return (
-    <div className="h-screen w-screen bg-black flex flex-col overflow-hidden">
+    <div className="h-screen w-screen bg-background flex flex-col overflow-hidden">
       <StatusBanner />
 
-      {/* Top bar */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-neutral-800 shrink-0">
-        <span className="text-neutral-400 text-sm">
-          Room: <span className="text-white font-mono">{roomId}</span>
-        </span>
+      {/* Top Navigation Bar */}
+      <div className="flex items-center justify-between px-6 py-4 bg-card border-b border-border shrink-0" style={{ boxShadow: 'var(--shadow-sm)' }}>
         <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[var(--primary)] to-[var(--secondary)] flex items-center justify-center shadow-md">
+            <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-card-foreground text-sm font-semibold">Room:</span>
+              <span className="text-[var(--primary)] text-sm font-mono font-medium px-2 py-0.5 bg-[var(--primary)]/10 rounded" style={{ borderRadius: 'calc(var(--radius) - 4px)' }}>
+                {roomId}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
           {isHost && (
             <button
               onClick={() => signaling.muteAll(roomId!)}
-              className="text-xs text-neutral-400 hover:text-white border border-neutral-700 px-2 py-1 rounded"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-card-foreground bg-muted hover:bg-muted/80 rounded-lg transition-all duration-200"
+              style={{ borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-xs)' }}
             >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+              </svg>
               Mute All
             </button>
           )}
           <button
             onClick={() => setShowParticipants((p) => !p)}
-            className="text-xs text-neutral-400 hover:text-white border border-neutral-700 px-2 py-1 rounded"
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+              showParticipants 
+                ? 'bg-[var(--primary)] text-[var(--primary-foreground)] shadow-md' 
+                : 'text-card-foreground bg-muted hover:bg-muted/80'
+            }`}
+            style={{ borderRadius: 'var(--radius)', boxShadow: showParticipants ? 'var(--shadow-md)' : 'var(--shadow-xs)' }}
           >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
             {showParticipants ? 'Hide' : 'Participants'}
           </button>
         </div>
@@ -223,6 +249,7 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
         {showParticipants && (
           <ParticipantsPanel
             localUserId={userId ?? ''}
+            localDisplayName={displayName ?? 'You'}
             isHost={isHost}
             onKick={handleKick}
           />

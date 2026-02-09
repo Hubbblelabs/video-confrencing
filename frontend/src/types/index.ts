@@ -27,6 +27,7 @@ export type MediaDeviceKind = 'audioinput' | 'videoinput' | 'audiooutput';
 
 export interface ServerParticipant {
   userId: string;
+  displayName: string;
   socketId: string;
   role: RoomRole;
   joinedAt: number;
@@ -36,6 +37,7 @@ export interface ServerParticipant {
 }
 
 export interface JoinRoomResponse {
+  roomId: string; // The actual room ID (may differ from requested if auto-created)
   role: RoomRole;
   participants: ServerParticipant[];
   rtpCapabilities: mediasoupTypes.RtpCapabilities;
@@ -80,8 +82,19 @@ export interface ProducerClosedEvent {
   userId: string;
 }
 
+export interface ProducerPausedEvent {
+  producerId: string;
+  userId: string;
+}
+
+export interface ProducerResumedEvent {
+  producerId: string;
+  userId: string;
+}
+
 export interface UserJoinedEvent {
   userId: string;
+  displayName: string;
   role: RoomRole;
   participants: ServerParticipant[];
 }
@@ -110,8 +123,7 @@ export interface RoleChangedEvent {
 // ─── Client-side participant model ────────────────────────────────
 
 export interface RemoteParticipant {
-  userId: string;
-  role: RoomRole;
+  userId: string;  displayName: string;  role: RoomRole;
   audioTrack: MediaStreamTrack | null;
   videoTrack: MediaStreamTrack | null;
   isMuted: boolean;

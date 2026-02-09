@@ -16,6 +16,7 @@ export function VideoGrid() {
   const participants = useParticipantsStore((s) => s.participants);
   const activeSpeakerId = useParticipantsStore((s) => s.activeSpeakerId);
   const localUserId = useAuthStore((s) => s.userId);
+  const localDisplayName = useAuthStore((s) => s.displayName);
 
   const remoteList = useMemo(
     () => Array.from(participants.values()),
@@ -30,12 +31,12 @@ export function VideoGrid() {
   const localAudioTrack = localStream?.getAudioTracks()[0] ?? null;
 
   return (
-    <div className={`w-full h-full p-2 gap-2 ${gridClass}`}>
+    <div className={`w-full h-full p-4 gap-4 ${gridClass} bg-gradient-to-br from-background to-muted/20`}>
       {/* Local tile */}
       <VideoTile
         videoTrack={localVideoTrack}
         audioTrack={localAudioTrack}
-        label={localUserId ?? 'You'}
+        label={localDisplayName ?? 'You'}
         isMuted={!isMicOn}
         isVideoOff={!isCameraOn}
         isLocal
@@ -48,7 +49,7 @@ export function VideoGrid() {
           key={p.userId}
           videoTrack={p.videoTrack}
           audioTrack={p.audioTrack}
-          label={p.userId}
+          label={p.displayName}
           isMuted={p.isMuted}
           isVideoOff={p.isVideoOff}
           isActiveSpeaker={activeSpeakerId === p.userId}

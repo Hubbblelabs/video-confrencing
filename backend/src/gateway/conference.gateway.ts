@@ -240,26 +240,31 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
       socketId: socket.id,
     });
 
+    // Use the actual room ID (which may differ from requested if auto-created)
+    const actualRoomId = result.roomId;
+
     // Track socket → room mapping
-    this.socketRoomMap.set(socket.id, payload.roomId);
-    socket.data.roomId = payload.roomId;
+    this.socketRoomMap.set(socket.id, actualRoomId);
+    socket.data.roomId = actualRoomId;
     socket.data.role = result.role;
 
     // Join the Socket.IO room
-    await socket.join(payload.roomId);
+    await socket.join(actualRoomId);
 
     // Notify existing participants
-    socket.to(payload.roomId).emit(WsEvents.USER_JOINED, {
+    socket.to(actualRoomId).emit(WsEvents.USER_JOINED, {
       userId: socket.data.userId,
+      displayName: socket.data.displayName,
       role: result.role,
       participants: result.participants,
     });
 
     // Return router capabilities + existing producers for the joining user
-    const rtpCapabilities = await this.webrtc.getRouterCapabilities(payload.roomId);
-    const existingProducers = this.webrtc.getExistingProducers(payload.roomId, socket.data.userId);
+    const rtpCapabilities = await this.webrtc.getRouterCapabilities(actualRoomId);
+    const existingProducers = this.webrtc.getExistingProducers(actualRoomId, socket.data.userId);
 
     return {
+      roomId: actualRoomId, // Return the actual room ID to the client
       role: result.role,
       participants: result.participants,
       rtpCapabilities,
@@ -542,7 +547,20 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
   ) {
     this.assertAuthenticated(socket);
 
+    const userId = socket.data.userId!;
+    const roomId = await this.rooms.getRoomIdByUserId(userId);
+    
+    if (!roomId) {
+      throw new Error('User not in any room');
+    }
+
     await this.webrtc.pauseProducer(payload.producerId);
+
+    // Broadcast to other users in the room
+    socket.to(roomId).emit(WsEvents.PRODUCER_PAUSED, {
+      userId,
+      producerId: payload.producerId,
+    });
 
     return { paused: true };
   }
@@ -554,7 +572,20 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
   ) {
     this.assertAuthenticated(socket);
 
+    const userId = socket.data.userId!;
+    const roomId = await this.rooms.getRoomIdByUserId(userId);
+    
+    if (!roomId) {
+      throw new Error('User not in any room');
+    }
+
     await this.webrtc.resumeProducer(payload.producerId);
+
+    // Broadcast to other users in the room
+    socket.to(roomId).emit(WsEvents.PRODUCER_RESUMED, {
+      userId,
+      producerId: payload.producerId,
+    });
 
     return { resumed: true };
   }
