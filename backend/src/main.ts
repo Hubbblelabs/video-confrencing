@@ -4,6 +4,8 @@ import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { IoAdapter } from '@nestjs/platform-socket.io';
 import { AppModule } from './app.module';
+import { HttpLoggingInterceptor } from './common/interceptors';
+import { AllExceptionsFilter } from './common/filters';
 
 async function bootstrap(): Promise<void> {
   const logger = new Logger('Bootstrap');
@@ -15,6 +17,12 @@ async function bootstrap(): Promise<void> {
   const configService = app.get(ConfigService);
   const port = configService.get<number>('app.port', 3000);
   const nodeEnv = configService.get<string>('app.nodeEnv', 'development');
+
+  // Global exception filter (handle all errors)
+  app.useGlobalFilters(new AllExceptionsFilter());
+
+  // Global logging interceptor (log all API requests)
+  app.useGlobalInterceptors(new HttpLoggingInterceptor());
 
   // Global validation pipe
   app.useGlobalPipes(

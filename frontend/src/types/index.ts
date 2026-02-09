@@ -1,5 +1,20 @@
 import type { types as mediasoupTypes } from 'mediasoup-client';
 
+// Re-export API types for convenience
+export type {
+  LoginRequest,
+  RegisterRequest,
+  AuthResponse,
+  JwtPayload,
+  User,
+  CreateRoomRequest,
+  JoinRoomRequest,
+  Room,
+  ApiError,
+} from './api.types';
+
+export { ValidationRules } from './api.types';
+
 // ─── Enums ────────────────────────────────────────────────────────
 
 export type RoomRole = 'host' | 'co_host' | 'participant';

@@ -11,6 +11,7 @@ import {
 } from './config';
 import { DatabaseModule } from './database/database.module';
 import { RedisModule } from './redis/redis.module';
+import { PrismaModule } from './prisma/prisma.module';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { RoomsModule } from './rooms/rooms.module';
@@ -29,7 +30,8 @@ import { HealthController } from './health.controller';
     }),
 
     // Infrastructure
-    DatabaseModule,
+    DatabaseModule, // Old TypeORM (to be migrated)
+    PrismaModule,   // New Prisma ORM
     RedisModule,
     AuditModule,
 

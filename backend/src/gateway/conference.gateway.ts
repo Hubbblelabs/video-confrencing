@@ -148,6 +148,7 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
   // ─── Connection Lifecycle ─────────────────────────────────────
 
   async handleConnection(socket: Socket): Promise<void> {
+    this.logger.log(`Connection attempt: ${socket.id}`);
     const appSocket = await this.wsAuth.authenticateSocket(socket);
 
     if (!appSocket) {
@@ -158,6 +159,7 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
     }
 
     this.logger.log(`Client connected: ${socket.id} (user: ${appSocket.data.userId})`);
+    this.logger.debug(`Socket data after auth: ${JSON.stringify((socket as AppSocket).data)}`);
   }
 
   async handleDisconnect(socket: Socket): Promise<void> {
@@ -208,6 +210,7 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
     @ConnectedSocket() socket: AppSocket,
     @MessageBody() payload: CreateRoomPayload,
   ): Promise<{ event: string; data: unknown }> {
+    this.logger.debug(`CREATE_ROOM called by socket ${socket.id}, socket.data: ${JSON.stringify(socket.data)}`);
     this.assertAuthenticated(socket);
     this.assertRateLimit(socket);
 

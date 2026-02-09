@@ -1,13 +1,20 @@
 import { useState } from 'react';
-import { API_BASE_URL } from '../constants';
 import { useAuthStore } from '../store/auth.store';
+import { authApi, decodeJWT } from '../services/api.service';
+import type { 
+  LoginRequest, 
+  RegisterRequest, 
+  JwtPayload,
+} from '../types/api.types';
+import { ValidationRules } from '../types/api.types';
 
 type Mode = 'login' | 'register';
 
 export function AuthPage() {
   const [mode, setMode] = useState<Mode>('login');
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -15,8 +22,27 @@ export function AuthPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username.trim() || !password.trim()) {
-      setError('Username and password are required');
+    
+    // Validation
+    if (!email.trim() || !password.trim()) {
+      setError('Email and password are required');
+      return;
+    }
+
+    if (mode === 'register' && !displayName.trim()) {
+      setError('Display name is required');
+      return;
+    }
+
+    // Email validation
+    if (!ValidationRules.email.pattern.test(email.trim())) {
+      setError(ValidationRules.email.message);
+      return;
+    }
+
+    // Password validation
+    if (password.length < ValidationRules.password.minLength) {
+      setError(ValidationRules.password.message);
       return;
     }
 
@@ -24,22 +50,18 @@ export function AuthPage() {
     setError(null);
 
     try {
-      const endpoint = mode === 'login' ? '/auth/login' : '/auth/register';
-      const res = await fetch(`${API_BASE_URL}${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: username.trim(), password }),
-      });
+      // Type-safe API call
+      const requestData: LoginRequest | RegisterRequest = mode === 'login'
+        ? { email: email.trim(), password }
+        : { email: email.trim(), password, displayName: displayName.trim() };
 
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        throw new Error(body?.message ?? `Request failed (${res.status})`);
-      }
+      const response = mode === 'login'
+        ? await authApi.login(requestData as LoginRequest)
+        : await authApi.register(requestData as RegisterRequest);
 
-      const data: { accessToken: string } = await res.json();
-      // Decode userId from JWT payload
-      const payload = JSON.parse(atob(data.accessToken.split('.')[1]));
-      setAuth(data.accessToken, payload.sub ?? payload.userId ?? username.trim());
+      // Decode JWT with proper typing
+      const payload = decodeJWT<JwtPayload>(response.accessToken);
+      setAuth(response.accessToken, payload.sub);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
@@ -56,17 +78,17 @@ export function AuthPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-neutral-400 text-sm mb-1" htmlFor="username">
-              Username
+            <label className="block text-neutral-400 text-sm mb-1" htmlFor="email">
+              Email
             </label>
             <input
-              id="username"
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="w-full px-3 py-2 bg-neutral-900 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-white transition-colors"
-              placeholder="Enter username"
-              autoComplete="username"
+              placeholder="Enter your email"
+              autoComplete="email"
             />
           </div>
 
@@ -80,10 +102,30 @@ export function AuthPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-3 py-2 bg-neutral-900 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-white transition-colors"
-              placeholder="Enter password"
+              placeholder={`Enter password (min ${ValidationRules.password.minLength} chars)`}
               autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+              minLength={ValidationRules.password.minLength}
+              maxLength={ValidationRules.password.maxLength}
             />
           </div>
+
+          {mode === 'register' && (
+            <div>
+              <label className="block text-neutral-400 text-sm mb-1" htmlFor="displayName">
+                Display Name
+              </label>
+              <input
+                id="displayName"
+                type="text"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                className="w-full px-3 py-2 bg-neutral-900 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-white transition-colors"
+                placeholder="Enter your display name"
+                autoComplete="name"
+                maxLength={ValidationRules.displayName.maxLength}
+              />
+            </div>
+          )}
 
           {error && (
             <p className="text-red-400 text-sm">{error}</p>
@@ -101,7 +143,11 @@ export function AuthPage() {
         <p className="text-center mt-4 text-sm text-neutral-400">
           {mode === 'login' ? "Don't have an account?" : 'Already have an account?'}{' '}
           <button
-            onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(null); }}
+            onClick={() => {
+              setMode(mode === 'login' ? 'register' : 'login');
+              setError(null);
+              setDisplayName('');
+            }}
             className="text-white underline hover:no-underline"
           >
             {mode === 'login' ? 'Register' : 'Sign In'}

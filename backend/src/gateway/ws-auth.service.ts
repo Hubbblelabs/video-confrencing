@@ -31,12 +31,15 @@ export class WsAuthService {
         socket.handshake.auth?.['token'] as string | undefined ??
         socket.handshake.headers?.['authorization']?.replace('Bearer ', '');
 
+      this.logger.debug(`Socket ${socket.id} - Token present: ${!!token}, auth: ${JSON.stringify(socket.handshake.auth)}`);
+
       if (!token) {
         this.logger.warn(`Socket ${socket.id}: No token provided`);
         return null;
       }
 
       const payload = this.authService.verifyToken(token);
+      this.logger.debug(`Socket ${socket.id} - Token verified for user: ${payload.sub}`);
 
       const user = await this.authService.validateUserById(payload.sub);
       if (!user) {
@@ -51,6 +54,8 @@ export class WsAuthService {
         userId: user.id,
         email: user.email,
       };
+
+      this.logger.debug(`Socket ${socket.id} - Data attached: ${JSON.stringify(appSocket.data)}`);
 
       // Map socket ↔ user in Redis
       await this.redis.set(

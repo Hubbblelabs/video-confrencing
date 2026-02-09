@@ -1,5 +1,5 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 
 /**
  * PrismaService - NestJS integration for Prisma Client
@@ -8,8 +8,11 @@ import { PrismaClient } from '@prisma/client';
  * - Automatic connection management (connect on init, disconnect on destroy)
  * - Connection pooling (configured via DATABASE_URL)
  * - Query logging (dev mode)
- * - Soft delete middleware (auto-filter deleted records)
- * - Error handling middleware
+ * - Soft delete support (helper methods provided)
+ * - Error handling utilities
+ * 
+ * Note: Prisma 5+ removed $use middleware in favor of client extensions.
+ * Soft delete filtering is now done explicitly in queries for better control.
  */
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
@@ -25,10 +28,6 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         : ['query', 'info', 'warn', 'error'],
       errorFormat: 'pretty',
     });
-
-    // Register middleware
-    this.registerSoftDeleteMiddleware();
-    this.registerErrorHandlingMiddleware();
   }
 
   async onModuleInit() {
@@ -42,83 +41,58 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   }
 
   /**
-   * Soft delete middleware - auto-filter soft-deleted records
-   * Applies to User, Room, Recording models
+   * Soft delete helper - marks a record as deleted
+   * Use this instead of prisma.model.delete() for soft delete models
    */
-  private registerSoftDeleteMiddleware() {
-    this.$use(async (params, next) => {
-      // Models with soft delete support
-      const softDeleteModels = ['User', 'Room', 'Recording'];
-
-      if (softDeleteModels.includes(params.model ?? '')) {
-        // Read operations - add deletedAt: null filter
-        if (params.action === 'findUnique' || params.action === 'findFirst') {
-          // Modify filter
-          params.args.where = {
-            ...params.args.where,
-            deletedAt: null,
-          };
-        }
-
-        if (params.action === 'findMany') {
-          // Add deletedAt filter if not explicitly provided
-          if (!params.args.where?.deletedAt) {
-            params.args.where = {
-              ...params.args.where,
-              deletedAt: null,
-            };
-          }
-        }
-
-        // Write operations - convert delete to update (soft delete)
-        if (params.action === 'delete') {
-          params.action = 'update';
-          params.args.data = { deletedAt: new Date() };
-        }
-
-        if (params.action === 'deleteMany') {
-          params.action = 'updateMany';
-          params.args.data = { deletedAt: new Date() };
-        }
-      }
-
-      return next(params);
+  async softDelete<T extends { id: string }>(
+    model: keyof Pick<PrismaClient, 'user' | 'room' | 'recording'>,
+    id: string,
+  ): Promise<T> {
+    return (this[model] as any).update({
+      where: { id },
+      data: { deletedAt: new Date() },
     });
   }
 
   /**
-   * Error handling middleware - convert Prisma errors to readable messages
+   * Get soft delete filter - use in queries to exclude deleted records
+   * Example: prisma.user.findMany({ where: { ...prisma.softDeleteFilter() } })
    */
-  private registerErrorHandlingMiddleware() {
-    this.$use(async (params, next) => {
-      try {
-        return await next(params);
-      } catch (error: unknown) {
-        if (error && typeof error === 'object' && 'code' in error) {
-          const prismaError = error as { code: string; meta?: Record<string, unknown> };
-          
-          // Unique constraint violation
-          if (prismaError.code === 'P2002') {
-            const meta = prismaError.meta as { target?: string[] };
-            const field = meta.target?.join(', ') ?? 'field';
-            throw new Error(`A record with this ${field} already exists`);
-          }
+  softDeleteFilter(): { deletedAt: null } {
+    return { deletedAt: null };
+  }
 
-          // Foreign key constraint violation
-          if (prismaError.code === 'P2003') {
-            throw new Error('Cannot perform this operation due to related records');
-          }
-
-          // Record not found
-          if (prismaError.code === 'P2025') {
-            throw new Error('Record not found');
-          }
-        }
-
-        // Re-throw if not a Prisma error
-        throw error;
+  /**
+   * Handle Prisma errors - convert to readable messages
+   * Wrap your Prisma operations with this for better error messages
+   */
+  handlePrismaError(error: unknown): never {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      // Unique constraint violation
+      if (error.code === 'P2002') {
+        const target = error.meta?.target as string[] | undefined;
+        const field = target?.join(', ') ?? 'field';
+        throw new Error(`A record with this ${field} already exists`);
       }
-    });
+
+      // Foreign key constraint violation
+      if (error.code === 'P2003') {
+        throw new Error('Cannot perform this operation due to related records');
+      }
+
+      // Record not found
+      if (error.code === 'P2025') {
+        throw new Error('Record not found');
+      }
+
+      // Record to delete does not exist
+      if (error.code === 'P2016') {
+        throw new Error('Record to delete does not exist');
+      }
+    }
+
+    // Re-throw if not a known Prisma error
+    throw error;
   }
 
   /**
