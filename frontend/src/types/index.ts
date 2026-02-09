@@ -1,0 +1,113 @@
+import type { types as mediasoupTypes } from 'mediasoup-client';
+
+// ─── Enums ────────────────────────────────────────────────────────
+
+export type RoomRole = 'host' | 'co_host' | 'participant';
+
+export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'failed';
+
+export type MediaDeviceKind = 'audioinput' | 'videoinput' | 'audiooutput';
+
+// ─── Backend payloads (mirrored from gateway) ─────────────────────
+
+export interface ServerParticipant {
+  userId: string;
+  socketId: string;
+  role: RoomRole;
+  joinedAt: number;
+  producerIds: string[];
+  isMuted: boolean;
+  isVideoOff: boolean;
+}
+
+export interface JoinRoomResponse {
+  role: RoomRole;
+  participants: ServerParticipant[];
+  rtpCapabilities: mediasoupTypes.RtpCapabilities;
+  existingProducers: Array<{
+    producerId: string;
+    userId: string;
+    kind: mediasoupTypes.MediaKind;
+  }>;
+}
+
+export interface CreateRoomResponse {
+  roomId: string;
+  roomCode: string;
+}
+
+export interface TransportCreatedResponse {
+  id: string;
+  iceParameters: mediasoupTypes.IceParameters;
+  iceCandidates: mediasoupTypes.IceCandidate[];
+  dtlsParameters: mediasoupTypes.DtlsParameters;
+}
+
+export interface ProduceResponse {
+  producerId: string;
+}
+
+export interface ConsumeResponse {
+  consumerId: string;
+  producerId: string;
+  kind: mediasoupTypes.MediaKind;
+  rtpParameters: mediasoupTypes.RtpParameters;
+}
+
+export interface NewProducerEvent {
+  producerId: string;
+  userId: string;
+  kind: mediasoupTypes.MediaKind;
+}
+
+export interface ProducerClosedEvent {
+  producerId: string;
+  userId: string;
+}
+
+export interface UserJoinedEvent {
+  userId: string;
+  role: RoomRole;
+  participants: ServerParticipant[];
+}
+
+export interface UserLeftEvent {
+  userId: string;
+  kicked?: boolean;
+  participants: ServerParticipant[];
+}
+
+export interface UserKickedEvent {
+  roomId: string;
+  reason: string;
+}
+
+export interface AllMutedEvent {
+  roomId: string;
+  mutedBy: string;
+}
+
+export interface RoleChangedEvent {
+  userId: string;
+  newRole: RoomRole;
+}
+
+// ─── Client-side participant model ────────────────────────────────
+
+export interface RemoteParticipant {
+  userId: string;
+  role: RoomRole;
+  audioTrack: MediaStreamTrack | null;
+  videoTrack: MediaStreamTrack | null;
+  isMuted: boolean;
+  isVideoOff: boolean;
+  /** consumerId → Consumer for cleanup */
+  consumers: Map<string, mediasoupTypes.Consumer>;
+}
+
+// ─── Auth ─────────────────────────────────────────────────────────
+
+export interface AuthState {
+  token: string | null;
+  userId: string | null;
+}

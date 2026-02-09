@@ -1,0 +1,86 @@
+version: '3.9'
+
+services:
+  # ─── PostgreSQL ──────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: vc-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: videoconf
+      POSTGRES_PASSWORD: videoconf_secret
+      POSTGRES_DB: videoconf
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U videoconf -d videoconf']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Redis ───────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: vc-redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Backend ─────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vc-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - '3000:3000'
+      - '40000-40100:40000-40100/udp'
+      - '40000-40100:40000-40100/tcp'
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production-use-256-bit-key}
+      JWT_EXPIRATION: 3600
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: videoconf
+      POSTGRES_PASSWORD: videoconf_secret
+      POSTGRES_DB: videoconf
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      MEDIASOUP_LISTEN_IP: 0.0.0.0
+      MEDIASOUP_ANNOUNCED_IP: ${MEDIASOUP_ANNOUNCED_IP:-127.0.0.1}
+      MEDIASOUP_MIN_PORT: 40000
+      MEDIASOUP_MAX_PORT: 40100
+      MEDIASOUP_NUM_WORKERS: 2
+      MEDIASOUP_LOG_LEVEL: warn
+      MAX_PARTICIPANTS_PER_ROOM: 100
+    network_mode: host  # Required for mediasoup UDP port mapping
+
+  # ─── TURN Server (Coturn) ────────────────────
+  coturn:
+    image: coturn/coturn:latest
+    container_name: vc-coturn
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./turnserver.conf:/etc/coturn/turnserver.conf:ro
+
+volumes:
+  postgres_data:
+  redis_data:
