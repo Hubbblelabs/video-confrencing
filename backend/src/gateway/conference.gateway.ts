@@ -160,6 +160,9 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
 
     this.logger.log(`Client connected: ${socket.id} (user: ${appSocket.data.userId})`);
     this.logger.debug(`Socket data after auth: ${JSON.stringify((socket as AppSocket).data)}`);
+    
+    // Notify client that authentication is complete
+    socket.emit(WsEvents.AUTHENTICATED, { userId: appSocket.data.userId });
   }
 
   async handleDisconnect(socket: Socket): Promise<void> {
@@ -209,7 +212,7 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
   async handleCreateRoom(
     @ConnectedSocket() socket: AppSocket,
     @MessageBody() payload: CreateRoomPayload,
-  ): Promise<{ event: string; data: unknown }> {
+  ) {
     this.logger.debug(`CREATE_ROOM called by socket ${socket.id}, socket.data: ${JSON.stringify(socket.data)}`);
     this.assertAuthenticated(socket);
     this.assertRateLimit(socket);
@@ -220,17 +223,14 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
       maxParticipants: payload.maxParticipants,
     });
 
-    return {
-      event: WsEvents.ROOM_CREATED,
-      data: result,
-    };
+    return result;
   }
 
   @SubscribeMessage(WsEvents.JOIN_ROOM)
   async handleJoinRoom(
     @ConnectedSocket() socket: AppSocket,
     @MessageBody() payload: JoinRoomPayload,
-  ): Promise<{ event: string; data: unknown }> {
+  ) {
     this.assertAuthenticated(socket);
     this.assertRateLimit(socket);
 
@@ -260,13 +260,10 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
     const existingProducers = this.webrtc.getExistingProducers(payload.roomId, socket.data.userId);
 
     return {
-      event: WsEvents.JOIN_ROOM,
-      data: {
-        role: result.role,
-        participants: result.participants,
-        rtpCapabilities,
-        existingProducers,
-      },
+      role: result.role,
+      participants: result.participants,
+      rtpCapabilities,
+      existingProducers,
     };
   }
 
@@ -274,7 +271,7 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
   async handleLeaveRoom(
     @ConnectedSocket() socket: AppSocket,
     @MessageBody() payload: LeaveRoomPayload,
-  ): Promise<{ event: string; data: unknown }> {
+  ) {
     this.assertAuthenticated(socket);
 
     await this.webrtc.cleanupUserMedia(payload.roomId, socket.data.userId);
@@ -298,20 +295,20 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
       });
     }
 
-    return { event: WsEvents.LEAVE_ROOM, data: { success: true } };
+    return { success: true };
   }
 
   @SubscribeMessage(WsEvents.CLOSE_ROOM)
   async handleCloseRoom(
     @ConnectedSocket() socket: AppSocket,
     @MessageBody() payload: CloseRoomPayload,
-  ): Promise<{ event: string; data: unknown }> {
+  ) {
     this.assertAuthenticated(socket);
 
     // Only host can close
     const participant = await this.rooms.getParticipant(payload.roomId, socket.data.userId);
     if (!participant || participant.role !== RoomRole.HOST) {
-      return { event: WsEvents.ERROR, data: { message: 'Only the host can close the room' } };
+      throw new Error('Only the host can close the room');
     }
 
     await this.webrtc.cleanupRoomMedia(payload.roomId);
@@ -326,14 +323,14 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
       s.leave(payload.roomId);
     }
 
-    return { event: WsEvents.CLOSE_ROOM, data: { success: true } };
+    return { success: true };
   }
 
   @SubscribeMessage(WsEvents.KICK_USER)
   async handleKickUser(
     @ConnectedSocket() socket: AppSocket,
     @MessageBody() payload: KickUserPayload,
-  ): Promise<{ event: string; data: unknown }> {
+  ) {
     this.assertAuthenticated(socket);
 
     const result = await this.rooms.kickUser({
@@ -367,14 +364,14 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
       });
     }
 
-    return { event: WsEvents.KICK_USER, data: { success: true } };
+    return { success: true };
   }
 
   @SubscribeMessage(WsEvents.MUTE_ALL)
   async handleMuteAll(
     @ConnectedSocket() socket: AppSocket,
     @MessageBody() payload: MuteAllPayload,
-  ): Promise<{ event: string; data: unknown }> {
+  ) {
     this.assertAuthenticated(socket);
 
     const mutedSocketIds = await this.rooms.muteAll(payload.roomId, socket.data.userId);
@@ -386,14 +383,14 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
       });
     }
 
-    return { event: WsEvents.MUTE_ALL, data: { success: true, mutedCount: mutedSocketIds.length } };
+    return { success: true, mutedCount: mutedSocketIds.length };
   }
 
   @SubscribeMessage(WsEvents.CHANGE_ROLE)
   async handleChangeRole(
     @ConnectedSocket() socket: AppSocket,
     @MessageBody() payload: ChangeRolePayload,
-  ): Promise<{ event: string; data: unknown }> {
+  ) {
     this.assertAuthenticated(socket);
 
     const roleEnum = payload.newRole === 'co_host' ? RoomRole.CO_HOST : RoomRole.PARTICIPANT;
@@ -410,7 +407,7 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
       newRole: payload.newRole,
     });
 
-    return { event: WsEvents.CHANGE_ROLE, data: { success: true } };
+    return { success: true };
   }
 
   // ─── WebRTC / Media Events ────────────────────────────────────
@@ -419,22 +416,19 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
   async handleGetRouterCapabilities(
     @ConnectedSocket() socket: AppSocket,
     @MessageBody() payload: GetRouterCapabilitiesPayload,
-  ): Promise<{ event: string; data: unknown }> {
+  ) {
     this.assertAuthenticated(socket);
 
     const rtpCapabilities = await this.webrtc.getRouterCapabilities(payload.roomId);
 
-    return {
-      event: WsEvents.GET_ROUTER_CAPABILITIES,
-      data: { rtpCapabilities },
-    };
+    return { rtpCapabilities };
   }
 
   @SubscribeMessage(WsEvents.CREATE_TRANSPORT)
   async handleCreateTransport(
     @ConnectedSocket() socket: AppSocket,
     @MessageBody() payload: CreateTransportPayload,
-  ): Promise<{ event: string; data: unknown }> {
+  ) {
     this.assertAuthenticated(socket);
     this.assertRateLimit(socket);
 
@@ -444,17 +438,14 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
       direction: payload.direction,
     });
 
-    return {
-      event: WsEvents.CREATE_TRANSPORT,
-      data: transport,
-    };
+    return transport;
   }
 
   @SubscribeMessage(WsEvents.CONNECT_TRANSPORT)
   async handleConnectTransport(
     @ConnectedSocket() socket: AppSocket,
     @MessageBody() payload: ConnectTransportPayload,
-  ): Promise<{ event: string; data: unknown }> {
+  ) {
     this.assertAuthenticated(socket);
 
     await this.webrtc.connectTransport({
@@ -462,17 +453,14 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
       dtlsParameters: payload.dtlsParameters,
     });
 
-    return {
-      event: WsEvents.CONNECT_TRANSPORT,
-      data: { connected: true },
-    };
+    return { connected: true };
   }
 
   @SubscribeMessage(WsEvents.PRODUCE)
   async handleProduce(
     @ConnectedSocket() socket: AppSocket,
     @MessageBody() payload: ProducePayload,
-  ): Promise<{ event: string; data: unknown }> {
+  ) {
     this.assertAuthenticated(socket);
     this.assertRateLimit(socket);
 
@@ -492,17 +480,14 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
       kind: payload.kind,
     });
 
-    return {
-      event: WsEvents.PRODUCE,
-      data: result,
-    };
+    return result;
   }
 
   @SubscribeMessage(WsEvents.CONSUME)
   async handleConsume(
     @ConnectedSocket() socket: AppSocket,
     @MessageBody() payload: ConsumePayload,
-  ): Promise<{ event: string; data: unknown }> {
+  ) {
     this.assertAuthenticated(socket);
 
     const result = await this.webrtc.consume({
@@ -513,32 +498,26 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
       rtpCapabilities: payload.rtpCapabilities,
     });
 
-    return {
-      event: WsEvents.CONSUME,
-      data: result,
-    };
+    return result;
   }
 
   @SubscribeMessage(WsEvents.RESUME_CONSUMER)
   async handleResumeConsumer(
     @ConnectedSocket() socket: AppSocket,
     @MessageBody() payload: ResumeConsumerPayload,
-  ): Promise<{ event: string; data: unknown }> {
+  ) {
     this.assertAuthenticated(socket);
 
     await this.webrtc.resumeConsumer(payload.consumerId);
 
-    return {
-      event: WsEvents.RESUME_CONSUMER,
-      data: { resumed: true },
-    };
+    return { resumed: true };
   }
 
   @SubscribeMessage(WsEvents.CLOSE_PRODUCER)
   async handleCloseProducer(
     @ConnectedSocket() socket: AppSocket,
     @MessageBody() payload: CloseProducerPayload,
-  ): Promise<{ event: string; data: unknown }> {
+  ) {
     this.assertAuthenticated(socket);
 
     await this.webrtc.closeProducer({
@@ -553,40 +532,31 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
       userId: socket.data.userId,
     });
 
-    return {
-      event: WsEvents.CLOSE_PRODUCER,
-      data: { closed: true },
-    };
+    return { closed: true };
   }
 
   @SubscribeMessage(WsEvents.PAUSE_PRODUCER)
   async handlePauseProducer(
     @ConnectedSocket() socket: AppSocket,
     @MessageBody() payload: PauseResumeProducerPayload,
-  ): Promise<{ event: string; data: unknown }> {
+  ) {
     this.assertAuthenticated(socket);
 
     await this.webrtc.pauseProducer(payload.producerId);
 
-    return {
-      event: WsEvents.PAUSE_PRODUCER,
-      data: { paused: true },
-    };
+    return { paused: true };
   }
 
   @SubscribeMessage(WsEvents.RESUME_PRODUCER)
   async handleResumeProducer(
     @ConnectedSocket() socket: AppSocket,
     @MessageBody() payload: PauseResumeProducerPayload,
-  ): Promise<{ event: string; data: unknown }> {
+  ) {
     this.assertAuthenticated(socket);
 
     await this.webrtc.resumeProducer(payload.producerId);
 
-    return {
-      event: WsEvents.RESUME_PRODUCER,
-      data: { resumed: true },
-    };
+    return { resumed: true };
   }
 
   // ─── Guards ───────────────────────────────────────────────────

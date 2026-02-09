@@ -73,14 +73,32 @@ function App() {
     const socket = signaling.connect();
     if (!socket) throw new Error('Failed to connect');
 
-    // Wait for socket to connect
+    // Wait for socket to connect AND authenticate
     await new Promise<void>((resolve, reject) => {
-      if (socket.connected) { resolve(); return; }
-      const onConnect = () => { cleanup(); resolve(); };
+      const checkReady = () => {
+        if (socket.connected && (socket as Socket & { isAuthenticated?: boolean }).isAuthenticated) {
+          cleanup();
+          resolve();
+        }
+      };
+      
+      if (checkReady()) return;
+      
+      const onConnect = () => checkReady();
+      const onAuthenticated = () => checkReady();
       const onError = (err: Error) => { cleanup(); reject(err); };
-      const cleanup = () => { socket.off('connect', onConnect); socket.off('connect_error', onError); };
+      const cleanup = () => {
+        socket.off('connect', onConnect);
+        socket.off('authenticated', onAuthenticated);
+        socket.off('connect_error', onError);
+      };
+      
       socket.on('connect', onConnect);
+      socket.on('authenticated', onAuthenticated);
       socket.on('connect_error', onError);
+      
+      // Check immediately in case already ready
+      checkReady();
     });
 
     const created = await signaling.createRoom(title);
@@ -109,13 +127,32 @@ function App() {
     const socket = signaling.connect();
     if (!socket) throw new Error('Failed to connect');
 
+    // Wait for socket to connect AND authenticate
     await new Promise<void>((resolve, reject) => {
-      if (socket.connected) { resolve(); return; }
-      const onConnect = () => { cleanup(); resolve(); };
+      const checkReady = () => {
+        if (socket.connected && (socket as Socket & { isAuthenticated?: boolean }).isAuthenticated) {
+          cleanup();
+          resolve();
+        }
+      };
+      
+      if (checkReady()) return;
+      
+      const onConnect = () => checkReady();
+      const onAuthenticated = () => checkReady();
       const onError = (err: Error) => { cleanup(); reject(err); };
-      const cleanup = () => { socket.off('connect', onConnect); socket.off('connect_error', onError); };
+      const cleanup = () => {
+        socket.off('connect', onConnect);
+        socket.off('authenticated', onAuthenticated);
+        socket.off('connect_error', onError);
+      };
+      
       socket.on('connect', onConnect);
+      socket.on('authenticated', onAuthenticated);
       socket.on('connect_error', onError);
+      
+      // Check immediately in case already ready
+      checkReady();
     });
 
     const joined = await signaling.joinRoom(id);

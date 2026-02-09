@@ -19,6 +19,7 @@ export const WS_EVENTS = {
   RESUME_PRODUCER: 'media:resumeProducer',
 
   // Server → Client
+  AUTHENTICATED: 'authenticated',
   ROOM_CREATED: 'room:created',
   USER_JOINED: 'room:userJoined',
   USER_LEFT: 'room:userLeft',

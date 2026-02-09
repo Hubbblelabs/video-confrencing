@@ -41,12 +41,12 @@ function emitWithAck<T>(socket: Socket, event: string, payload: unknown): Promis
       reject(new Error(`Socket event "${event}" timed out after 10s`));
     }, 10_000);
 
-    socket.emit(event, payload, (response: { event: string; data: T } | { status: string; message: string }) => {
+    socket.emit(event, payload, (response: T | { status: string; message: string }) => {
       clearTimeout(timeout);
-      if ('status' in response && response.status === 'error') {
+      if (response && typeof response === 'object' && 'status' in response && response.status === 'error') {
         reject(new Error((response as { message: string }).message));
       } else {
-        resolve((response as { data: T }).data);
+        resolve(response as T);
       }
     });
   });
@@ -83,6 +83,11 @@ export function useSignaling(listeners: SignalingListeners = {}) {
     socket.on('connect', () => {
       setConnectionState('connected');
       setError(null);
+    });
+
+    socket.on(WS_EVENTS.AUTHENTICATED, () => {
+      // Mark socket as ready for operations
+      (socket as Socket & { isAuthenticated?: boolean }).isAuthenticated = true;
     });
 
     socket.on('disconnect', (reason) => {
