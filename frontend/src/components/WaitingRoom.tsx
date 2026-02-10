@@ -17,24 +17,34 @@ export function WaitingRoom({ participants, onAdmit, onReject, onAdmitAll }: Wai
 
   if (participants.length === 0) {
     return (
-      <div className="h-full w-full flex flex-col bg-card border-l border-border">
+      <div className="h-full w-full flex flex-col bg-background/95 backdrop-blur-xl rounded-2xl overflow-hidden border-l border-border shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between p-3 bg-card border-b border-border">
-          <div className="flex items-center gap-2">
-            <WaitingIcon />
-            <h3 className="font-semibold text-foreground">Waiting Room</h3>
-            <span className="text-xs text-muted-foreground">(0 waiting)</span>
+        <div className="flex items-center justify-between p-4 bg-muted/30 border-b border-border backdrop-blur-md">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-gradient-to-br from-yellow-500/20 to-orange-500/20 rounded-lg">
+              <WaitingIcon className="text-yellow-600" />
+            </div>
+            <div>
+              <h3 className="font-bold text-foreground text-sm">Waiting Room</h3>
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">
+                Empty
+              </span>
+            </div>
           </div>
         </div>
 
         {/* Empty State */}
-        <div className="flex-1 flex items-center justify-center text-center p-6">
-          <div>
-            <WaitingIcon className="mx-auto mb-3 opacity-50" size={48} />
-            <p className="text-muted-foreground">No one waiting</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Participants will appear here for approval
-            </p>
+        <div className="flex-1 flex items-center justify-center text-center p-6 bg-muted/10">
+          <div className="space-y-3">
+            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto ring-1 ring-border">
+              <WaitingIcon className="w-8 h-8 opacity-20 text-foreground" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground/60">No one waiting</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                New participants will appear here
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -42,20 +52,24 @@ export function WaitingRoom({ participants, onAdmit, onReject, onAdmitAll }: Wai
   }
 
   return (
-    <div className="h-full w-full flex flex-col bg-card border-l border-border">
+    <div className="h-full w-full flex flex-col bg-background/95 backdrop-blur-xl rounded-2xl overflow-hidden border-l border-border shadow-2xl">
       {/* Header */}
-      <div className="flex items-center justify-between p-3 bg-card border-b border-border">
-        <div className="flex items-center gap-2">
-          <WaitingIcon />
-          <h3 className="font-semibold text-foreground">Waiting Room</h3>
-          <span className="inline-flex items-center justify-center w-6 h-6 text-xs font-bold text-white bg-[var(--primary)] rounded-full">
-            {participants.length}
-          </span>
+      <div className="flex items-center justify-between p-4 bg-muted/30 border-b border-border backdrop-blur-md">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-gradient-to-br from-yellow-500/20 to-orange-500/20 rounded-lg">
+            <WaitingIcon className="text-yellow-600" />
+          </div>
+          <div>
+            <h3 className="font-bold text-foreground text-sm">Waiting Room</h3>
+            <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">
+              {participants.length} Waiting
+            </span>
+          </div>
         </div>
         {participants.length > 1 && (
           <button
             onClick={onAdmitAll}
-            className="px-3 py-1.5 text-sm font-medium bg-[var(--primary)] text-white rounded hover:bg-[var(--primary)]/90 transition-colors"
+            className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-green-600 bg-green-500/10 hover:bg-green-500/20 border border-green-500/20 rounded-lg transition-all"
           >
             Admit All
           </button>
@@ -63,58 +77,49 @@ export function WaitingRoom({ participants, onAdmit, onReject, onAdmitAll }: Wai
       </div>
 
       {/* Participants List */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-2">
-        {participants.map((participant, index) => (
+      <div className="flex-1 overflow-y-auto p-3 space-y-2 scrollbar-hide">
+        {participants.map((participant) => (
           <div
             key={participant.userId}
-            className="flex items-center justify-between p-3 bg-muted rounded-lg border border-border hover:bg-muted/80 transition-colors"
+            className="flex flex-col gap-3 p-3 bg-muted/30 rounded-xl border border-border hover:bg-muted/50 transition-all group"
           >
-            <div className="flex items-center gap-3 flex-1 min-w-0">
-              {/* Position Number */}
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center font-semibold text-sm">
-                {index + 1}
+            <div className="flex items-center gap-3">
+              {/* Avatar placeholder */}
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500/20 to-purple-500/20 flex items-center justify-center border border-indigo-500/30 font-bold text-xs text-indigo-600">
+                {participant.displayName.charAt(0)}
               </div>
 
               {/* Participant Info */}
               <div className="flex-1 min-w-0">
-                <div className="font-medium text-foreground truncate">
+                <div className="font-semibold text-sm text-foreground truncate">
                   {participant.displayName}
                 </div>
-                <div className="text-xs text-muted-foreground flex items-center gap-2">
-                  <ClockIcon size={12} />
-                  <span>Waiting {formatWaitTime(participant.joinedAt)}</span>
+                <div className="text-[10px] text-muted-foreground flex items-center gap-1.5 h-4">
+                  <ClockIcon size={10} />
+                  <span>{formatWaitTime(participant.joinedAt)}</span>
                 </div>
               </div>
             </div>
 
             {/* Action Buttons */}
-            <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => onAdmit(participant.userId)}
-                className="px-3 py-1.5 text-sm font-medium bg-green-500 text-white rounded hover:bg-green-600 transition-colors flex items-center gap-1"
-                title="Admit to meeting"
+                className="py-1.5 text-xs font-bold text-green-600 bg-green-500/10 hover:bg-green-500/20 border border-green-500/20 rounded-lg transition-all flex items-center justify-center gap-1"
               >
-                <CheckIcon size={16} />
-                <span className="hidden sm:inline">Admit</span>
+                <CheckIcon size={12} />
+                Admit
               </button>
               <button
                 onClick={() => onReject(participant.userId)}
-                className="px-3 py-1.5 text-sm font-medium bg-red-500 text-white rounded hover:bg-red-600 transition-colors flex items-center gap-1"
-                title="Reject entry"
+                className="py-1.5 text-xs font-bold text-destructive bg-destructive/10 hover:bg-destructive/20 border border-destructive/20 rounded-lg transition-all flex items-center justify-center gap-1"
               >
-                <XIcon size={16} />
-                <span className="hidden sm:inline">Deny</span>
+                <XIcon size={12} />
+                Deny
               </button>
             </div>
           </div>
         ))}
-      </div>
-
-      {/* Footer Info */}
-      <div className="p-3 bg-muted/30 border-t border-border">
-        <div className="text-xs text-muted-foreground text-center">
-          💡 Tip: Click "Admit All" to let everyone in at once
-        </div>
       </div>
     </div>
   );
@@ -135,13 +140,13 @@ const ClockIcon = ({ size = 16 }: { size?: number }) => (
 );
 
 const CheckIcon = ({ size = 16 }: { size?: number }) => (
-  <svg width={size} height={size} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+  <svg width={size} height={size} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
   </svg>
 );
 
 const XIcon = ({ size = 16 }: { size?: number }) => (
-  <svg width={size} height={size} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+  <svg width={size} height={size} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
   </svg>
 );

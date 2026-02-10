@@ -1,36 +1,41 @@
+
+import type { ReactNode } from 'react';
+
 interface ControlButtonProps {
   label: string;
   active?: boolean;
   danger?: boolean;
   disabled?: boolean;
   onClick: () => void;
-  icon: React.ReactNode;
+  icon: ReactNode;
 }
 
 function ControlButton({ label, active = true, danger = false, disabled = false, onClick, icon }: ControlButtonProps) {
   const getButtonStyles = () => {
     if (danger) {
-      return 'bg-[var(--destructive)] hover:bg-[var(--destructive)]/90 text-[var(--destructive-foreground)] shadow-lg hover:shadow-xl';
+      return 'bg-destructive/10 text-destructive hover:bg-destructive hover:text-white border-destructive/30';
     }
-    if (active) {
-      return 'bg-card hover:bg-muted text-card-foreground border border-border shadow-md hover:shadow-lg';
+    if (!active) {
+      return 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground border-transparent relative after:absolute after:inset-0 after:rounded-full after:border after:border-destructive/30 after:w-full after:h-full after:rotate-45 after:scale-x-0 after:transition-transform';
     }
-    return 'bg-muted/50 hover:bg-muted text-muted-foreground border border-border shadow-md hover:shadow-lg';
+    return 'bg-secondary/10 text-secondary hover:bg-secondary hover:text-white hover:border-secondary/50 border-secondary/20 shadow-sm';
   };
 
   return (
-    <button 
-      className={`group flex flex-col items-center gap-2 px-6 py-4 rounded-xl transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 ${getButtonStyles()}`}
-      onClick={onClick} 
-      disabled={disabled} 
-      title={label}
-      style={{ borderRadius: 'calc(var(--radius) + 4px)' }}
-    >
-      <div className="w-6 h-6 transition-transform duration-200 group-hover:scale-110">
-        {icon}
-      </div>
-      <span className="text-xs font-medium whitespace-nowrap">{label}</span>
-    </button>
+    <div className="group relative flex flex-col items-center gap-2">
+      <button
+        className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed active:scale-95 border backdrop-blur-md ${getButtonStyles()}`}
+        onClick={onClick}
+        disabled={disabled}
+      >
+        <div className="w-6 h-6 transition-transform duration-300 group-hover:scale-110">
+          {icon}
+        </div>
+      </button>
+      <span className="absolute -top-10 scale-0 group-hover:scale-100 transition-all duration-200 px-2 py-1 bg-black/80 text-white text-[10px] uppercase tracking-wider font-bold rounded-md backdrop-blur-sm whitespace-nowrap">
+        {label}
+      </span>
+    </div>
   );
 }
 
@@ -79,8 +84,9 @@ const ScreenShareIcon = (
 
 const LeaveIcon = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 2.59 3.4z" />
-    <line x1="1" y1="1" x2="23" y2="23" />
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+    <polyline points="16 17 21 12 16 7" />
+    <line x1="21" y1="12" x2="9" y2="12" />
   </svg>
 );
 
@@ -106,8 +112,8 @@ export function Controls({
   onLeave,
 }: ControlsProps) {
   return (
-    <div className="flex items-center justify-center gap-4 px-8 py-6 bg-card border-t border-border backdrop-blur-xl" style={{ boxShadow: 'var(--shadow-lg)' }}>
-      <div className="flex items-center gap-3">
+    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
+      <div className="flex items-center gap-4 px-6 py-4 bg-background/80 backdrop-blur-lg rounded-full shadow-2xl shadow-black/10 border border-border/50 hover:border-border transition-all duration-300">
         <ControlButton
           label={isMicOn ? 'Mute' : 'Unmute'}
           active={isMicOn}
@@ -122,13 +128,13 @@ export function Controls({
         />
         <ControlButton
           label={isScreenSharing ? 'Stop Share' : 'Share Screen'}
-          active={!isScreenSharing}
+          active={isScreenSharing}
           onClick={onToggleScreen}
           icon={ScreenShareIcon}
         />
-        
-        <div className="w-px h-12 bg-border mx-2" />
-        
+
+        <div className="w-px h-8 bg-border mx-1" />
+
         <ControlButton
           label="Leave"
           danger

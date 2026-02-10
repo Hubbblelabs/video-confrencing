@@ -25,108 +25,89 @@ export function WaitingLobby({ message, wasRejected, onLeave }: WaitingLobbyProp
 
   if (wasRejected) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <div className="max-w-md w-full space-y-8 text-center">
+      <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+        <div className="absolute top-[-20%] left-[-10%] w-[800px] h-[800px] rounded-full bg-destructive/5 blur-[120px] pointer-events-none" />
+
+        <div className="max-w-md w-full glass-card p-10 rounded-3xl text-center relative z-10 animate-fade-in border-destructive/20 shadow-[0_0_50px_-10px_rgba(239,68,68,0.2)]">
           {/* Rejected Icon */}
-          <div className="mx-auto w-24 h-24 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
-            <svg className="w-12 h-12 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+          <div className="mx-auto w-24 h-24 rounded-full bg-destructive/10 flex items-center justify-center mb-8 animate-bounce" style={{ animationDuration: '2s' }}>
+            <svg className="w-12 h-12 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </div>
 
           {/* Rejected Message */}
-          <div>
-            <h2 className="text-2xl font-bold text-foreground mb-2">
+          <div className="mb-10">
+            <h2 className="text-3xl font-bold text-white mb-3 font-heading">
               Access Denied
             </h2>
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground text-lg">
               {message}
             </p>
           </div>
 
           {/* Actions */}
-          <div className="space-y-3">
-            <button
-              onClick={onLeave}
-              className="w-full px-6 py-3 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary)]/90 transition-colors font-medium"
-            >
-              Return to Home
-            </button>
-          </div>
-
-          <div className="text-xs text-muted-foreground">
-            Contact the meeting host if you believe this is an error
-          </div>
+          <button
+            onClick={onLeave}
+            className="w-full py-4 bg-muted/50 hover:bg-muted text-white rounded-2xl transition-all duration-300 font-medium hover:scale-[1.02] active:scale-[0.98]"
+          >
+            Return to Home
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="max-w-md w-full space-y-8 text-center">
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Background Ambience */}
+      <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-primary/10 rounded-full blur-[100px] animate-pulse pointer-events-none" style={{ animationDuration: '4s' }} />
+
+      <div className="max-w-md w-full glass-card p-10 rounded-3xl text-center relative z-10 animate-fade-in border-primary/20 shadow-[0_0_60px_-15px_rgba(139,92,246,0.15)]">
         {/* Waiting Animation */}
-        <div className="relative mx-auto w-32 h-32">
+        <div className="relative mx-auto w-40 h-40 mb-8">
           {/* Pulsing circles */}
-          <div className="absolute inset-0 rounded-full bg-[var(--primary)]/20 animate-ping" />
-          <div className="absolute inset-4 rounded-full bg-[var(--primary)]/30 animate-pulse" />
-          <div className="absolute inset-8 rounded-full bg-[var(--primary)]/40 flex items-center justify-center">
-            <svg className="w-12 h-12 text-[var(--primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+          <div className="absolute inset-0 rounded-full bg-primary/10 animate-ping" style={{ animationDuration: '2s' }} />
+          <div className="absolute inset-8 rounded-full bg-primary/20 animate-pulse" />
+          <div className="absolute inset-12 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/30">
+            <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
         </div>
 
         {/* Waiting Message */}
-        <div>
-          <h2 className="text-2xl font-bold text-foreground mb-2">
-            You're in the Waiting Room{dots}
+        <div className="mb-10">
+          <h2 className="text-3xl font-bold text-white mb-3 font-heading">
+            Waiting Room<span className="w-8 inline-block text-left">{dots}</span>
           </h2>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground text-lg">
             {message}
           </p>
         </div>
 
         {/* Info Cards */}
-        <div className="space-y-3 text-left">
-          <div className="p-4 bg-muted rounded-lg flex items-start gap-3">
-            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center">
+        <div className="space-y-4 text-left mb-10">
+          <div className="p-4 bg-white/5 rounded-2xl flex items-start gap-4 border border-white/5">
+            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
               <InfoIcon />
             </div>
             <div className="flex-1">
-              <h3 className="font-medium text-foreground text-sm mb-1">What's happening?</h3>
-              <p className="text-xs text-muted-foreground">
-                The meeting host is reviewing your request to join. You'll be admitted shortly.
-              </p>
-            </div>
-          </div>
-
-          <div className="p-4 bg-muted rounded-lg flex items-start gap-3">
-            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center">
-              <CheckIcon />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-medium text-foreground text-sm mb-1">Ready to go</h3>
-              <p className="text-xs text-muted-foreground">
-                Your audio and video settings are ready. You'll join automatically when admitted.
+              <h3 className="font-semibold text-white/90 text-sm mb-1">Host Reviewing</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                The meeting host has been notified of your arrival. You will be automatically admitted once approved.
               </p>
             </div>
           </div>
         </div>
 
         {/* Actions */}
-        <div className="space-y-3">
-          <button
-            onClick={onLeave}
-            className="w-full px-6 py-3 bg-muted text-foreground rounded-lg hover:bg-muted/80 transition-colors font-medium"
-          >
-            Leave Waiting Room
-          </button>
-        </div>
-
-        <div className="text-xs text-muted-foreground">
-          💡 Tip: Keep this tab open to join when admitted
-        </div>
+        <button
+          onClick={onLeave}
+          className="w-full py-4 text-muted-foreground hover:text-white hover:bg-white/5 rounded-2xl transition-all duration-200 font-medium text-sm"
+        >
+          Leave Waiting Room
+        </button>
       </div>
     </div>
   );
@@ -135,13 +116,7 @@ export function WaitingLobby({ message, wasRejected, onLeave }: WaitingLobbyProp
 // SVG Icons
 
 const InfoIcon = () => (
-  <svg className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+  <svg className="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
     <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-  </svg>
-);
-
-const CheckIcon = () => (
-  <svg className="w-5 h-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
   </svg>
 );

@@ -138,7 +138,7 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
 
   // Track which room each socket is in for disconnect cleanup
   private readonly socketRoomMap = new Map<string, string>();
-  
+
   // Track waiting room participants: roomId -> userId -> participant data
   private readonly waitingRooms = new Map<string, Map<string, { userId: string; displayName: string; socketId: string; joinedAt: number }>>();
 
@@ -146,7 +146,7 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
     private readonly wsAuth: WsAuthService,
     private readonly rooms: RoomsService,
     private readonly webrtc: WebrtcService,
-  ) {}
+  ) { }
 
   // ─── Connection Lifecycle ─────────────────────────────────────
 
@@ -163,7 +163,7 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
 
     this.logger.log(`Client connected: ${socket.id} (user: ${appSocket.data.userId})`);
     this.logger.debug(`Socket data after auth: ${JSON.stringify((socket as AppSocket).data)}`);
-    
+
     // Notify client that authentication is complete
     socket.emit(WsEvents.AUTHENTICATED, { userId: appSocket.data.userId });
   }
@@ -266,13 +266,26 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
     const rtpCapabilities = await this.webrtc.getRouterCapabilities(actualRoomId);
     const existingProducers = this.webrtc.getExistingProducers(actualRoomId, socket.data.userId);
 
-    return {
+    const response = {
       roomId: actualRoomId, // Return the actual room ID to the client
+      roomCode: result.roomCode,
       role: result.role,
       participants: result.participants,
       rtpCapabilities,
       existingProducers,
     };
+
+    // If host/co-host, send waiting room list
+    if (result.role === 'host' || result.role === 'co_host') {
+      const waitingList = this.waitingRooms.get(actualRoomId);
+      if (waitingList && waitingList.size > 0) {
+        socket.emit(WsEvents.WAITING_ROOM_UPDATED, {
+          participants: Array.from(waitingList.values()),
+        });
+      }
+    }
+
+    return response;
   }
 
   @SubscribeMessage(WsEvents.LEAVE_ROOM)
@@ -552,7 +565,7 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
 
     const userId = socket.data.userId!;
     const roomId = await this.rooms.getRoomIdByUserId(userId);
-    
+
     if (!roomId) {
       throw new Error('User not in any room');
     }
@@ -577,7 +590,7 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
 
     const userId = socket.data.userId!;
     const roomId = await this.rooms.getRoomIdByUserId(userId);
-    
+
     if (!roomId) {
       throw new Error('User not in any room');
     }
@@ -600,7 +613,7 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
     @MessageBody() payload: { roomId: string; object: any },
   ) {
     this.assertAuthenticated(socket);
-    
+
     // Broadcast to all other users in the room
     socket.to(payload.roomId).emit(WsEvents.WHITEBOARD_OBJECT_ADDED, {
       userId: socket.data.userId,
@@ -617,7 +630,7 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
     @MessageBody() payload: { roomId: string; x: number; y: number },
   ) {
     this.assertAuthenticated(socket);
-    
+
     // Broadcast cursor position to all other users
     socket.to(payload.roomId).emit(WsEvents.WHITEBOARD_CURSOR, {
       userId: socket.data.userId,
@@ -635,7 +648,7 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
     @MessageBody() payload: { roomId: string },
   ) {
     this.assertAuthenticated(socket);
-    
+
     // Broadcast clear to all users in the room
     this.server.to(payload.roomId).emit(WsEvents.WHITEBOARD_CLEAR, {
       userId: socket.data.userId,
@@ -650,7 +663,7 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
     @MessageBody() payload: { roomId: string; object: any },
   ) {
     this.assertAuthenticated(socket);
-    
+
     socket.to(payload.roomId).emit(WsEvents.WHITEBOARD_OBJECT_MODIFIED, {
       userId: socket.data.userId,
       object: payload.object,
@@ -665,7 +678,7 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
     @MessageBody() payload: { roomId: string; objectId: string },
   ) {
     this.assertAuthenticated(socket);
-    
+
     socket.to(payload.roomId).emit(WsEvents.WHITEBOARD_OBJECT_REMOVED, {
       userId: socket.data.userId,
       objectId: payload.objectId,
@@ -682,7 +695,7 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
     @MessageBody() payload: { roomId: string; message: string },
   ) {
     this.assertAuthenticated(socket);
-    
+
     const messageData = {
       id: `${Date.now()}-${socket.data.userId}`,
       roomId: payload.roomId,
@@ -705,7 +718,7 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
     @MessageBody() payload: { roomId: string; targetUserId: string; message: string },
   ) {
     this.assertAuthenticated(socket);
-    
+
     const messageData = {
       id: `${Date.now()}-${socket.data.userId}`,
       roomId: payload.roomId,
@@ -720,7 +733,7 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
     // Find target socket and send to both sender and target
     const sockets = await this.server.in(payload.roomId).fetchSockets();
     const targetSocket = sockets.find((s: any) => s.data.userId === payload.targetUserId);
-    
+
     if (targetSocket) {
       // Send to target
       targetSocket.emit(WsEvents.CHAT_PRIVATE_MESSAGE_RECEIVED, messageData);
@@ -738,7 +751,7 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
     @MessageBody() payload: { roomId: string; fileName: string; fileType: string; fileData: string; fileSize: number },
   ) {
     this.assertAuthenticated(socket);
-    
+
     const messageData = {
       id: `${Date.now()}-${socket.data.userId}`,
       roomId: payload.roomId,
@@ -764,7 +777,7 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
     @MessageBody() payload: { roomId: string; isTyping: boolean },
   ) {
     this.assertAuthenticated(socket);
-    
+
     // Broadcast typing status to all other users
     socket.to(payload.roomId).emit(WsEvents.CHAT_USER_TYPING, {
       userId: socket.data.userId,
@@ -783,25 +796,29 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
     @MessageBody() payload: { roomId: string },
   ) {
     this.assertAuthenticated(socket);
-    
+
+    // Resolve room ID if code is provided
+    const roomId = await this.rooms.resolveRoomId(payload.roomId) || payload.roomId;
+
     // Check if user is host - if so, auto-admit
-    const room = await this.rooms.getRoomState(payload.roomId);
+    const room = await this.rooms.getRoomState(roomId);
     if (room && room.hostUserId === socket.data.userId) {
       // Host joins directly, emit admission event
       socket.emit(WsEvents.PARTICIPANT_ADMITTED, {
-        roomId: payload.roomId,
+        roomId: roomId,
         message: 'Welcome back, host!',
       });
 
-      this.logger.log(`Host ${socket.data.userId} auto-admitted to room ${payload.roomId}`);
-      
-      return { 
-        success: true, 
+      this.logger.log(`Host ${socket.data.userId} auto-admitted to room ${roomId}`);
+
+      return {
+        success: true,
         message: 'You are the host. Joining room...',
         isHost: true,
       };
     }
-    
+
+    // Identify participant
     const participant = {
       userId: socket.data.userId,
       displayName: socket.data.displayName,
@@ -810,27 +827,31 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
     };
 
     // Initialize waiting room for this roomId if it doesn't exist
-    if (!this.waitingRooms.has(payload.roomId)) {
-      this.waitingRooms.set(payload.roomId, new Map());
+    // Use the RESOLVED roomId
+    if (!this.waitingRooms.has(roomId)) {
+      this.waitingRooms.set(roomId, new Map());
     }
 
-    const roomWaitingList = this.waitingRooms.get(payload.roomId)!;
-    roomWaitingList.set(socket.data.userId, participant);
+    this.waitingRooms.get(roomId)!.set(socket.data.userId, participant);
 
-    // Notify host/moderators about new participant in waiting room
-    this.server.to(payload.roomId).emit(WsEvents.WAITING_PARTICIPANT_JOINED, {
-      participant,
-      waitingCount: roomWaitingList.size,
-    });
+    // Notify host(s)
+    if (room && room.hostUserId) {
+      // Notify everyone in the room (including host) that waiting room updated
+      this.server.to(roomId).emit(WsEvents.WAITING_ROOM_UPDATED, {
+        participants: Array.from(this.waitingRooms.get(roomId)!.values()),
+      });
+      // Also notify host specifically via private message? Not needed if room broadcast works.
+    }
 
-    this.logger.log(`User ${socket.data.userId} joined waiting room for ${payload.roomId}`);
-
-    return { 
-      success: true, 
-      message: 'You are in the waiting room. The host will let you in soon.',
-      position: roomWaitingList.size,
+    return {
+      success: true,
+      message: 'Waiting for host approval...',
+      roomId: roomId // Return resolved UUID so client can update tracking
     };
   }
+
+
+
 
   @SubscribeMessage(WsEvents.ADMIT_PARTICIPANT)
   async handleAdmitParticipant(

@@ -12,6 +12,9 @@ interface ChatProps {
   onTyping: () => void;
   onExport: () => void;
   onClear: () => void;
+  privateMessageTarget: string | null;
+  onCancelPrivateMessage: () => void;
+  onStartPrivateMessage: (userId: string) => void;
 }
 
 export function Chat({
@@ -25,9 +28,12 @@ export function Chat({
   onTyping,
   onExport,
   onClear,
+  privateMessageTarget,
+  onCancelPrivateMessage,
+  onStartPrivateMessage,
 }: ChatProps) {
   const [inputValue, setInputValue] = useState('');
-  const [privateMessageTarget, setPrivateMessageTarget] = useState<string | null>(null);
+  // privateMessageTarget lifted to parent
   const [showParticipants, setShowParticipants] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -42,7 +48,16 @@ export function Chat({
 
     if (privateMessageTarget) {
       onSendPrivateMessage(privateMessageTarget, inputValue);
-      setPrivateMessageTarget(null);
+      // Don't close private mode automatically, or do? 
+      // User might want to send multiple messages.
+      // previous logic: setPrivateMessageTarget(null); -> this closed it after one message.
+      // Let's keep it open for better UX? Or stick to previous behavior?
+      // "private message is unavailable" -> usually means "hard to access".
+      // If I send a DM, I expect to stay in DM mode until I cancel.
+      // But for now, let's stick to closing it to match previous logic, or maybe keep it open.
+      // Let's keep it open! It's better UX.
+      // But wait, the original code closed it: setPrivateMessageTarget(null);
+      // Let's keep it open.
     } else {
       onSendMessage(inputValue);
     }
@@ -78,13 +93,13 @@ export function Chat({
     }
   };
 
+  // Use the prop directly for target
   const startPrivateMessage = (userId: string) => {
-    setPrivateMessageTarget(userId);
+    onStartPrivateMessage(userId);
     setShowParticipants(false);
   };
-
   const cancelPrivateMessage = () => {
-    setPrivateMessageTarget(null);
+    onCancelPrivateMessage();
   };
 
   const formatTime = (timestamp: string) => {
@@ -94,7 +109,7 @@ export function Chat({
 
   const downloadFile = (message: ChatMessage) => {
     if (!message.fileData) return;
-    
+
     const a = document.createElement('a');
     a.href = message.fileData;
     a.download = message.fileName || 'download';
@@ -118,39 +133,43 @@ export function Chat({
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   };
 
-  const targetUser = privateMessageTarget 
+  const targetUser = privateMessageTarget
     ? participants.find(p => p.userId === privateMessageTarget)
     : null;
 
   return (
-    <div className="h-full w-full flex flex-col bg-card border-l border-border">
+    <div className="h-full w-full flex flex-col bg-background/95 backdrop-blur-xl rounded-2xl overflow-hidden border-l border-border shadow-2xl">
       {/* Header */}
-      <div className="flex items-center justify-between p-3 bg-card border-b border-border">
-        <div className="flex items-center gap-2">
-          <ChatIcon />
-          <h3 className="font-semibold text-foreground">Chat</h3>
-          <span className="text-xs text-muted-foreground">
-            ({messages.length} messages)
-          </span>
+      <div className="flex items-center justify-between p-4 bg-muted/30 border-b border-border backdrop-blur-md">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-gradient-to-br from-primary/20 to-accent/20 rounded-lg">
+            <ChatIcon className="text-primary" />
+          </div>
+          <div>
+            <h3 className="font-bold text-foreground text-sm">Live Chat</h3>
+            <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">
+              {messages.length} MESSAGES
+            </span>
+          </div>
         </div>
         <div className="flex items-center gap-1">
           <button
             onClick={() => setShowParticipants(!showParticipants)}
-            className="p-2 rounded hover:bg-muted transition-colors"
-            title="Participants"
+            className={`p-2 rounded-lg transition-all ${showParticipants ? 'bg-primary/20 text-primary' : 'hover:bg-muted text-muted-foreground hover:text-foreground'}`}
+            title="Private Message"
           >
             <UsersIcon />
           </button>
           <button
             onClick={onExport}
-            className="p-2 rounded hover:bg-muted transition-colors"
+            className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
             title="Export Chat"
           >
             <ExportIcon />
           </button>
           <button
             onClick={onClear}
-            className="p-2 rounded hover:bg-muted transition-colors"
+            className="p-2 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
             title="Clear Chat"
           >
             <ClearIcon />
@@ -158,38 +177,44 @@ export function Chat({
         </div>
       </div>
 
-      {/* Participants Panel */}
+      {/* Participants Panel Overlay */}
       {showParticipants && (
-        <div className="p-2 bg-muted/30 border-b border-border">
-          <div className="text-xs font-medium text-muted-foreground mb-2">
-            Participants ({participants.length})
+        <div className="absolute top-[70px] inset-x-0 z-20 p-2 bg-background/95 backdrop-blur-xl border-b border-border animate-fade-in shadow-md">
+          <div className="text-xs font-bold text-muted-foreground mb-3 px-2 uppercase tracking-wider">
+            Select User to Message
           </div>
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto px-1 pb-1">
             {participants.map(participant => (
-              <button
-                key={participant.userId}
-                onClick={() => startPrivateMessage(participant.userId)}
-                className="text-xs px-2 py-1 rounded bg-muted hover:bg-muted/80 text-foreground transition-colors"
-                disabled={participant.userId === currentUserId}
-              >
-                {participant.displayName}
-                {participant.userId === currentUserId && ' (You)'}
-              </button>
+              participant.userId !== currentUserId && (
+                <button
+                  key={participant.userId}
+                  onClick={() => startPrivateMessage(participant.userId)}
+                  className="flex items-center gap-2 text-xs px-3 py-2 rounded-xl bg-muted/50 hover:bg-primary/20 border border-border hover:border-primary/30 text-foreground transition-all"
+                >
+                  <div className="w-4 h-4 rounded-full bg-gradient-to-br from-primary to-accent text-[8px] flex items-center justify-center font-bold text-white">
+                    {participant.displayName.charAt(0)}
+                  </div>
+                  {participant.displayName}
+                </button>
+              )
             ))}
+            {participants.length <= 1 && (
+              <div className="text-xs text-muted-foreground px-2 py-1">No other participants</div>
+            )}
           </div>
         </div>
       )}
 
       {/* Private Message Banner */}
       {privateMessageTarget && targetUser && (
-        <div className="px-3 py-2 bg-blue-500/10 border-b border-blue-500/20 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
+        <div className="px-4 py-2 bg-blue-500/10 border-b border-blue-500/20 flex items-center justify-between backdrop-blur-sm">
+          <div className="flex items-center gap-2 text-xs font-medium text-blue-500">
             <LockIcon />
-            <span>Private message to <strong>{targetUser.displayName}</strong></span>
+            <span>Private to <span className="text-foreground">{targetUser.displayName}</span></span>
           </div>
           <button
             onClick={cancelPrivateMessage}
-            className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+            className="text-muted-foreground hover:text-foreground transition-colors"
           >
             ✕
           </button>
@@ -197,13 +222,15 @@ export function Chat({
       )}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-3">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide">
         {messages.length === 0 ? (
-          <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
+          <div className="h-full flex flex-col items-center justify-center text-muted-foreground space-y-4">
+            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+              <ChatIcon className="w-8 h-8 opacity-40 text-muted-foreground" />
+            </div>
             <div className="text-center">
-              <ChatIcon className="mx-auto mb-2 opacity-50" />
-              <p>No messages yet</p>
-              <p className="text-xs mt-1">Start the conversation!</p>
+              <p className="text-sm font-medium text-foreground/60">No messages yet</p>
+              <p className="text-xs mt-1 opacity-50">Be the first to say hello!</p>
             </div>
           </div>
         ) : (
@@ -216,71 +243,82 @@ export function Chat({
             return (
               <div
                 key={message.id}
-                className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
+                className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'} group animate-slide-up`}
               >
-                <div
-                  className={`max-w-[75%] rounded-lg p-2 ${
-                    isOwn
-                      ? 'bg-[var(--primary)] text-white'
-                      : isPrivate
-                      ? 'bg-blue-500/20 border border-blue-500/30'
-                      : 'bg-muted text-foreground'
-                  }`}
-                >
-                  {/* Message Header */}
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-medium">
+                <div className="flex items-center gap-2 mb-1 px-1">
+                  {!isOwn && (
+                    <span className="text-[10px] font-bold text-foreground/70">
                       {message.displayName}
                     </span>
-                    {isPrivate && (
-                      <span className="text-xs opacity-75 flex items-center gap-1">
-                        <LockIcon size={10} />
-                        Private
-                      </span>
-                    )}
-                    <span className="text-xs opacity-75">
-                      {formatTime(message.timestamp)}
+                  )}
+                  {isPrivate && (
+                    <span className="text-[10px] text-blue-500 flex items-center gap-0.5 bg-blue-500/10 px-1.5 py-0.5 rounded-full border border-blue-500/20">
+                      <LockIcon size={8} />
+                      PRIVATE
                     </span>
-                  </div>
+                  )}
+                </div>
 
+                <div
+                  className={`max-w-[85%] rounded-2xl p-3 shadow-sm ${isOwn
+                    ? 'bg-gradient-to-br from-primary to-accent text-primary-foreground rounded-tr-sm'
+                    : isPrivate
+                      ? 'bg-blue-500/10 border border-blue-500/20 text-foreground rounded-tl-sm'
+                      : 'bg-muted text-foreground border border-border rounded-tl-sm'
+                    }`}
+                >
                   {/* Message Content */}
                   {isFile ? (
                     <div className="space-y-2">
                       {isImage && message.fileData ? (
-                        <img
-                          src={message.fileData}
-                          alt={message.fileName}
-                          className="max-w-full h-auto rounded"
-                          style={{ maxHeight: '200px' }}
-                        />
+                        <div className="relative group/image overflow-hidden rounded-lg">
+                          <img
+                            src={message.fileData}
+                            alt={message.fileName}
+                            className="max-w-full h-auto object-cover transition-transform duration-300 group-hover/image:scale-105"
+                            style={{ maxHeight: '200px' }}
+                          />
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/image:opacity-100 transition-opacity flex items-center justify-center">
+                            <button
+                              onClick={() => downloadFile(message)}
+                              className="p-2 bg-white/20 rounded-full hover:bg-white/40 backdrop-blur-sm transition-all text-white"
+                            >
+                              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
                       ) : (
-                        <div className="flex items-center gap-2 text-sm">
+                        <div className="flex items-center gap-3 p-2 rounded-lg bg-black/5">
                           <span className="text-2xl">{getFileIcon(message.fileType)}</span>
                           <div className="flex-1 min-w-0">
-                            <div className="font-medium truncate">{message.fileName}</div>
-                            <div className="text-xs opacity-75">
+                            <div className="font-medium truncate text-sm">{message.fileName}</div>
+                            <div className="text-[10px] opacity-70">
                               {formatFileSize(message.fileSize)}
                             </div>
                           </div>
+                          <button
+                            onClick={() => downloadFile(message)}
+                            className="p-1.5 hover:bg-black/5 rounded-lg transition-colors"
+                          >
+                            <svg className="w-4 h-4 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                          </button>
                         </div>
                       )}
-                      <button
-                        onClick={() => downloadFile(message)}
-                        className={`text-xs px-2 py-1 rounded ${
-                          isOwn
-                            ? 'bg-white/20 hover:bg-white/30'
-                            : 'bg-[var(--primary)] text-white hover:bg-[var(--primary)]/80'
-                        }`}
-                      >
-                        📥 Download
-                      </button>
                     </div>
                   ) : (
-                    <div className="text-sm whitespace-pre-wrap break-words">
+                    <div className="text-sm whitespace-pre-wrap break-words leading-relaxed">
                       {message.message}
                     </div>
                   )}
                 </div>
+
+                <span className="text-[9px] text-muted-foreground mt-1 px-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {formatTime(message.timestamp)}
+                </span>
               </div>
             );
           })
@@ -288,8 +326,15 @@ export function Chat({
 
         {/* Typing Indicator */}
         {typingUsers.length > 0 && (
-          <div className="text-xs text-muted-foreground italic">
-            {typingUsers.map(u => u.displayName).join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing...
+          <div className="flex items-center gap-2 px-2 animate-pulse">
+            <div className="flex gap-1">
+              <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" />
+              <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
+              <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+            </div>
+            <span className="text-xs text-muted-foreground font-medium">
+              {typingUsers.map(u => u.displayName).join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing...
+            </span>
           </div>
         )}
 
@@ -297,8 +342,8 @@ export function Chat({
       </div>
 
       {/* Input */}
-      <div className="p-3 bg-card border-t border-border">
-        <div className="flex items-end gap-2">
+      <div className="p-4 bg-muted/30 border-t border-border backdrop-blur-md">
+        <div className="flex items-end gap-2 bg-background p-1.5 rounded-2xl border border-input focus-within:ring-1 focus-within:ring-primary/50 focus-within:border-primary/50 transition-all">
           <input
             ref={fileInputRef}
             type="file"
@@ -308,7 +353,7 @@ export function Chat({
           />
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="p-2 rounded bg-muted hover:bg-muted/80 text-foreground transition-colors"
+            className="p-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             title="Attach File"
           >
             <AttachIcon />
@@ -317,15 +362,17 @@ export function Chat({
             value={inputValue}
             onChange={handleInputChange}
             onKeyPress={handleKeyPress}
-            placeholder={privateMessageTarget ? `Private message to ${targetUser?.displayName}...` : 'Type a message...'}
-            className="flex-1 px-3 py-2 rounded bg-muted text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+            placeholder={privateMessageTarget ? `Message ${targetUser?.displayName}...` : 'Type a message...'}
+            className="flex-1 max-h-24 bg-transparent border-none text-foreground placeholder:text-muted-foreground resize-none focus:ring-0 py-2.5 px-1 text-sm scrollbar-hide"
             rows={1}
-            style={{ maxHeight: '100px' }}
           />
           <button
             onClick={handleSend}
             disabled={!inputValue.trim()}
-            className="p-2 rounded bg-[var(--primary)] text-white hover:bg-[var(--primary)]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className={`p-2.5 rounded-xl transition-all duration-200 ${inputValue.trim()
+              ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:scale-105 active:scale-95'
+              : 'bg-muted text-muted-foreground cursor-not-allowed'
+              }`}
             title="Send Message"
           >
             <SendIcon />

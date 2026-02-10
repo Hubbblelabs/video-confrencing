@@ -31,7 +31,7 @@ export function VideoGrid() {
   const localAudioTrack = localStream?.getAudioTracks()[0] ?? null;
 
   return (
-    <div className={`w-full h-full p-4 gap-4 ${gridClass} bg-gradient-to-br from-background to-muted/20`}>
+    <div className={`w-full h-full p-6 pt-20 pb-28 ${gridClass} gap-6 overflow-y-auto scrollbar-hide`}>
       {/* Local tile */}
       <VideoTile
         videoTrack={localVideoTrack}
@@ -61,11 +61,12 @@ export function VideoGrid() {
 
 /** Returns Tailwind grid classes based on participant count */
 function getGridClass(count: number): string {
-  if (count <= 1) return 'grid grid-cols-1 grid-rows-1';
-  if (count <= 2) return 'grid grid-cols-2 grid-rows-1';
+  if (count <= 1) return 'flex justify-center items-center'; // Center single tile
+  if (count === 2) return 'grid grid-cols-2 grid-rows-1';
   if (count <= 4) return 'grid grid-cols-2 grid-rows-2';
   if (count <= 6) return 'grid grid-cols-3 grid-rows-2';
   if (count <= 9) return 'grid grid-cols-3 grid-rows-3';
+  if (count <= 12) return 'grid grid-cols-4 grid-rows-3';
   if (count <= 16) return 'grid grid-cols-4 grid-rows-4';
-  return 'grid grid-cols-5 grid-rows-6'; // up to 30
+  return 'grid grid-cols-5 grid-rows-auto'; // Flexible for large calls
 }

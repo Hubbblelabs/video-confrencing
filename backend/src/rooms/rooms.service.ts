@@ -52,6 +52,7 @@ export class RoomsService {
     // Initialize Redis state
     const roomState: Record<string, string> = {
       roomId: saved.id,
+      roomCode: roomCode,
       hostUserId: params.hostUserId,
       status: RoomStatus.WAITING,
       createdAt: String(Date.now()),
@@ -63,6 +64,7 @@ export class RoomsService {
     pipeline.hmset(RedisKeys.room(saved.id), roomState);
     pipeline.expire(RedisKeys.room(saved.id), RedisKeys.ROOM_TTL);
     pipeline.sadd(RedisKeys.activeRooms, saved.id);
+    pipeline.set(RedisKeys.roomCodeToId(roomCode), saved.id, 'EX', RedisKeys.ROOM_TTL);
     await pipeline.exec();
 
     await this.audit.log({
@@ -72,8 +74,23 @@ export class RoomsService {
       metadata: { title: params.title, roomCode, maxParticipants: max },
     });
 
-    this.logger.log(`Room created: ${saved.id} by user ${params.hostUserId}`);
+    this.logger.log(`Room created: ${saved.id} (code: ${roomCode}) by user ${params.hostUserId}`);
     return { roomId: saved.id, roomCode };
+  }
+
+  /**
+   * Resolves a Room ID from a potential Room Code or UUID.
+   */
+  async resolveRoomId(idOrCode: string): Promise<string | null> {
+    // If it looks like a UUID, check if it exists directly
+    if (idOrCode.length > 20 && idOrCode.includes('-')) {
+      const exists = await this.redis.exists(RedisKeys.room(idOrCode));
+      if (exists) return idOrCode;
+    }
+
+    // Otherwise, try to lookup by code
+    const mappedId = await this.redis.get(RedisKeys.roomCodeToId(idOrCode));
+    return mappedId || (idOrCode.length > 20 ? idOrCode : null);
   }
 
   /**
@@ -81,19 +98,20 @@ export class RoomsService {
    * If room doesn't exist, creates it automatically with a generated UUID.
    */
   async joinRoom(params: {
-    roomId: string;
+    roomId: string; // Can be UUID or Code
     userId: string;
     socketId: string;
-  }): Promise<{ roomId: string; role: RoomRole; participants: RoomParticipant[] }> {
-    let roomData = await this.redis.hgetall(RedisKeys.room(params.roomId));
-    let actualRoomId = params.roomId;
-    
+  }): Promise<{ roomId: string; roomCode: string; role: RoomRole; participants: RoomParticipant[] }> {
+    let actualRoomId = await this.resolveRoomId(params.roomId) || params.roomId;
+    let roomData = await this.redis.hgetall(RedisKeys.room(actualRoomId));
+
     // If room doesn't exist, create it automatically
     if (!roomData || !roomData['roomId']) {
+      // Logic for auto-creation (only if it looks like a UUID or we decide to support auto-create by code - usually auto-create is for dev/testing with UUIDs)
       this.logger.log(`Room ${params.roomId} not found, creating automatically...`);
-      
+
       const roomCode = this.generateRoomCode();
-      
+
       // Persist to PostgreSQL - let TypeORM generate the UUID automatically
       const meeting = this.meetingRepo.create({
         title: `Room ${params.roomId}`,
@@ -110,6 +128,7 @@ export class RoomsService {
       // Initialize Redis state with the generated UUID
       const roomState: Record<string, string> = {
         roomId: actualRoomId,
+        roomCode,
         hostUserId: params.userId,
         status: RoomStatus.WAITING,
         createdAt: String(Date.now()),
@@ -121,23 +140,24 @@ export class RoomsService {
       pipeline.hmset(RedisKeys.room(actualRoomId), roomState);
       pipeline.expire(RedisKeys.room(actualRoomId), RedisKeys.ROOM_TTL);
       pipeline.sadd(RedisKeys.activeRooms, actualRoomId);
+      pipeline.set(RedisKeys.roomCodeToId(roomCode), actualRoomId, 'EX', RedisKeys.ROOM_TTL);
       await pipeline.exec();
 
       await this.audit.log({
         action: AuditAction.ROOM_CREATED,
         userId: params.userId,
         roomId: actualRoomId,
-        metadata: { 
-          title: saved.title, 
-          roomCode, 
-          maxParticipants: this.maxParticipants, 
+        metadata: {
+          title: saved.title,
+          roomCode,
+          maxParticipants: this.maxParticipants,
           autoCreated: true,
           requestedRoomId: params.roomId, // Track what user requested
         },
       });
 
-      this.logger.log(`Room auto-created with ID ${actualRoomId} (requested: ${params.roomId}) by user ${params.userId}`);
-      
+      this.logger.log(`Room auto-created with ID ${actualRoomId} (code: ${roomCode}) by user ${params.userId}`);
+
       // Reload room data with the actual room ID
       roomData = await this.redis.hgetall(RedisKeys.room(actualRoomId));
     }
@@ -208,7 +228,7 @@ export class RoomsService {
     });
 
     const participants = await this.getParticipants(actualRoomId);
-    return { roomId: actualRoomId, role, participants };
+    return { roomId: actualRoomId, roomCode: roomData['roomCode'], role, participants };
   }
 
   /**
@@ -250,6 +270,10 @@ export class RoomsService {
    */
   async closeRoom(roomId: string, closedByUserId: string): Promise<void> {
     const pipeline = this.redis.pipeline();
+    const roomData = await this.redis.hgetall(RedisKeys.room(roomId));
+    if (roomData && roomData['roomCode']) {
+      pipeline.del(RedisKeys.roomCodeToId(roomData['roomCode']));
+    }
     pipeline.del(RedisKeys.room(roomId));
     pipeline.del(RedisKeys.roomParticipants(roomId));
     pipeline.srem(RedisKeys.activeRooms, roomId);
@@ -443,6 +467,7 @@ export class RoomsService {
 
     return {
       roomId: data['roomId'],
+      roomCode: data['roomCode'],
       hostUserId: data['hostUserId'],
       status: data['status'],
       createdAt: parseInt(data['createdAt'] || '0', 10),
@@ -538,15 +563,10 @@ export class RoomsService {
   }
 
   private generateRoomCode(): string {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    const segments: string[] = [];
-    for (let s = 0; s < 3; s++) {
-      let segment = '';
-      for (let i = 0; i < 4; i++) {
-        segment += chars[Math.floor(Math.random() * chars.length)];
-      }
-      segments.push(segment);
-    }
-    return segments.join('-');
+    const min = 100000000;
+    const max = 999999999;
+    const code = Math.floor(Math.random() * (max - min + 1)) + min;
+    const str = code.toString();
+    return `${str.slice(0, 3)}-${str.slice(3, 6)}-${str.slice(6)}`;
   }
 }

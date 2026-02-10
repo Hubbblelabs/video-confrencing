@@ -31,7 +31,7 @@ function App() {
 
   // Ref that RoomPage will populate with its consumeProducer handler
   const newProducerHandlerRef = useRef<((data: NewProducerEvent) => Promise<void>) | null>(null);
-  
+
   // Track if we've attempted auto-rejoin
   const hasAttemptedRejoin = useRef(false);
 
@@ -123,8 +123,8 @@ function App() {
           joined.existingProducers.map((p) => ({ ...p, kind: p.kind })),
         );
 
-        useRoomStore.getState().setRoom(data.roomId, null, joined.role);
-        
+        useRoomStore.getState().setRoom(joined.roomId, joined.roomCode, joined.role);
+
         // Clear waiting room state
         setIsInWaitingRoom(false);
         setWaitingRoomId(null);
@@ -144,7 +144,7 @@ function App() {
       setWaitingRoomId(null);
       setWasRejected(true);
       setRejectionMessage(data.message || 'Access denied by host');
-      
+
       // Disconnect socket
       signaling.disconnect();
     };
@@ -174,9 +174,9 @@ function App() {
         }
         return false;
       };
-      
+
       if (checkReady()) return;
-      
+
       const onConnect = () => checkReady();
       const onAuthenticated = () => checkReady();
       const onError = (err: Error) => { cleanup(); reject(err); };
@@ -185,11 +185,11 @@ function App() {
         socket.off('authenticated', onAuthenticated);
         socket.off('connect_error', onError);
       };
-      
+
       socket.on('connect', onConnect);
       socket.on('authenticated', onAuthenticated);
       socket.on('connect_error', onError);
-      
+
       // Check immediately in case already ready
       checkReady();
     });
@@ -231,9 +231,9 @@ function App() {
         }
         return false;
       };
-      
+
       if (checkReady()) return;
-      
+
       const onConnect = () => checkReady();
       const onAuthenticated = () => checkReady();
       const onError = (err: Error) => { cleanup(); reject(err); };
@@ -242,26 +242,31 @@ function App() {
         socket.off('authenticated', onAuthenticated);
         socket.off('connect_error', onError);
       };
-      
+
       socket.on('connect', onConnect);
       socket.on('authenticated', onAuthenticated);
       socket.on('connect_error', onError);
-      
+
       // Check immediately in case already ready
       checkReady();
     });
 
     // Join waiting room first (backend will auto-admit hosts)
+    // Note: id might be a code here, but we set it as waitingRoomId temporarily
     setWaitingRoomId(id);
     setIsInWaitingRoom(true);
     setWasRejected(false);
     setRejectionMessage('');
 
     socket.emit(WS_EVENTS.JOIN_WAITING_ROOM, { roomId: id }, (response: any) => {
+      console.log('JOIN_WAITING_ROOM response:', response);
       if (!response.success) {
         setIsInWaitingRoom(false);
         setWaitingRoomId(null);
         useRoomStore.getState().setError(response.error || 'Failed to join waiting room');
+      } else if (response.roomId) {
+        // Update to the resolved room ID (UUID) so we match admission events correctly
+        setWaitingRoomId(response.roomId);
       }
     });
   }, [signaling]);
@@ -271,17 +276,17 @@ function App() {
   useEffect(() => {
     // Only auto-rejoin once on mount if there's a persisted room but we're not connected
     const persistedRoomId = useRoomStore.getState().roomId;
-    
+
     if (
-      token && 
-      persistedRoomId && 
-      !roomId && 
+      token &&
+      persistedRoomId &&
+      !roomId &&
       !isInWaitingRoom &&
       !hasAttemptedRejoin.current
     ) {
       hasAttemptedRejoin.current = true;
-      
-      // Automatically rejoin the room
+
+      // Automatically rejoin the room - we pass the ID which is fine, backend resolves it
       handleJoinRoom(persistedRoomId).catch((err) => {
         console.error('Auto-rejoin failed:', err);
         // Clear persisted room on failure

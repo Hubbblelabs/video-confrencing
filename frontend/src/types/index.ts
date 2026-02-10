@@ -38,6 +38,7 @@ export interface ServerParticipant {
 
 export interface JoinRoomResponse {
   roomId: string; // The actual room ID (may differ from requested if auto-created)
+  roomCode: string;
   role: RoomRole;
   participants: ServerParticipant[];
   rtpCapabilities: mediasoupTypes.RtpCapabilities;
@@ -123,7 +124,7 @@ export interface RoleChangedEvent {
 // ─── Client-side participant model ────────────────────────────────
 
 export interface RemoteParticipant {
-  userId: string;  displayName: string;  role: RoomRole;
+  userId: string; displayName: string; role: RoomRole;
   audioTrack: MediaStreamTrack | null;
   videoTrack: MediaStreamTrack | null;
   isMuted: boolean;

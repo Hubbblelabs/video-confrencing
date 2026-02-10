@@ -23,6 +23,7 @@ export const RedisKeys = {
   socketToUser: (socketId: string): string => `socket:user:${socketId}`,
   userToSocket: (userId: string): string => `user:socket:${userId}`,
   activeRooms: 'active_rooms',
+  roomCodeToId: (code: string): string => `room_code:${code}`,
   ROOM_TTL,
   SOCKET_TTL,
 } as const;
