@@ -138,15 +138,15 @@ export function Chat({
     : null;
 
   return (
-    <div className="h-full w-full flex flex-col bg-background/95 backdrop-blur-xl rounded-2xl overflow-hidden border-l border-border shadow-2xl">
+    <div className="h-full w-full flex flex-col glass-card rounded-2xl overflow-hidden shadow-2xl animate-slide-in-right">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 bg-muted/30 border-b border-border backdrop-blur-md">
+      <div className="flex items-center justify-between p-4 border-b border-white/10 bg-white/5 backdrop-blur-md">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-gradient-to-br from-primary/20 to-accent/20 rounded-lg">
-            <ChatIcon className="text-primary" />
+          <div className="p-2 bg-gradient-to-br from-primary/20 to-accent/20 rounded-lg border border-white/5">
+            <ChatIcon className="text-primary w-5 h-5" />
           </div>
           <div>
-            <h3 className="font-bold text-foreground text-sm">Live Chat</h3>
+            <h3 className="font-bold text-foreground text-sm font-heading">Live Chat</h3>
             <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">
               {messages.length} MESSAGES
             </span>
@@ -155,14 +155,14 @@ export function Chat({
         <div className="flex items-center gap-1">
           <button
             onClick={() => setShowParticipants(!showParticipants)}
-            className={`p-2 rounded-lg transition-all ${showParticipants ? 'bg-primary/20 text-primary' : 'hover:bg-muted text-muted-foreground hover:text-foreground'}`}
+            className={`p-2 rounded-lg transition-all ${showParticipants ? 'bg-primary/20 text-primary' : 'hover:bg-white/10 text-muted-foreground hover:text-foreground'}`}
             title="Private Message"
           >
             <UsersIcon />
           </button>
           <button
             onClick={onExport}
-            className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
+            className="p-2 rounded-lg hover:bg-white/10 text-muted-foreground hover:text-foreground transition-all"
             title="Export Chat"
           >
             <ExportIcon />
@@ -179,19 +179,19 @@ export function Chat({
 
       {/* Participants Panel Overlay */}
       {showParticipants && (
-        <div className="absolute top-[70px] inset-x-0 z-20 p-2 bg-background/95 backdrop-blur-xl border-b border-border animate-fade-in shadow-md">
-          <div className="text-xs font-bold text-muted-foreground mb-3 px-2 uppercase tracking-wider">
+        <div className="absolute top-[72px] inset-x-0 z-20 p-2 bg-[#1a1a1a]/95 backdrop-blur-xl border-b border-white/10 animate-fade-in shadow-2xl">
+          <div className="text-xs font-bold text-muted-foreground mb-2 px-2 uppercase tracking-wider">
             Select User to Message
           </div>
-          <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto px-1 pb-1">
+          <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto px-1 pb-1 scrollbar-thin scrollbar-thumb-white/10">
             {participants.map(participant => (
               participant.userId !== currentUserId && (
                 <button
                   key={participant.userId}
                   onClick={() => startPrivateMessage(participant.userId)}
-                  className="flex items-center gap-2 text-xs px-3 py-2 rounded-xl bg-muted/50 hover:bg-primary/20 border border-border hover:border-primary/30 text-foreground transition-all"
+                  className="flex items-center gap-2 text-xs px-3 py-2 rounded-xl bg-white/5 hover:bg-primary/20 border border-white/5 hover:border-primary/30 text-foreground transition-all"
                 >
-                  <div className="w-4 h-4 rounded-full bg-gradient-to-br from-primary to-secondary text-[8px] flex items-center justify-center font-bold text-white">
+                  <div className="w-5 h-5 rounded-full bg-gradient-to-br from-primary to-secondary text-[9px] flex items-center justify-center font-bold text-white shadow-sm">
                     {participant.displayName.charAt(0)}
                   </div>
                   {participant.displayName}
@@ -207,14 +207,14 @@ export function Chat({
 
       {/* Private Message Banner */}
       {privateMessageTarget && targetUser && (
-        <div className="px-4 py-2 bg-blue-500/10 border-b border-blue-500/20 flex items-center justify-between backdrop-blur-sm">
-          <div className="flex items-center gap-2 text-xs font-medium text-blue-500">
+        <div className="px-4 py-2 bg-gradient-to-r from-blue-500/10 to-transparent border-b border-blue-500/20 flex items-center justify-between backdrop-blur-sm">
+          <div className="flex items-center gap-2 text-xs font-bold text-blue-400 uppercase tracking-wide">
             <LockIcon />
-            <span>Private to <span className="text-foreground">{targetUser.displayName}</span></span>
+            <span>Private to <span className="text-foreground border-b border-blue-500/30">{targetUser.displayName}</span></span>
           </div>
           <button
             onClick={cancelPrivateMessage}
-            className="text-muted-foreground hover:text-foreground transition-colors"
+            className="text-muted-foreground hover:text-foreground transition-colors w-5 h-5 flex items-center justify-center rounded-full hover:bg-white/10"
           >
             ✕
           </button>
@@ -222,14 +222,14 @@ export function Chat({
       )}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide">
+      <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-muted-foreground space-y-4">
-            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+            <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center backdrop-blur-sm border border-white/5">
               <ChatIcon className="w-8 h-8 opacity-40 text-muted-foreground" />
             </div>
             <div className="text-center">
-              <p className="text-sm font-medium text-foreground/60">No messages yet</p>
+              <p className="text-sm font-bold text-foreground/80">No messages yet</p>
               <p className="text-xs mt-1 opacity-50">Be the first to say hello!</p>
             </div>
           </div>
@@ -245,43 +245,46 @@ export function Chat({
                 key={message.id}
                 className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'} group animate-slide-up`}
               >
-                <div className="flex items-center gap-2 mb-1 px-1">
+                <div className="flex items-center gap-2 mb-1 px-1 opacity-70 group-hover:opacity-100 transition-opacity">
                   {!isOwn && (
-                    <span className="text-[10px] font-bold text-foreground/70">
+                    <span className="text-[10px] font-bold text-foreground tracking-wide">
                       {message.displayName}
                     </span>
                   )}
                   {isPrivate && (
-                    <span className="text-[10px] text-blue-500 flex items-center gap-0.5 bg-blue-500/10 px-1.5 py-0.5 rounded-full border border-blue-500/20">
+                    <span className="text-[9px] text-blue-400 flex items-center gap-0.5 bg-blue-500/10 px-1.5 py-0.5 rounded-full border border-blue-500/20 font-bold tracking-wider">
                       <LockIcon size={8} />
                       PRIVATE
                     </span>
                   )}
+                  <span className="text-[9px] text-muted-foreground">
+                    {formatTime(message.timestamp)}
+                  </span>
                 </div>
 
                 <div
-                  className={`max-w-[85%] rounded-2xl p-3 shadow-sm ${isOwn
-                    ? 'bg-gradient-to-br from-primary to-secondary text-primary-foreground rounded-tr-sm'
+                  className={`max-w-[85%] rounded-2xl p-3 shadow-sm backdrop-blur-sm border ${isOwn
+                    ? 'bg-gradient-to-br from-primary/90 to-primary/80 text-white rounded-tr-sm border-primary/50 shadow-primary/10'
                     : isPrivate
-                      ? 'bg-blue-500/10 border border-blue-500/20 text-foreground rounded-tl-sm'
-                      : 'bg-muted text-foreground border border-border rounded-tl-sm'
+                      ? 'bg-blue-500/10 border-blue-500/20 text-foreground rounded-tl-sm'
+                      : 'bg-white/10 text-foreground border-white/10 rounded-tl-sm hover:bg-white/15 transition-colors'
                     }`}
                 >
                   {/* Message Content */}
                   {isFile ? (
                     <div className="space-y-2">
                       {isImage && message.fileData ? (
-                        <div className="relative group/image overflow-hidden rounded-lg">
+                        <div className="relative group/image overflow-hidden rounded-lg border border-white/10">
                           <img
                             src={message.fileData}
                             alt={message.fileName}
-                            className="max-w-full h-auto object-cover transition-transform duration-300 group-hover/image:scale-105"
+                            className="max-w-full h-auto object-cover transition-transform duration-500 group-hover/image:scale-105"
                             style={{ maxHeight: '200px' }}
                           />
-                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/image:opacity-100 transition-opacity flex items-center justify-center">
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/image:opacity-100 transition-opacity duration-300 flex items-center justify-center backdrop-blur-[2px]">
                             <button
                               onClick={() => downloadFile(message)}
-                              className="p-2 bg-white/20 rounded-full hover:bg-white/40 backdrop-blur-sm transition-all text-white"
+                              className="p-2 bg-white/20 rounded-full hover:bg-primary hover:text-white backdrop-blur-md transition-all text-white border border-white/20"
                             >
                               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -290,19 +293,19 @@ export function Chat({
                           </div>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-3 p-2 rounded-lg bg-black/5">
-                          <span className="text-2xl">{getFileIcon(message.fileType)}</span>
+                        <div className="flex items-center gap-3 p-2.5 rounded-xl bg-black/20 border border-white/5 hover:bg-black/30 transition-colors">
+                          <span className="text-2xl drop-shadow-md">{getFileIcon(message.fileType)}</span>
                           <div className="flex-1 min-w-0">
                             <div className="font-medium truncate text-sm">{message.fileName}</div>
-                            <div className="text-[10px] opacity-70">
+                            <div className="text-[10px] opacity-70 font-mono mt-0.5">
                               {formatFileSize(message.fileSize)}
                             </div>
                           </div>
                           <button
                             onClick={() => downloadFile(message)}
-                            className="p-1.5 hover:bg-black/5 rounded-lg transition-colors"
+                            className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white/80 hover:text-white"
                           >
-                            <svg className="w-4 h-4 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                             </svg>
                           </button>
@@ -310,15 +313,11 @@ export function Chat({
                       )}
                     </div>
                   ) : (
-                    <div className="text-sm whitespace-pre-wrap break-words leading-relaxed">
+                    <div className="text-sm whitespace-pre-wrap break-words leading-relaxed font-medium">
                       {message.message}
                     </div>
                   )}
                 </div>
-
-                <span className="text-[9px] text-muted-foreground mt-1 px-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  {formatTime(message.timestamp)}
-                </span>
               </div>
             );
           })
@@ -326,13 +325,13 @@ export function Chat({
 
         {/* Typing Indicator */}
         {typingUsers.length > 0 && (
-          <div className="flex items-center gap-2 px-2 animate-pulse">
+          <div className="flex items-center gap-2 px-2 animate-fade-in bg-white/5 w-fit p-2 rounded-full border border-white/5">
             <div className="flex gap-1">
               <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" />
               <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
               <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
             </div>
-            <span className="text-xs text-muted-foreground font-medium">
+            <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wide">
               {typingUsers.map(u => u.displayName).join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing...
             </span>
           </div>
@@ -342,8 +341,8 @@ export function Chat({
       </div>
 
       {/* Input */}
-      <div className="p-4 bg-muted/30 border-t border-border backdrop-blur-md">
-        <div className="flex items-end gap-2 bg-background p-1.5 rounded-2xl border border-input focus-within:ring-1 focus-within:ring-primary/50 focus-within:border-primary/50 transition-all">
+      <div className="p-4 border-t border-white/10 bg-black/20 backdrop-blur-md">
+        <div className="flex items-end gap-2 bg-white/5 p-1.5 rounded-2xl border border-white/10 focus-within:bg-black/40 focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20 transition-all duration-300">
           <input
             ref={fileInputRef}
             type="file"
@@ -353,7 +352,7 @@ export function Chat({
           />
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="p-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            className="p-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors"
             title="Attach File"
           >
             <AttachIcon />
@@ -363,15 +362,15 @@ export function Chat({
             onChange={handleInputChange}
             onKeyPress={handleKeyPress}
             placeholder={privateMessageTarget ? `Message ${targetUser?.displayName}...` : 'Type a message...'}
-            className="flex-1 max-h-24 bg-transparent border-none text-foreground placeholder:text-muted-foreground resize-none focus:ring-0 py-2.5 px-1 text-sm scrollbar-hide"
+            className="flex-1 max-h-24 bg-transparent border-none text-foreground placeholder:text-muted-foreground/50 resize-none focus:ring-0 py-2.5 px-1 text-sm scrollbar-hide font-medium leading-relaxed"
             rows={1}
           />
           <button
             onClick={handleSend}
             disabled={!inputValue.trim()}
-            className={`p-2.5 rounded-xl transition-all duration-200 ${inputValue.trim()
-              ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:scale-105 active:scale-95'
-              : 'bg-muted text-muted-foreground cursor-not-allowed'
+            className={`p-2.5 rounded-xl transition-all duration-300 ${inputValue.trim()
+              ? 'bg-gradient-to-r from-primary to-secondary text-white shadow-lg shadow-primary/20 hover:shadow-primary/40 hover:scale-105 active:scale-95'
+              : 'bg-white/5 text-muted-foreground/50 cursor-not-allowed'
               }`}
             title="Send Message"
           >
@@ -386,7 +385,7 @@ export function Chat({
 // SVG Icons
 
 const ChatIcon = ({ className = '' }: { className?: string }) => (
-  <svg className={`w-5 h-5 ${className}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+  <svg className={`w-5 h-5 ${className}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
     <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
   </svg>
 );

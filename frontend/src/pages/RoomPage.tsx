@@ -212,20 +212,23 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
       <StatusBanner />
 
       {/* Floating Header */}
-      <div className="absolute top-0 left-0 right-0 z-40 p-4 pointer-events-none">
+      <div className="absolute top-0 left-0 right-0 z-40 p-6 pointer-events-none">
         <div className="flex items-center justify-between">
           {/* Room Info */}
-          <div className="glass px-4 py-2 rounded-2xl flex items-center gap-3 pointer-events-auto">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-lg">
-              <span className="text-primary-foreground font-bold text-xs">VC</span>
+          <div className="glass-card px-5 py-3 rounded-full flex items-center gap-4 pointer-events-auto hover:bg-white/5 transition-colors shadow-lg shadow-black/5">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-md border border-white/10 shrink-0">
+              <span className="text-white font-bold text-sm">VC</span>
             </div>
-            <div>
-              <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-wider">Current Room</p>
+            <div className="flex flex-col">
+              <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-0.5">Room ID</span>
               <div className="flex items-center gap-2">
-                <p className="text-foreground font-medium text-sm font-mono tracking-wide">{useRoomStore.getState().roomCode || roomId}</p>
+                <p className="text-foreground font-semibold text-sm font-mono tracking-wide tabular-nums">{useRoomStore.getState().roomCode || roomId}</p>
                 <button
-                  onClick={() => navigator.clipboard.writeText(useRoomStore.getState().roomCode || roomId || '')}
-                  className="p-1 hover:bg-muted rounded-md transition-colors text-muted-foreground hover:text-foreground"
+                  onClick={() => {
+                    navigator.clipboard.writeText(useRoomStore.getState().roomCode || roomId || '');
+                    // Could add toast here
+                  }}
+                  className="p-1 hover:bg-white/10 rounded-full transition-colors text-muted-foreground hover:text-primary active:scale-95"
                   title="Copy Code"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -241,35 +244,43 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
             {isHost && (
               <button
                 onClick={() => signaling.muteAll(roomId!)}
-                className="glass-button p-2.5 rounded-xl text-primary-foreground hover:scale-105 transition-all"
+                className="glass-button px-4 py-2.5 rounded-full text-white hover:scale-105 active:scale-95 transition-all shadow-md flex items-center gap-2"
                 title="Mute All"
               >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
                   <path strokeLinecap="round" strokeLinejoin="round" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
                 </svg>
+                <span className="text-xs font-bold uppercase tracking-wider hidden sm:inline">Mute All</span>
               </button>
             )}
 
             <button
               onClick={() => setShowWhiteboard(!showWhiteboard)}
-              className={`p-2.5 rounded-xl transition-all font-medium flex items-center gap-2 ${showWhiteboard ? 'glass-button text-primary-foreground ring-2 ring-primary/50' : 'glass text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+              className={`px-4 py-2.5 rounded-full transition-all font-medium flex items-center gap-2 shadow-sm ${showWhiteboard
+                ? 'bg-primary text-white shadow-primary/30 hover:bg-primary/90'
+                : 'bg-background/80 hover:bg-background text-muted-foreground hover:text-foreground border border-white/10 backdrop-blur-md'}`}
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              <span className="text-sm hidden md:block">Whiteboard</span>
+              <span className="text-xs font-bold uppercase tracking-wider hidden md:block">Whiteboard</span>
             </button>
+
+            <div className="h-8 w-px bg-white/10 mx-1"></div>
 
             <button
               onClick={() => togglePanel('waiting')}
-              className={`p-2.5 rounded-xl transition-all relative ${panelOpen === 'waiting' ? 'glass-button text-primary-foreground' : 'glass text-muted-foreground hover:text-foreground hover:bg-muted'} ${!isHost && 'hidden'}`}
+              className={`p-3 rounded-full transition-all relative shadow-sm border border-white/10 ${panelOpen === 'waiting'
+                ? 'bg-primary text-white shadow-primary/30'
+                : 'bg-background/80 hover:bg-background text-muted-foreground hover:text-foreground backdrop-blur-md'} ${!isHost && 'hidden'}`}
+              title="Waiting Room"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               {waitingRoom.waitingParticipants.length > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-destructive text-[10px] text-destructive-foreground font-bold flex items-center justify-center animate-pulse">
+                <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-destructive text-[10px] text-white font-bold flex items-center justify-center animate-bounce shadow-sm border border-background">
                   {waitingRoom.waitingParticipants.length}
                 </span>
               )}
@@ -277,7 +288,10 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
 
             <button
               onClick={() => togglePanel('participants')}
-              className={`p-2.5 rounded-xl transition-all ${panelOpen === 'participants' ? 'glass-button text-primary-foreground' : 'glass text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+              className={`p-3 rounded-full transition-all shadow-sm border border-white/10 ${panelOpen === 'participants'
+                ? 'bg-primary text-white shadow-primary/30'
+                : 'bg-background/80 hover:bg-background text-muted-foreground hover:text-foreground backdrop-blur-md'}`}
+              title="Participants"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -286,7 +300,10 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
 
             <button
               onClick={() => togglePanel('chat')}
-              className={`p-2.5 rounded-xl transition-all ${panelOpen === 'chat' ? 'glass-button text-primary-foreground' : 'glass text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+              className={`p-3 rounded-full transition-all shadow-sm border border-white/10 ${panelOpen === 'chat'
+                ? 'bg-primary text-white shadow-primary/30'
+                : 'bg-background/80 hover:bg-background text-muted-foreground hover:text-foreground backdrop-blur-md'}`}
+              title="Chat"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />

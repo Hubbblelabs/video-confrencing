@@ -1,5 +1,5 @@
 
-import type { ReactNode } from 'react';
+import { type ReactNode, useState } from 'react';
 
 interface ControlButtonProps {
   label: string;
@@ -11,29 +11,39 @@ interface ControlButtonProps {
 }
 
 function ControlButton({ label, active = true, danger = false, disabled = false, onClick, icon }: ControlButtonProps) {
+  const [isHovered, setIsHovered] = useState(false);
+
   const getButtonStyles = () => {
     if (danger) {
-      return 'bg-destructive/10 text-destructive hover:bg-destructive hover:text-white border-destructive/30';
+      return 'bg-destructive text-white shadow-lg shadow-destructive/30 hover:bg-destructive/90 hover:scale-110';
     }
     if (!active) {
-      return 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground border-transparent relative after:absolute after:inset-0 after:rounded-full after:border after:border-destructive/30 after:w-full after:h-full after:rotate-45 after:scale-x-0 after:transition-transform';
+      return 'bg-muted/80 text-muted-foreground hover:bg-muted hover:text-foreground hover:scale-110 border-transparent relative after:absolute after:inset-0 after:rounded-full after:border-2 after:border-destructive/50 after:w-full after:h-full after:rotate-45 after:scale-x-100 after:transition-transform';
     }
-    return 'bg-secondary/10 text-secondary hover:bg-secondary hover:text-white hover:border-secondary/50 border-secondary/20 shadow-sm';
+    return 'bg-primary text-white shadow-lg shadow-primary/30 hover:bg-primary/90 hover:scale-110 hover:shadow-primary/50';
   };
 
   return (
-    <div className="group relative flex flex-col items-center gap-2">
+    <div
+      className="group relative flex flex-col items-center gap-2"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
       <button
-        className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed active:scale-95 border backdrop-blur-md ${getButtonStyles()}`}
+        className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 border border-white/10 ${getButtonStyles()}`}
         onClick={onClick}
         disabled={disabled}
       >
-        <div className="w-6 h-6 transition-transform duration-300 group-hover:scale-110">
+        <div className={`w-6 h-6 transition-transform duration-300 ${isHovered ? 'scale-110' : ''}`}>
           {icon}
         </div>
       </button>
-      <span className="absolute -top-10 scale-0 group-hover:scale-100 transition-all duration-200 px-2 py-1 bg-black/80 text-white text-[10px] uppercase tracking-wider font-bold rounded-md backdrop-blur-sm whitespace-nowrap">
+
+      {/* Tooltip */}
+      <span className={`absolute -top-12 px-3 py-1.5 bg-black/90 text-white text-[10px] uppercase tracking-wider font-bold rounded-lg backdrop-blur-md whitespace-nowrap shadow-xl transition-all duration-200 border border-white/10 ${isHovered ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-2 scale-95 pointer-events-none'}`}>
         {label}
+        {/* Triangle arrow */}
+        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-black/90"></div>
       </span>
     </div>
   );
@@ -112,8 +122,9 @@ export function Controls({
   onLeave,
 }: ControlsProps) {
   return (
-    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
-      <div className="flex items-center gap-4 px-6 py-4 bg-background/80 backdrop-blur-lg rounded-full shadow-2xl shadow-black/10 border border-border/50 hover:border-border transition-all duration-300">
+    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 animate-slide-up">
+      {/* Dynamic Island Dock */}
+      <div className="flex items-center gap-6 px-8 py-5 bg-background/80 backdrop-blur-2xl rounded-3xl shadow-2xl shadow-black/20 border border-white/10 ring-1 ring-black/5 hover:scale-[1.02] transition-all duration-300 ease-out">
         <ControlButton
           label={isMicOn ? 'Mute' : 'Unmute'}
           active={isMicOn}
@@ -133,7 +144,7 @@ export function Controls({
           icon={ScreenShareIcon}
         />
 
-        <div className="w-px h-8 bg-border mx-1" />
+        <div className="w-px h-10 bg-gradient-to-b from-transparent via-border to-transparent mx-2 opacity-50" />
 
         <ControlButton
           label="Leave"
