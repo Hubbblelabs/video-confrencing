@@ -59,8 +59,8 @@ function VideoTileInner({
   return (
     <div
       className={`relative w-full h-full bg-card rounded-3xl overflow-hidden flex items-center justify-center transition-all duration-300 group ${isActiveSpeaker
-          ? 'ring-2 ring-primary shadow-2xl shadow-primary/20 scale-[1.01] z-10'
-          : 'ring-1 ring-white/10 hover:ring-white/20'
+        ? 'ring-2 ring-primary shadow-2xl shadow-primary/20 scale-[1.01] z-10'
+        : 'ring-1 ring-white/10 hover:ring-white/20'
         }`}
     >
       {/* Video element */}
@@ -81,8 +81,8 @@ function VideoTileInner({
         <div className="absolute inset-0 flex items-center justify-center bg-zinc-900/90 backdrop-blur-sm">
           <div className="relative">
             <div className={`w-20 h-20 md:w-24 md:h-24 rounded-[2rem] flex items-center justify-center shadow-2xl relative z-10 ${isLocal
-                ? 'bg-gradient-to-br from-primary to-accent'
-                : 'bg-gradient-to-br from-secondary to-cyan-500'
+              ? 'bg-gradient-to-br from-primary to-secondary'
+              : 'bg-gradient-to-br from-secondary to-cyan-500'
               }`}>
               <span className="text-white text-3xl md:text-4xl font-bold uppercase font-heading">
                 {label.charAt(0)}

@@ -191,7 +191,7 @@ export function Chat({
                   onClick={() => startPrivateMessage(participant.userId)}
                   className="flex items-center gap-2 text-xs px-3 py-2 rounded-xl bg-muted/50 hover:bg-primary/20 border border-border hover:border-primary/30 text-foreground transition-all"
                 >
-                  <div className="w-4 h-4 rounded-full bg-gradient-to-br from-primary to-accent text-[8px] flex items-center justify-center font-bold text-white">
+                  <div className="w-4 h-4 rounded-full bg-gradient-to-br from-primary to-secondary text-[8px] flex items-center justify-center font-bold text-white">
                     {participant.displayName.charAt(0)}
                   </div>
                   {participant.displayName}
@@ -261,7 +261,7 @@ export function Chat({
 
                 <div
                   className={`max-w-[85%] rounded-2xl p-3 shadow-sm ${isOwn
-                    ? 'bg-gradient-to-br from-primary to-accent text-primary-foreground rounded-tr-sm'
+                    ? 'bg-gradient-to-br from-primary to-secondary text-primary-foreground rounded-tr-sm'
                     : isPrivate
                       ? 'bg-blue-500/10 border border-blue-500/20 text-foreground rounded-tl-sm'
                       : 'bg-muted text-foreground border border-border rounded-tl-sm'

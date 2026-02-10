@@ -122,7 +122,7 @@ function ParticipantRow({
       {/* Avatar */}
       <div className="relative">
         <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-lg ${isLocal
-          ? 'bg-gradient-to-br from-primary to-accent'
+          ? 'bg-gradient-to-br from-primary to-secondary'
           : 'bg-gradient-to-br from-secondary to-cyan-500'
           }`}>
           <span className="text-white text-sm font-bold uppercase">{displayName.charAt(0)}</span>
