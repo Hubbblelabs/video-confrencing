@@ -17,8 +17,8 @@ export function ParticipantsPanel({ localUserId, localDisplayName, isHost, onKic
   const list = Array.from(participants.values());
 
   return (
-    <div className="w-80 h-full flex flex-col glass-card rounded-2xl overflow-hidden shadow-2xl animate-slide-in-right">
-      <div className="px-5 py-4 border-b border-white/10 bg-white/5">
+    <div className="w-80 h-full flex flex-col bg-background/95 backdrop-blur-xl rounded-2xl overflow-hidden border border-border shadow-2xl animate-slide-in-right">
+      <div className="px-5 py-4 bg-muted/30 border-b border-border backdrop-blur-md">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-secondary/20 to-cyan-400/20 flex items-center justify-center border border-white/5">

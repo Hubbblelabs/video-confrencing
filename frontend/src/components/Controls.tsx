@@ -8,9 +8,10 @@ interface ControlButtonProps {
   disabled?: boolean;
   onClick: () => void;
   icon: ReactNode;
+  badge?: number;
 }
 
-function ControlButton({ label, active = true, danger = false, disabled = false, onClick, icon }: ControlButtonProps) {
+function ControlButton({ label, active = true, danger = false, disabled = false, onClick, icon, badge }: ControlButtonProps) {
   const [isHovered, setIsHovered] = useState(false);
 
   const getButtonStyles = () => {
@@ -30,13 +31,18 @@ function ControlButton({ label, active = true, danger = false, disabled = false,
       onMouseLeave={() => setIsHovered(false)}
     >
       <button
-        className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 border border-white/10 ${getButtonStyles()}`}
+        className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 border border-white/10 relative ${getButtonStyles()}`}
         onClick={onClick}
         disabled={disabled}
       >
         <div className={`w-6 h-6 transition-transform duration-300 ${isHovered ? 'scale-110' : ''}`}>
           {icon}
         </div>
+        {badge !== undefined && badge > 0 && (
+          <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-destructive text-[10px] text-white font-bold flex items-center justify-center animate-bounce shadow-sm border border-background">
+            {badge}
+          </span>
+        )}
       </button>
 
       {/* Tooltip */}
@@ -100,6 +106,37 @@ const LeaveIcon = (
   </svg>
 );
 
+const MuteAllIcon = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+    <path d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+  </svg>
+);
+
+const WhiteboardIcon = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+  </svg>
+);
+
+const WaitingRoomIcon = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+  </svg>
+);
+
+const ParticipantsIcon = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+  </svg>
+);
+
+const ChatIcon = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+  </svg>
+);
+
 // ─── Controls bar ───────────────────────────────────────────────
 
 interface ControlsProps {
@@ -110,6 +147,15 @@ interface ControlsProps {
   onToggleCamera: () => void;
   onToggleScreen: () => void;
   onLeave: () => void;
+
+  // New props
+  isHost: boolean;
+  onMuteAll: () => void;
+  showWhiteboard: boolean;
+  onToggleWhiteboard: () => void;
+  panelOpen: 'none' | 'participants' | 'chat' | 'waiting';
+  onTogglePanel: (panel: 'participants' | 'chat' | 'waiting') => void;
+  waitingRoomCount: number;
 }
 
 export function Controls({
@@ -120,6 +166,13 @@ export function Controls({
   onToggleCamera,
   onToggleScreen,
   onLeave,
+  isHost,
+  onMuteAll,
+  showWhiteboard,
+  onToggleWhiteboard,
+  panelOpen,
+  onTogglePanel,
+  waitingRoomCount,
 }: ControlsProps) {
   return (
     <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 animate-slide-up">
@@ -142,6 +195,48 @@ export function Controls({
           active={isScreenSharing}
           onClick={onToggleScreen}
           icon={ScreenShareIcon}
+        />
+
+        <div className="w-px h-10 bg-gradient-to-b from-transparent via-border to-transparent mx-2 opacity-50" />
+
+        {isHost && (
+          <ControlButton
+            label="Mute All"
+            active={true}
+            onClick={onMuteAll}
+            icon={MuteAllIcon}
+          />
+        )}
+
+        <ControlButton
+          label={showWhiteboard ? 'Hide Board' : 'Whiteboard'}
+          active={showWhiteboard}
+          onClick={onToggleWhiteboard}
+          icon={WhiteboardIcon}
+        />
+
+        {isHost && (
+          <ControlButton
+            label="Waiting Room"
+            active={panelOpen === 'waiting'}
+            onClick={() => onTogglePanel('waiting')}
+            icon={WaitingRoomIcon}
+            badge={waitingRoomCount}
+          />
+        )}
+
+        <ControlButton
+          label="Participants"
+          active={panelOpen === 'participants'}
+          onClick={() => onTogglePanel('participants')}
+          icon={ParticipantsIcon}
+        />
+
+        <ControlButton
+          label="Chat"
+          active={panelOpen === 'chat'}
+          onClick={() => onTogglePanel('chat')}
+          icon={ChatIcon}
         />
 
         <div className="w-px h-10 bg-gradient-to-b from-transparent via-border to-transparent mx-2 opacity-50" />

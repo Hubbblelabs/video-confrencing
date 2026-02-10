@@ -138,9 +138,9 @@ export function Chat({
     : null;
 
   return (
-    <div className="h-full w-full flex flex-col glass-card rounded-2xl overflow-hidden shadow-2xl animate-slide-in-right">
+    <div className="h-full w-full flex flex-col bg-background/95 backdrop-blur-xl rounded-2xl overflow-hidden border border-border shadow-2xl animate-slide-in-right">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-white/10 bg-white/5 backdrop-blur-md">
+      <div className="flex items-center justify-between p-4 bg-muted/30 border-b border-border backdrop-blur-md">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-gradient-to-br from-primary/20 to-accent/20 rounded-lg border border-white/5">
             <ChatIcon className="text-primary w-5 h-5" />
@@ -341,7 +341,7 @@ export function Chat({
       </div>
 
       {/* Input */}
-      <div className="p-4 border-t border-white/10 bg-black/20 backdrop-blur-md">
+      <div className="p-4 bg-muted/30 border-t border-border backdrop-blur-md">
         <div className="flex items-end gap-2 bg-white/5 p-1.5 rounded-2xl border border-white/10 focus-within:bg-black/40 focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20 transition-all duration-300">
           <input
             ref={fileInputRef}

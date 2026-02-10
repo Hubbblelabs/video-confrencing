@@ -687,6 +687,22 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
     return { success: true };
   }
 
+  @SubscribeMessage(WsEvents.WHITEBOARD_STATE)
+  async handleWhiteboardState(
+    @ConnectedSocket() socket: AppSocket,
+    @MessageBody() payload: { roomId: string; active: boolean },
+  ) {
+    this.assertAuthenticated(socket);
+
+    // Broadcast state change to all other users in the room
+    socket.to(payload.roomId).emit(WsEvents.WHITEBOARD_STATE, {
+      userId: socket.data.userId,
+      active: payload.active,
+    });
+
+    return { success: true };
+  }
+
   // ─── Chat Events ──────────────────────────────────────────────
 
   @SubscribeMessage(WsEvents.CHAT_MESSAGE)
