@@ -69,7 +69,7 @@ function VideoTileInner({
         autoPlay
         playsInline
         muted={isLocal}
-        className={`w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 ${isVideoOff || !videoTrack ? 'hidden' : ''
+        className={`w-full h-full object-cover ${isVideoOff || !videoTrack ? 'hidden' : ''
           } ${isLocal ? '-scale-x-100' : ''}`}
       />
 

@@ -158,6 +158,8 @@ interface ControlsProps {
   waitingRoomCount: number;
 }
 
+
+
 export function Controls({
   isMicOn,
   isCameraOn,
@@ -174,6 +176,8 @@ export function Controls({
   onTogglePanel,
   waitingRoomCount,
 }: ControlsProps) {
+  const [showShareMenu, setShowShareMenu] = useState(false);
+
   return (
     <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 animate-slide-up">
       {/* Dynamic Island Dock */}
@@ -190,12 +194,55 @@ export function Controls({
           onClick={onToggleCamera}
           icon={isCameraOn ? CameraOn : CameraOff}
         />
-        <ControlButton
-          label={isScreenSharing ? 'Stop Share' : 'Share Screen'}
-          active={isScreenSharing}
-          onClick={onToggleScreen}
-          icon={ScreenShareIcon}
-        />
+        <div className="relative group/share">
+          <ControlButton
+            label={isScreenSharing ? 'Stop Share' : showWhiteboard ? 'Stop Board' : 'Present'}
+            active={isScreenSharing || showWhiteboard}
+            onClick={() => setShowShareMenu(!showShareMenu)}
+            icon={isScreenSharing ? ScreenShareIcon : showWhiteboard ? WhiteboardIcon : ScreenShareIcon}
+          />
+
+          {showShareMenu && (
+            <>
+              {/* Backdrop to close menu */}
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setShowShareMenu(false)}
+              />
+
+              {/* Menu */}
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 p-2 bg-zinc-900 border border-white/20 rounded-2xl shadow-xl flex flex-col gap-1 min-w-[200px] z-50 animate-slide-up origin-bottom overflow-hidden ring-1 ring-black/50">
+                <button
+                  onClick={() => {
+                    onToggleScreen();
+                    setShowShareMenu(false);
+                  }}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all w-full text-left font-medium text-sm ${isScreenSharing
+                    ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+                    : 'text-zinc-100 hover:bg-white/10'
+                    }`}
+                >
+                  <div className="w-5 h-5">{ScreenShareIcon}</div>
+                  {isScreenSharing ? 'Stop Sharing' : 'Share Screen'}
+                </button>
+
+                <button
+                  onClick={() => {
+                    onToggleWhiteboard();
+                    setShowShareMenu(false);
+                  }}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all w-full text-left font-medium text-sm ${showWhiteboard
+                    ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+                    : 'text-zinc-100 hover:bg-white/10'
+                    }`}
+                >
+                  <div className="w-5 h-5">{WhiteboardIcon}</div>
+                  {showWhiteboard ? 'Stop Whiteboard' : 'Whiteboard'}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
 
         <div className="w-px h-10 bg-gradient-to-b from-transparent via-border to-transparent mx-2 opacity-50" />
 
@@ -207,13 +254,6 @@ export function Controls({
             icon={MuteAllIcon}
           />
         )}
-
-        <ControlButton
-          label={showWhiteboard ? 'Hide Board' : 'Whiteboard'}
-          active={showWhiteboard}
-          onClick={onToggleWhiteboard}
-          icon={WhiteboardIcon}
-        />
 
         {isHost && (
           <ControlButton

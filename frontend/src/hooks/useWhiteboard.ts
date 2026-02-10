@@ -7,9 +7,10 @@ interface UseWhiteboardProps {
   socket: Socket | null;
   roomId: string;
   userId: string;
+  onStateChange?: (active: boolean) => void;
 }
 
-export function useWhiteboard({ socket, roomId, userId }: UseWhiteboardProps) {
+export function useWhiteboard({ socket, roomId, userId, onStateChange }: UseWhiteboardProps) {
   const [remoteCursors, setRemoteCursors] = useState<Map<string, WhiteboardCursor>>(new Map());
   const [remoteObjects, setRemoteObjects] = useState<any[]>([]);
   const cursorTimeoutRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
@@ -42,6 +43,12 @@ export function useWhiteboard({ socket, roomId, userId }: UseWhiteboardProps) {
   const sendClear = useCallback(() => {
     if (!socket || !roomId) return;
     socket.emit(WS_EVENTS.WHITEBOARD_CLEAR, { roomId });
+  }, [socket, roomId]);
+
+  // Send state
+  const sendState = useCallback((active: boolean) => {
+    if (!socket || !roomId) return;
+    socket.emit(WS_EVENTS.WHITEBOARD_STATE, { roomId, active });
   }, [socket, roomId]);
 
   // Handle remote cursor
@@ -91,7 +98,7 @@ export function useWhiteboard({ socket, roomId, userId }: UseWhiteboardProps) {
   // Handle remote object modified
   const handleRemoteObjectModified = useCallback((data: { userId: string; object: any }) => {
     if (data.userId === userId) return;
-    setRemoteObjects(prev => 
+    setRemoteObjects(prev =>
       prev.map(obj => obj.id === data.object.id ? { ...data.object, remote: true } : obj)
     );
   }, [userId]);
@@ -108,6 +115,12 @@ export function useWhiteboard({ socket, roomId, userId }: UseWhiteboardProps) {
     setRemoteObjects([]);
   }, [userId]);
 
+  // Handle remote state
+  const handleRemoteState = useCallback((data: { userId: string; active: boolean }) => {
+    if (data.userId === userId) return;
+    onStateChange?.(data.active);
+  }, [userId, onStateChange]);
+
   // Setup listeners
   const setupListeners = useCallback(() => {
     if (!socket) return;
@@ -117,6 +130,7 @@ export function useWhiteboard({ socket, roomId, userId }: UseWhiteboardProps) {
     socket.on(WS_EVENTS.WHITEBOARD_OBJECT_MODIFIED, handleRemoteObjectModified);
     socket.on(WS_EVENTS.WHITEBOARD_OBJECT_REMOVED, handleRemoteObjectRemoved);
     socket.on(WS_EVENTS.WHITEBOARD_CLEAR, handleRemoteClear);
+    socket.on(WS_EVENTS.WHITEBOARD_STATE, handleRemoteState);
 
     return () => {
       socket.off(WS_EVENTS.WHITEBOARD_CURSOR, handleRemoteCursor);
@@ -124,8 +138,9 @@ export function useWhiteboard({ socket, roomId, userId }: UseWhiteboardProps) {
       socket.off(WS_EVENTS.WHITEBOARD_OBJECT_MODIFIED, handleRemoteObjectModified);
       socket.off(WS_EVENTS.WHITEBOARD_OBJECT_REMOVED, handleRemoteObjectRemoved);
       socket.off(WS_EVENTS.WHITEBOARD_CLEAR, handleRemoteClear);
+      socket.off(WS_EVENTS.WHITEBOARD_STATE, handleRemoteState);
     };
-  }, [socket, handleRemoteCursor, handleRemoteObjectAdded, handleRemoteObjectModified, handleRemoteObjectRemoved, handleRemoteClear]);
+  }, [socket, handleRemoteCursor, handleRemoteObjectAdded, handleRemoteObjectModified, handleRemoteObjectRemoved, handleRemoteClear, handleRemoteState]);
 
   return {
     remoteCursors: Array.from(remoteCursors.values()),
@@ -135,6 +150,7 @@ export function useWhiteboard({ socket, roomId, userId }: UseWhiteboardProps) {
     sendObjectRemoved,
     sendCursorPosition,
     sendClear,
+    sendState,
     setupListeners,
   };
 }
@@ -145,11 +161,11 @@ function generateUserColor(userId: string): string {
     '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8',
     '#F7DC6F', '#BB8FCE', '#85C1E2', '#F8B739', '#52B788'
   ];
-  
+
   let hash = 0;
   for (let i = 0; i < userId.length; i++) {
     hash = userId.charCodeAt(i) + ((hash << 5) - hash);
   }
-  
+
   return colors[Math.abs(hash) % colors.length];
 }

@@ -63,6 +63,7 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
     socket: whiteboardSocket,
     roomId: roomId || '',
     userId: userId || '',
+    onStateChange: (active) => setShowWhiteboard(active),
   });
 
   // Chat hook
@@ -333,7 +334,11 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
         isHost={isHost}
         onMuteAll={() => signaling.muteAll(roomId!)}
         showWhiteboard={showWhiteboard}
-        onToggleWhiteboard={() => setShowWhiteboard(!showWhiteboard)}
+        onToggleWhiteboard={() => {
+          const newState = !showWhiteboard;
+          setShowWhiteboard(newState);
+          whiteboard.sendState(newState);
+        }}
         panelOpen={panelOpen}
         onTogglePanel={togglePanel}
         waitingRoomCount={waitingRoom.waitingParticipants.length}
