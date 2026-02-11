@@ -88,6 +88,12 @@ function App() {
         useParticipantsStore.getState().setParticipantMuted(data.userId, false);
       }
     },
+    onHandRaised: (data) => {
+      useParticipantsStore.getState().setParticipantHandRaised(data.userId, data.handRaised);
+    },
+    onReactionReceived: (data) => {
+      useParticipantsStore.getState().setParticipantReaction(data.userId, data.reaction);
+    },
     onError: (data) => {
       useRoomStore.getState().setError(data.message);
     },

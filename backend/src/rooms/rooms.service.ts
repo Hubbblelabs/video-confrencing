@@ -368,6 +368,38 @@ export class RoomsService {
   }
 
   /**
+   * Toggles the hand raise status of a participant.
+   */
+  async toggleHandRaise(roomId: string, userId: string): Promise<boolean> {
+    const participantData = await this.redis.hget(
+      RedisKeys.roomParticipants(roomId),
+      userId,
+    );
+
+    if (!participantData) {
+      throw new WsRoomException('User not found in room');
+    }
+
+    const participant: RoomParticipant = JSON.parse(participantData);
+    participant.handRaised = !participant.handRaised;
+
+    await this.redis.hset(
+      RedisKeys.roomParticipants(roomId),
+      userId,
+      JSON.stringify(participant),
+    );
+
+    await this.audit.log({
+      action: AuditAction.HAND_RAISE_TOGGLED,
+      userId,
+      roomId,
+      metadata: { handRaised: participant.handRaised },
+    });
+
+    return !!participant.handRaised;
+  }
+
+  /**
    * Changes a participant's role. Host-only action.
    */
   async changeRole(params: {

@@ -15,6 +15,8 @@ export function VideoGrid() {
   const isCameraOn = useMediaStore((s) => s.isCameraOn);
   const participants = useParticipantsStore((s) => s.participants);
   const activeSpeakerId = useParticipantsStore((s) => s.activeSpeakerId);
+  const localHandRaised = useParticipantsStore((s) => s.localHandRaised);
+  const localReaction = useParticipantsStore((s) => s.localReaction);
   const localUserId = useAuthStore((s) => s.userId);
   const localDisplayName = useAuthStore((s) => s.displayName);
 
@@ -41,6 +43,8 @@ export function VideoGrid() {
         isVideoOff={!isCameraOn}
         isLocal
         isActiveSpeaker={activeSpeakerId === localUserId}
+        handRaised={localHandRaised}
+        reaction={localReaction ?? undefined}
       />
 
       {/* Remote tiles */}
@@ -53,6 +57,8 @@ export function VideoGrid() {
           isMuted={p.isMuted}
           isVideoOff={p.isVideoOff}
           isActiveSpeaker={activeSpeakerId === p.userId}
+          handRaised={p.handRaised}
+          reaction={p.reaction}
         />
       ))}
     </div>

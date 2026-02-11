@@ -804,6 +804,42 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
     return { success: true };
   }
 
+  // ─── Reaction / Hand Raise Events ─────────────────────────────
+
+  @SubscribeMessage(WsEvents.HAND_RAISE)
+  async handleHandRaise(
+    @ConnectedSocket() socket: AppSocket,
+    @MessageBody() payload: { roomId: string },
+  ) {
+    this.assertAuthenticated(socket);
+
+    const isRaised = await this.rooms.toggleHandRaise(payload.roomId, socket.data.userId);
+
+    // Broadcast to room
+    this.server.to(payload.roomId).emit(WsEvents.HAND_RAISED, {
+      userId: socket.data.userId,
+      handRaised: isRaised,
+    });
+
+    return { success: true, handRaised: isRaised };
+  }
+
+  @SubscribeMessage(WsEvents.REACTION)
+  async handleReaction(
+    @ConnectedSocket() socket: AppSocket,
+    @MessageBody() payload: { roomId: string; reaction: string },
+  ) {
+    this.assertAuthenticated(socket);
+
+    // Broadcast transient event to room (no persistence needed)
+    socket.to(payload.roomId).emit(WsEvents.REACTION_RECEIVED, {
+      userId: socket.data.userId,
+      reaction: payload.reaction,
+    });
+
+    return { success: true };
+  }
+
   // ─── Waiting Room Events ──────────────────────────────────────
 
   @SubscribeMessage(WsEvents.JOIN_WAITING_ROOM)

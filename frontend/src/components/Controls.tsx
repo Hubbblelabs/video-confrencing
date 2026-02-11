@@ -3,35 +3,38 @@ import { type ReactNode, useState } from 'react';
 
 interface ControlButtonProps {
   label: string;
-  active?: boolean;
-  danger?: boolean;
+  variant?: 'default' | 'danger' | 'primary' | 'secondary';
   disabled?: boolean;
   onClick: () => void;
   icon: ReactNode;
   badge?: number;
+  className?: string;
 }
 
-function ControlButton({ label, active = true, danger = false, disabled = false, onClick, icon, badge }: ControlButtonProps) {
+function ControlButton({ label, variant = 'default', disabled = false, onClick, icon, badge, className = '' }: ControlButtonProps) {
   const [isHovered, setIsHovered] = useState(false);
 
   const getButtonStyles = () => {
-    if (danger) {
-      return 'bg-destructive text-white shadow-lg shadow-destructive/30 hover:bg-destructive/90 hover:scale-110';
+    switch (variant) {
+      case 'danger':
+        return 'bg-destructive text-white shadow-lg shadow-destructive/30 hover:bg-destructive/90 hover:scale-110';
+      case 'primary':
+        return 'bg-primary text-white shadow-lg shadow-primary/30 hover:bg-primary/90 hover:scale-110 hover:shadow-primary/50';
+      case 'secondary':
+        return 'bg-zinc-800/80 text-white hover:bg-zinc-700 hover:text-white hover:scale-110 border-white/10';
+      default: // 'default' - Glass/Neutral
+        return 'bg-white/5 text-zinc-100 backdrop-blur-md hover:bg-white/10 hover:scale-110 border-white/10';
     }
-    if (!active) {
-      return 'bg-muted/80 text-muted-foreground hover:bg-muted hover:text-foreground hover:scale-110 border-transparent relative after:absolute after:inset-0 after:rounded-full after:border-2 after:border-destructive/50 after:w-full after:h-full after:rotate-45 after:scale-x-100 after:transition-transform';
-    }
-    return 'bg-primary text-white shadow-lg shadow-primary/30 hover:bg-primary/90 hover:scale-110 hover:shadow-primary/50';
   };
 
   return (
     <div
-      className="group relative flex flex-col items-center gap-2"
+      className={`group relative flex flex-col items-center gap-2 ${className}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       <button
-        className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 border border-white/10 relative ${getButtonStyles()}`}
+        className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 border relative ${getButtonStyles()}`}
         onClick={onClick}
         disabled={disabled}
       >
@@ -46,7 +49,7 @@ function ControlButton({ label, active = true, danger = false, disabled = false,
       </button>
 
       {/* Tooltip */}
-      <span className={`absolute -top-12 px-3 py-1.5 bg-black/90 text-white text-[10px] uppercase tracking-wider font-bold rounded-lg backdrop-blur-md whitespace-nowrap shadow-xl transition-all duration-200 border border-white/10 ${isHovered ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-2 scale-95 pointer-events-none'}`}>
+      <span className={`absolute -top-12 px-3 py-1.5 bg-black/90 text-white text-[10px] uppercase tracking-wider font-bold rounded-lg backdrop-blur-md whitespace-nowrap shadow-xl transition-all duration-200 border border-white/10 z-50 ${isHovered ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-2 scale-95 pointer-events-none'}`}>
         {label}
         {/* Triangle arrow */}
         <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-black/90"></div>
@@ -137,6 +140,24 @@ const ChatIcon = (
   </svg>
 );
 
+const HandRaiseIcon = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0" />
+    <path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2" />
+    <path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8" />
+    <path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15" />
+  </svg>
+);
+
+const EmojiIcon = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+    <line x1="9" y1="9" x2="9.01" y2="9" />
+    <line x1="15" y1="9" x2="15.01" y2="9" />
+  </svg>
+);
+
 // ─── Controls bar ───────────────────────────────────────────────
 
 interface ControlsProps {
@@ -156,6 +177,11 @@ interface ControlsProps {
   panelOpen: 'none' | 'participants' | 'chat' | 'waiting';
   onTogglePanel: (panel: 'participants' | 'chat' | 'waiting') => void;
   waitingRoomCount: number;
+
+  // Hand Raise / Reactions
+  handRaised: boolean;
+  onToggleHandRaise: () => void;
+  onReaction: (emoji: string) => void;
 }
 
 
@@ -175,29 +201,35 @@ export function Controls({
   panelOpen,
   onTogglePanel,
   waitingRoomCount,
+  handRaised,
+  onToggleHandRaise,
+  onReaction,
 }: ControlsProps) {
   const [showShareMenu, setShowShareMenu] = useState(false);
+  const [showReactionMenu, setShowReactionMenu] = useState(false);
+
+  const reactions = ['👍', '👏', '💖', '😂', '😮', '🎉'];
 
   return (
     <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 animate-slide-up">
       {/* Dynamic Island Dock */}
-      <div className="flex items-center gap-6 px-8 py-5 bg-background/80 backdrop-blur-2xl rounded-3xl shadow-2xl shadow-black/20 border border-white/10 ring-1 ring-black/5 hover:scale-[1.02] transition-all duration-300 ease-out">
+      <div className="flex items-center gap-6 px-8 py-5 bg-[#121212]/90 backdrop-blur-2xl rounded-3xl shadow-2xl shadow-black/40 border border-white/5 ring-1 ring-white/5 hover:scale-[1.01] transition-all duration-300 ease-out">
         <ControlButton
           label={isMicOn ? 'Mute' : 'Unmute'}
-          active={isMicOn}
+          variant={isMicOn ? 'default' : 'danger'}
           onClick={onToggleMic}
           icon={isMicOn ? MicOn : MicOff}
         />
         <ControlButton
           label={isCameraOn ? 'Stop Video' : 'Start Video'}
-          active={isCameraOn}
+          variant={isCameraOn ? 'default' : 'danger'}
           onClick={onToggleCamera}
           icon={isCameraOn ? CameraOn : CameraOff}
         />
         <div className="relative group/share">
           <ControlButton
             label={isScreenSharing ? 'Stop Share' : showWhiteboard ? 'Stop Board' : 'Present'}
-            active={isScreenSharing || showWhiteboard}
+            variant={isScreenSharing || showWhiteboard ? 'primary' : 'default'}
             onClick={() => setShowShareMenu(!showShareMenu)}
             icon={isScreenSharing ? ScreenShareIcon : showWhiteboard ? WhiteboardIcon : ScreenShareIcon}
           />
@@ -211,7 +243,7 @@ export function Controls({
               />
 
               {/* Menu */}
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 p-2 bg-zinc-900 border border-white/20 rounded-2xl shadow-xl flex flex-col gap-1 min-w-[200px] z-50 animate-slide-up origin-bottom overflow-hidden ring-1 ring-black/50">
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 p-2 bg-[#1e1e1e] border border-white/10 rounded-2xl shadow-xl flex flex-col gap-1 min-w-[200px] z-50 animate-slide-up origin-bottom overflow-hidden ring-1 ring-black/50">
                 <button
                   onClick={() => {
                     onToggleScreen();
@@ -244,12 +276,12 @@ export function Controls({
           )}
         </div>
 
-        <div className="w-px h-10 bg-gradient-to-b from-transparent via-border to-transparent mx-2 opacity-50" />
+        <div className="w-px h-10 bg-white/10 mx-2" />
 
         {isHost && (
           <ControlButton
             label="Mute All"
-            active={true}
+            variant="default"
             onClick={onMuteAll}
             icon={MuteAllIcon}
           />
@@ -258,7 +290,7 @@ export function Controls({
         {isHost && (
           <ControlButton
             label="Waiting Room"
-            active={panelOpen === 'waiting'}
+            variant={panelOpen === 'waiting' ? 'primary' : 'default'}
             onClick={() => onTogglePanel('waiting')}
             icon={WaitingRoomIcon}
             badge={waitingRoomCount}
@@ -266,24 +298,60 @@ export function Controls({
         )}
 
         <ControlButton
+          label={handRaised ? 'Lower Hand' : 'Raise Hand'}
+          variant={handRaised ? 'primary' : 'default'}
+          onClick={onToggleHandRaise}
+          icon={HandRaiseIcon}
+        />
+
+        <div className="relative">
+          <ControlButton
+            label="Reactions"
+            variant={showReactionMenu ? 'primary' : 'default'}
+            onClick={() => setShowReactionMenu(!showReactionMenu)}
+            icon={EmojiIcon}
+          />
+
+          {showReactionMenu && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setShowReactionMenu(false)} />
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 p-2 bg-[#1e1e1e] border border-white/10 rounded-full shadow-xl flex gap-1 z-50 animate-slide-up origin-bottom ring-1 ring-black/50">
+                {reactions.map((emoji) => (
+                  <button
+                    key={emoji}
+                    onClick={() => {
+                      onReaction(emoji);
+                      setShowReactionMenu(false);
+                    }}
+                    className="w-10 h-10 flex items-center justify-center text-2xl hover:bg-white/10 rounded-full transition-transform hover:scale-125"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+
+        <ControlButton
           label="Participants"
-          active={panelOpen === 'participants'}
+          variant={panelOpen === 'participants' ? 'primary' : 'default'}
           onClick={() => onTogglePanel('participants')}
           icon={ParticipantsIcon}
         />
 
         <ControlButton
           label="Chat"
-          active={panelOpen === 'chat'}
+          variant={panelOpen === 'chat' ? 'primary' : 'default'}
           onClick={() => onTogglePanel('chat')}
           icon={ChatIcon}
         />
 
-        <div className="w-px h-10 bg-gradient-to-b from-transparent via-border to-transparent mx-2 opacity-50" />
+        <div className="w-px h-10 bg-white/10 mx-2" />
 
         <ControlButton
           label="Leave"
-          danger
+          variant="danger"
           onClick={onLeave}
           icon={LeaveIcon}
         />

@@ -7,6 +7,8 @@ export const WS_EVENTS = {
   KICK_USER: 'room:kick',
   MUTE_ALL: 'room:muteAll',
   CHANGE_ROLE: 'room:changeRole',
+  HAND_RAISE: 'room:handRaise',
+  REACTION: 'room:reaction',
 
   GET_ROUTER_CAPABILITIES: 'media:getRouterCapabilities',
   CREATE_TRANSPORT: 'media:createTransport',
@@ -59,6 +61,8 @@ export const WS_EVENTS = {
   USER_KICKED: 'room:userKicked',
   ALL_MUTED: 'room:allMuted',
   ROLE_CHANGED: 'room:roleChanged',
+  HAND_RAISED: 'room:handRaised',
+  REACTION_RECEIVED: 'room:reactionReceived',
 
   NEW_PRODUCER: 'media:newProducer',
   PRODUCER_CLOSED: 'media:producerClosed',

@@ -36,12 +36,14 @@ interface RoomPageProps {
 export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLeave }: RoomPageProps) {
   const roomId = useRoomStore((s) => s.roomId);
   const role = useRoomStore((s) => s.role);
+  const connectionState = useRoomStore((s) => s.connectionState);
   const userId = useAuthStore((s) => s.userId);
   const displayName = useAuthStore((s) => s.displayName);
 
   const isMicOn = useMediaStore((s) => s.isMicOn);
   const isCameraOn = useMediaStore((s) => s.isCameraOn);
   const isScreenSharing = useMediaStore((s) => s.isScreenSharing);
+  const localHandRaised = useParticipantsStore((s) => s.localHandRaised);
 
   const [panelOpen, setPanelOpen] = useState<'none' | 'participants' | 'chat' | 'waiting'>('none');
   const [showWhiteboard, setShowWhiteboard] = useState(false);
@@ -57,7 +59,9 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
   const webrtc = useWebRTC(signaling);
   const media = useMedia();
 
-  // Whiteboard hook
+  // Whiteboard hook - socketRef.current might be null initially
+  // We rely on connectionState change to re-render this component, 
+  // which will update the socket passed to hooks if they use the ref directly
   const whiteboardSocket = signaling.socketRef.current;
   const whiteboard = useWhiteboard({
     socket: whiteboardSocket,
@@ -126,7 +130,8 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
   }, [whiteboard]);
 
   useEffect(() => {
-    if (joinedRef.current || !roomId) return;
+    // Wait for connection to be established before bootstrapping
+    if (joinedRef.current || !roomId || connectionState !== 'connected') return;
     joinedRef.current = true;
 
     const bootstrap = async () => {
@@ -154,7 +159,7 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
     };
 
     bootstrap();
-  }, [roomId, media, signaling, webrtc, produceLocalTracks, userId, existingProducers]);
+  }, [roomId, media, signaling, webrtc, produceLocalTracks, userId, existingProducers, connectionState]);
 
   const handleToggleMic = useCallback(async () => {
     media.toggleMic();
@@ -208,6 +213,26 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
     setPanelOpen(prev => prev === panel ? 'none' : panel);
   };
 
+  const handleToggleHandRaise = useCallback(async () => {
+    if (!roomId) return;
+    try {
+      const { handRaised } = await signaling.sendHandRaise(roomId);
+      useParticipantsStore.getState().setLocalHandRaised(handRaised);
+    } catch (err) {
+      console.error('Failed to toggle hand raise:', err);
+    }
+  }, [roomId, signaling]);
+
+  const handleReaction = useCallback(async (reaction: string) => {
+    if (!roomId) return;
+    try {
+      await signaling.sendReaction(roomId, reaction);
+      useParticipantsStore.getState().setLocalReaction(reaction);
+    } catch (err) {
+      console.error('Failed to send reaction:', err);
+    }
+  }, [roomId, signaling]);
+
   return (
     <div className="h-screen w-screen bg-background relative overflow-hidden flex flex-col">
       <StatusBanner />
@@ -248,7 +273,7 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
       </div>
 
       {/* Floating Panels */}
-      <div className={`absolute top-20 right-4 bottom-24 w-96 transform transition-transform duration-300 ease-in-out z-30 ${panelOpen !== 'none' || showWhiteboard ? 'translate-x-0' : 'translate-x-[120%]'
+      <div className={`fixed top-24 right-4 bottom-32 w-96 transform transition-transform duration-300 ease-in-out z-30 ${panelOpen !== 'none' || showWhiteboard ? 'translate-x-0' : 'translate-x-[120%]'
         }`}>
         {showWhiteboard && (
           <div className="absolute inset-0 z-50 rounded-3xl overflow-hidden bg-background/95 backdrop-blur-xl border border-border shadow-2xl">
@@ -342,6 +367,9 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
         panelOpen={panelOpen}
         onTogglePanel={togglePanel}
         waitingRoomCount={waitingRoom.waitingParticipants.length}
+        handRaised={localHandRaised}
+        onToggleHandRaise={handleToggleHandRaise}
+        onReaction={handleReaction}
       />
     </div>
   );

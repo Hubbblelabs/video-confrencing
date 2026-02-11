@@ -9,114 +9,108 @@ interface WaitingLobbyProps {
 export function WaitingLobby({ message, wasRejected, onLeave }: WaitingLobbyProps) {
   const [dots, setDots] = useState('');
 
-  // Animated dots effect
   useEffect(() => {
     if (wasRejected) return;
-
     const interval = setInterval(() => {
-      setDots(prev => {
-        if (prev === '...') return '';
-        return prev + '.';
-      });
+      setDots(prev => prev.length >= 3 ? '' : prev + '.');
     }, 500);
-
     return () => clearInterval(interval);
   }, [wasRejected]);
 
   if (wasRejected) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
-        <div className="absolute top-[-20%] left-[-10%] w-[800px] h-[800px] rounded-full bg-destructive/5 blur-[120px] pointer-events-none" />
+      <div className="min-h-screen w-full flex items-center justify-center bg-background relative overflow-hidden p-4">
+        {/* Background Effects */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-destructive/5 rounded-full blur-[120px] pointer-events-none" />
 
-        <div className="max-w-md w-full glass-card p-10 rounded-3xl text-center relative z-10 animate-fade-in border-destructive/20 shadow-[0_0_50px_-10px_rgba(239,68,68,0.2)]">
-          {/* Rejected Icon */}
-          <div className="mx-auto w-24 h-24 rounded-full bg-destructive/10 flex items-center justify-center mb-8 animate-bounce" style={{ animationDuration: '2s' }}>
-            <svg className="w-12 h-12 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+        <div className="relative z-10 w-full max-w-md">
+          <div className="bg-card border border-destructive/10 rounded-3xl p-8 md:p-10 shadow-2xl shadow-destructive/5 text-center animate-in fade-in zoom-in-95 duration-500">
+            <div className="mx-auto w-20 h-20 bg-destructive/10 rounded-full flex items-center justify-center mb-6 ring-1 ring-destructive/20">
+              <svg className="w-10 h-10 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </div>
+
+            <h2 className="text-2xl font-bold text-foreground mb-3">Access Denied</h2>
+            <p className="text-muted-foreground mb-8 leading-relaxed">{message}</p>
+
+            <button
+              onClick={onLeave}
+              className="w-full py-3.5 px-4 bg-muted hover:bg-muted/80 text-foreground rounded-xl transition-all font-medium border border-border/50 hover:border-border"
+            >
+              Return to Home
+            </button>
           </div>
-
-          {/* Rejected Message */}
-          <div className="mb-10">
-            <h2 className="text-3xl font-bold text-white mb-3 font-heading">
-              Access Denied
-            </h2>
-            <p className="text-muted-foreground text-lg">
-              {message}
-            </p>
-          </div>
-
-          {/* Actions */}
-          <button
-            onClick={onLeave}
-            className="w-full py-4 bg-muted/50 hover:bg-muted text-white rounded-2xl transition-all duration-300 font-medium hover:scale-[1.02] active:scale-[0.98]"
-          >
-            Return to Home
-          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Background Ambience */}
-      <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-primary/10 rounded-full blur-[100px] animate-pulse pointer-events-none" style={{ animationDuration: '4s' }} />
+    <div className="min-h-screen w-full flex items-center justify-center bg-background relative overflow-hidden p-4">
+      {/* Dynamic Background matching Dashboard warmth */}
+      <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-primary/5 rounded-full blur-[100px] animate-pulse-slow pointer-events-none" />
+      <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] bg-orange-200/20 rounded-full blur-[100px] animate-pulse-slow pointer-events-none" style={{ animationDelay: '2s' }} />
 
-      <div className="max-w-md w-full glass-card p-10 rounded-3xl text-center relative z-10 animate-fade-in border-primary/20 shadow-[0_0_60px_-15px_rgba(139,92,246,0.15)]">
-        {/* Waiting Animation */}
-        <div className="relative mx-auto w-40 h-40 mb-8">
-          {/* Pulsing circles */}
-          <div className="absolute inset-0 rounded-full bg-primary/10 animate-ping" style={{ animationDuration: '2s' }} />
-          <div className="absolute inset-8 rounded-full bg-primary/20 animate-pulse" />
-          <div className="absolute inset-12 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-lg shadow-primary/30">
-            <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+      <div className="relative z-10 w-full max-w-md">
+        <div className="bg-card border border-border/50 rounded-[2rem] p-8 md:p-12 shadow-[0_8px_40px_-12px_rgba(0,0,0,0.1)] overflow-hidden animate-in fade-in zoom-in-95 duration-700">
+
+          {/* Animated Radar/Pulse Effect */}
+          <div className="relative mx-auto w-32 h-32 mb-10 flex items-center justify-center">
+            {/* Outer Rings - Subtle Orange/Primary */}
+            <div className="absolute inset-0 border border-primary/20 rounded-full animate-[ping_3s_cubic-bezier(0,0,0.2,1)_infinite]" />
+            <div className="absolute inset-0 border border-primary/10 rounded-full animate-[ping_3s_cubic-bezier(0,0,0.2,1)_infinite]" style={{ animationDelay: '1s' }} />
+
+            {/* Core Gradient */}
+            <div className="relative w-24 h-24 bg-gradient-to-br from-primary/10 to-orange-100 rounded-full flex items-center justify-center ring-1 ring-primary/20 shadow-lg shadow-primary/5">
+              <div className="w-16 h-16 bg-gradient-to-br from-primary to-orange-600 rounded-full shadow-md flex items-center justify-center text-white">
+                <svg className="w-8 h-8 drop-shadow-sm" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <div className="text-center space-y-4 mb-12">
+            <div>
+              <h2 className="text-3xl font-bold text-foreground tracking-tight mb-2">
+                Waiting Room
+              </h2>
+              <div className="flex items-center justify-center gap-1 text-primary font-bold text-sm uppercase tracking-widest">
+                <span>Connecting</span>
+                <span className="w-4 text-left">{dots}</span>
+              </div>
+            </div>
+
+            <p className="text-muted-foreground leading-relaxed text-sm max-w-[280px] mx-auto">
+              We've notified the host that you're here. You'll be admitted automatically once approved.
+            </p>
+          </div>
+
+          {/* Info Badge */}
+          <div className="bg-muted/50 border border-border/50 rounded-2xl p-4 mb-8 flex items-start gap-4 text-left">
+            <div className="p-2 bg-primary/10 rounded-lg shrink-0">
+              <svg className="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-foreground text-sm font-semibold mb-1">Host is reviewing</h3>
+              <p className="text-xs text-muted-foreground">Your video and audio will be automatically enabled when you join.</p>
+            </div>
+          </div>
+
+          <button
+            onClick={onLeave}
+            className="w-full py-4 text-muted-foreground hover:text-foreground transition-colors text-sm font-medium flex items-center justify-center gap-2 group"
+          >
+            <span>Leave Waiting Room</span>
+            <svg className="w-4 h-4 opacity-0 -ml-2 group-hover:opacity-100 group-hover:ml-0 transition-all text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>
-          </div>
+          </button>
         </div>
-
-        {/* Waiting Message */}
-        <div className="mb-10">
-          <h2 className="text-3xl font-bold text-white mb-3 font-heading">
-            Waiting Room<span className="w-8 inline-block text-left">{dots}</span>
-          </h2>
-          <p className="text-muted-foreground text-lg">
-            {message}
-          </p>
-        </div>
-
-        {/* Info Cards */}
-        <div className="space-y-4 text-left mb-10">
-          <div className="p-4 bg-white/5 rounded-2xl flex items-start gap-4 border border-white/5">
-            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
-              <InfoIcon />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-white/90 text-sm mb-1">Host Reviewing</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                The meeting host has been notified of your arrival. You will be automatically admitted once approved.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Actions */}
-        <button
-          onClick={onLeave}
-          className="w-full py-4 text-muted-foreground hover:text-white hover:bg-white/5 rounded-2xl transition-all duration-200 font-medium text-sm"
-        >
-          Leave Waiting Room
-        </button>
       </div>
     </div>
   );
 }
-
-// SVG Icons
-
-const InfoIcon = () => (
-  <svg className="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-    <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-  </svg>
-);

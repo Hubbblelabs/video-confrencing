@@ -33,97 +33,14 @@ export function WaitingRoom({ participants, onAdmit, onReject, onAdmitAll }: Wai
 
   if (participants.length === 0) {
     return (
-      <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-slate-50 via-slate-50/50 to-slate-100/30 dark:from-neutral-950 dark:via-neutral-950/50 dark:to-neutral-900/30 p-6 relative overflow-hidden">
-        {/* Subtle noise texture overlay */}
-        <div className="absolute inset-0 opacity-[0.015] dark:opacity-[0.02] pointer-events-none bg-noise" />
-
-        {/* Centered Card */}
-        <div className="w-full max-w-[420px] relative z-10">
-          <div className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl rounded-[20px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)] border border-slate-200/60 dark:border-neutral-800/60 overflow-hidden">
-
-            {/* Main Content */}
-            <div className="flex flex-col items-center pt-16 pb-12 px-10">
-
-              {/* Animated Progress Ring */}
-              <div className="relative mb-10">
-                {/* Pulsing background glow */}
-                <div className="absolute inset-0 bg-gradient-to-br from-amber-400/20 to-orange-400/20 dark:from-amber-500/15 dark:to-orange-500/15 rounded-full blur-2xl animate-pulse-slow" />
-
-                {/* Progress ring container */}
-                <div className="relative w-24 h-24">
-                  <svg className="w-24 h-24 -rotate-90" viewBox="0 0 100 100">
-                    {/* Background circle */}
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r="42"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      className="text-slate-200 dark:text-neutral-800"
-                      opacity="0.3"
-                    />
-                    {/* Animated progress circle */}
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r="42"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      strokeLinecap="round"
-                      className="text-amber-500 dark:text-amber-400 animate-progress-ring"
-                      strokeDasharray="264"
-                      strokeDashoffset="66"
-                    />
-                  </svg>
-
-                  {/* Center dot with pulse */}
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-3 h-3 bg-amber-500 dark:bg-amber-400 rounded-full animate-pulse-dot" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Primary Heading - Bold, confident, human */}
-              <h1 className="text-[28px] font-semibold text-slate-900 dark:text-neutral-100 mb-3 tracking-tight text-center leading-tight">
-                You're in the waiting room
-              </h1>
-
-              {/* Secondary Status - Calm, reassuring */}
-              <p className="text-[15px] text-slate-600 dark:text-neutral-400 mb-10 text-center leading-relaxed font-normal max-w-[340px]">
-                The host has been notified and will admit you shortly.
-              </p>
-
-              {/* Info / Reassurance Block */}
-              <div className="w-full bg-slate-100/60 dark:bg-neutral-800/40 border border-slate-200/50 dark:border-neutral-700/50 rounded-2xl p-4 mb-8">
-                <div className="flex gap-3 items-start">
-                  <div className="flex-shrink-0 mt-0.5">
-                    <InfoIcon className="text-slate-500 dark:text-neutral-400" size={18} />
-                  </div>
-                  <p className="text-[13px] text-slate-700 dark:text-neutral-300 leading-relaxed font-normal">
-                    You'll be admitted automatically once approved.
-                  </p>
-                </div>
-              </div>
-
-              {/* Progress Feedback - Temporal awareness */}
-              <div className="flex items-center gap-2 text-slate-500 dark:text-neutral-500 text-sm font-medium">
-                <span>Waiting</span>
-                <span className="text-slate-400 dark:text-neutral-600">·</span>
-                <span className="tabular-nums">{formatWaitTime(waitTime)}</span>
-                <span className="animate-dots">...</span>
-              </div>
-            </div>
-
-            {/* Footer Action - Low visual weight */}
-            <div className="border-t border-slate-200/60 dark:border-neutral-800/60 bg-slate-50/40 dark:bg-neutral-900/40 px-10 py-5 flex justify-center">
-              <button className="text-[14px] font-medium text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-neutral-200 transition-colors duration-200">
-                Leave waiting room
-              </button>
-            </div>
-          </div>
+      <div className="h-full w-full flex flex-col items-center justify-center p-8 text-center text-muted-foreground">
+        <div className="p-4 bg-muted/30 rounded-full mb-4">
+          <WaitingIcon className="w-12 h-12 opacity-50" />
         </div>
+        <h3 className="font-semibold text-lg text-foreground">No one is waiting</h3>
+        <p className="text-sm mt-2 max-w-[240px]">
+          When participants join, they will appear here for you to admit or deny.
+        </p>
       </div>
     );
   }

@@ -18,6 +18,8 @@ import type {
   ProducerClosedEvent,
   ProducerPausedEvent,
   ProducerResumedEvent,
+  HandRaisedEvent,
+  ReactionEvent,
 } from '../types';
 import type { types as mediasoupTypes } from 'mediasoup-client';
 
@@ -34,6 +36,8 @@ interface SignalingListeners {
   onProducerClosed?: (data: ProducerClosedEvent) => void;
   onProducerPaused?: (data: ProducerPausedEvent) => void;
   onProducerResumed?: (data: ProducerResumedEvent) => void;
+  onHandRaised?: (data: HandRaisedEvent) => void;
+  onReactionReceived?: (data: ReactionEvent) => void;
   onError?: (data: { message: string }) => void;
 }
 
@@ -163,6 +167,14 @@ export function useSignaling(listeners: SignalingListeners = {}) {
       listenersRef.current.onProducerResumed?.(data);
     });
 
+    socket.on(WS_EVENTS.HAND_RAISED, (data: HandRaisedEvent) => {
+      listenersRef.current.onHandRaised?.(data);
+    });
+
+    socket.on(WS_EVENTS.REACTION_RECEIVED, (data: ReactionEvent) => {
+      listenersRef.current.onReactionReceived?.(data);
+    });
+
     socket.on(WS_EVENTS.ERROR, (data: { message: string }) => {
       listenersRef.current.onError?.(data);
     });
@@ -219,6 +231,18 @@ export function useSignaling(listeners: SignalingListeners = {}) {
     const socket = socketRef.current;
     if (!socket?.connected) return;
     await emitWithAck<{ success: boolean; mutedCount: number }>(socket, WS_EVENTS.MUTE_ALL, { roomId });
+  }, []);
+
+  const sendHandRaise = useCallback(async (roomId: string): Promise<{ success: boolean; handRaised: boolean }> => {
+    const socket = socketRef.current;
+    if (!socket?.connected) throw new Error('Socket not connected');
+    return emitWithAck<{ success: boolean; handRaised: boolean }>(socket, WS_EVENTS.HAND_RAISE, { roomId });
+  }, []);
+
+  const sendReaction = useCallback(async (roomId: string, reaction: string): Promise<void> => {
+    const socket = socketRef.current;
+    if (!socket?.connected) return;
+    await emitWithAck<{ success: boolean }>(socket, WS_EVENTS.REACTION, { roomId, reaction });
   }, []);
 
   // ─── Media signaling operations ───────────────────────────────
@@ -310,6 +334,8 @@ export function useSignaling(listeners: SignalingListeners = {}) {
     closeRoom,
     kickUser,
     muteAll,
+    sendHandRaise,
+    sendReaction,
     // Media signaling
     getRouterCapabilities,
     createTransport,

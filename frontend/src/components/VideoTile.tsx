@@ -8,6 +8,8 @@ interface VideoTileProps {
   isVideoOff: boolean;
   isLocal?: boolean;
   isActiveSpeaker?: boolean;
+  handRaised?: boolean;
+  reaction?: string;
 }
 
 function VideoTileInner({
@@ -18,6 +20,8 @@ function VideoTileInner({
   isVideoOff,
   isLocal = false,
   isActiveSpeaker = false,
+  handRaised = false,
+  reaction,
 }: VideoTileProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -141,6 +145,26 @@ function VideoTileInner({
           </div>
         )}
       </div>
+
+      {/* Hand Raise Indicator */}
+      {handRaised && (
+        <div className="absolute top-4 left-4 z-40 animate-bounce">
+          <div className="bg-primary text-white p-2 rounded-full shadow-lg border border-white/20">
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10 9v6m4-6v6m4-6v6m-8-6V5a2 2 0 114 0v4m-4 0h4m-4 0V5a2 2 0 114 0v4m-4 0v6m0 0H6a2 2 0 00-2 2v6a2 2 0 002 2h12a2 2 0 002-2v-6a2 2 0 00-2-2h-4" />
+            </svg>
+          </div>
+        </div>
+      )}
+
+      {/* Reaction Overlay */}
+      {reaction && (
+        <div className="absolute inset-0 flex items-center justify-center z-50 pointer-events-none animate-float-up">
+          <div className="text-8xl drop-shadow-2xl filter saturate-150 transform scale-150 transition-transform duration-300">
+            {reaction}
+          </div>
+        </div>
+      )}
 
       {/* Corner badge for local user */}
       {isLocal && (

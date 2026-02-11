@@ -4,6 +4,8 @@ import type { RemoteParticipant, RoomRole } from '../types';
 interface ParticipantsState {
   participants: Map<string, RemoteParticipant>;
   activeSpeakerId: string | null;
+  localHandRaised: boolean;
+  localReaction: string | null;
 }
 
 interface ParticipantsActions {
@@ -17,13 +19,19 @@ interface ParticipantsActions {
   addConsumer: (userId: string, consumerId: string, consumer: import('mediasoup-client').types.Consumer) => void;
   removeConsumer: (userId: string, consumerId: string) => void;
   setActiveSpeaker: (userId: string | null) => void;
-  syncParticipants: (serverParticipants: Array<{ userId: string; displayName: string; role: RoomRole; isMuted: boolean; isVideoOff: boolean }>, localUserId: string) => void;
+  syncParticipants: (serverParticipants: Array<{ userId: string; displayName: string; role: RoomRole; isMuted: boolean; isVideoOff: boolean; handRaised?: boolean }>, localUserId: string) => void;
+  setParticipantHandRaised: (userId: string, handRaised: boolean) => void;
+  setParticipantReaction: (userId: string, reaction: string) => void;
+  setLocalHandRaised: (handRaised: boolean) => void;
+  setLocalReaction: (reaction: string) => void;
   reset: () => void;
 }
 
 export const useParticipantsStore = create<ParticipantsState & ParticipantsActions>((set, get) => ({
   participants: new Map(),
   activeSpeakerId: null,
+  localHandRaised: false,
+  localReaction: null,
 
   addParticipant: (userId, displayName, role) => {
     const current = get().participants;
@@ -37,6 +45,7 @@ export const useParticipantsStore = create<ParticipantsState & ParticipantsActio
       videoTrack: null,
       isMuted: false,
       isVideoOff: false,
+      handRaised: false,
       consumers: new Map(),
     });
     set({ participants: next });
@@ -156,6 +165,7 @@ export const useParticipantsStore = create<ParticipantsState & ParticipantsActio
           videoTrack: null,
           isMuted: sp.isMuted,
           isVideoOff: sp.isVideoOff,
+          handRaised: sp.handRaised,
           consumers: new Map(),
         });
       } else {
@@ -166,6 +176,7 @@ export const useParticipantsStore = create<ParticipantsState & ParticipantsActio
           role: sp.role,
           isMuted: sp.isMuted,
           isVideoOff: sp.isVideoOff,
+          handRaised: sp.handRaised,
         });
       }
     }
@@ -186,6 +197,48 @@ export const useParticipantsStore = create<ParticipantsState & ParticipantsActio
     set({ participants: next });
   },
 
+  setParticipantHandRaised: (userId, handRaised) => {
+    const current = get().participants;
+    const participant = current.get(userId);
+    if (!participant) return;
+
+    const next = new Map(current);
+    next.set(userId, { ...participant, handRaised });
+    set({ participants: next });
+  },
+
+  setParticipantReaction: (userId, reaction) => {
+    const current = get().participants;
+    const participant = current.get(userId);
+    if (!participant) return;
+
+    const next = new Map(current);
+    next.set(userId, { ...participant, reaction });
+    set({ participants: next });
+
+    // Clear reaction after 3 seconds
+    setTimeout(() => {
+      const current = get().participants;
+      const p = current.get(userId);
+      if (p && p.reaction === reaction) {
+        const next = new Map(current);
+        next.set(userId, { ...p, reaction: undefined });
+        set({ participants: next });
+      }
+    }, 3000);
+  },
+
+  setLocalHandRaised: (handRaised) => set({ localHandRaised: handRaised }),
+
+  setLocalReaction: (reaction) => {
+    set({ localReaction: reaction });
+    setTimeout(() => {
+      if (get().localReaction === reaction) {
+        set({ localReaction: null });
+      }
+    }, 3000);
+  },
+
   reset: () => {
     // Close all consumers
     const current = get().participants;
@@ -194,6 +247,6 @@ export const useParticipantsStore = create<ParticipantsState & ParticipantsActio
         if (!consumer.closed) consumer.close();
       }
     }
-    set({ participants: new Map(), activeSpeakerId: null });
+    set({ participants: new Map(), activeSpeakerId: null, localHandRaised: false, localReaction: null });
   },
 }));

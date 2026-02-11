@@ -34,6 +34,7 @@ export interface ServerParticipant {
   producerIds: string[];
   isMuted: boolean;
   isVideoOff: boolean;
+  handRaised?: boolean;
 }
 
 export interface JoinRoomResponse {
@@ -121,6 +122,16 @@ export interface RoleChangedEvent {
   newRole: RoomRole;
 }
 
+export interface HandRaisedEvent {
+  userId: string;
+  handRaised: boolean;
+}
+
+export interface ReactionEvent {
+  userId: string;
+  reaction: string;
+}
+
 // ─── Client-side participant model ────────────────────────────────
 
 export interface RemoteParticipant {
@@ -131,6 +142,8 @@ export interface RemoteParticipant {
   isVideoOff: boolean;
   /** consumerId → Consumer for cleanup */
   consumers: Map<string, mediasoupTypes.Consumer>;
+  handRaised?: boolean;
+  reaction?: string;
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────

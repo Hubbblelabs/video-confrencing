@@ -10,4 +10,5 @@ export enum AuditAction {
   PRODUCER_CREATED = 'producer_created',
   PRODUCER_CLOSED = 'producer_closed',
   CONSUMER_CREATED = 'consumer_created',
+  HAND_RAISE_TOGGLED = 'hand_raise_toggled',
 }

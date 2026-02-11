@@ -26,6 +26,7 @@ export interface RoomParticipant {
   producerIds: string[];
   isMuted: boolean;
   isVideoOff: boolean;
+  handRaised?: boolean;
 }
 
 export interface RedisRoomState {

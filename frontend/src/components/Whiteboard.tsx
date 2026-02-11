@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Canvas, FabricObject, Circle, Rect, Line, IText, PencilBrush } from 'fabric';
+import { Canvas, FabricObject, Circle, Rect, Line, IText, PencilBrush, util } from 'fabric';
 import type { DrawingTool, WhiteboardCursor } from '../types/whiteboard.types';
 
 interface WhiteboardProps {
@@ -31,6 +31,7 @@ export function Whiteboard({
   onClear,
   onSave,
   remoteCursors,
+  remoteObjects,
 }: WhiteboardProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -39,7 +40,18 @@ export function Whiteboard({
   const [color, setColor] = useState('#000000');
   const [brushSize, setBrushSize] = useState(4);
   const [fillEnabled, setFillEnabled] = useState(false);
-  const historyRef = useRef<any[]>([]);
+
+  // Update canvas state when tool/color/size changes
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+
+    canvas.isDrawingMode = tool === 'pen' || tool === 'eraser';
+    if (canvas.freeDrawingBrush) {
+      canvas.freeDrawingBrush.color = tool === 'eraser' ? '#ffffff' : color;
+      canvas.freeDrawingBrush.width = brushSize;
+    }
+  }, [tool, color, brushSize]);
 
   // Initialize Fabric.js canvas
   useEffect(() => {
@@ -74,11 +86,18 @@ export function Whiteboard({
 
     // Events
     canvas.on('object:added', (e: any) => {
-      if (e.target && !(e.target as any).remote) onObjectAdded(e.target.toObject());
+      if (e.target && !(e.target as any).remote) {
+        if (!(e.target as any).id) {
+          (e.target as any).id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        }
+        onObjectAdded(e.target.toObject(['id']));
+      }
     });
 
     canvas.on('object:modified', (e: any) => {
-      if (e.target) onObjectModified(e.target.toObject());
+      if (e.target && !(e.target as any).remote) {
+        onObjectModified(e.target.toObject(['id']));
+      }
     });
 
     canvas.on('object:removed', (e: any) => {
@@ -89,40 +108,68 @@ export function Whiteboard({
       if (e.scenePoint) onCursorMove(e.scenePoint.x, e.scenePoint.y);
     });
 
+    // Check for path created events (free drawing)
+    canvas.on('path:created', (e: any) => {
+      if (e.path) {
+        e.path.id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        // object:added will fire after this, handling the sync
+      }
+    });
+
     return () => {
       window.removeEventListener('resize', handleResize);
       canvas.dispose();
     };
   }, []); // Run once on mount
 
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); handleUndo(); }
-      if (((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'z') || ((e.ctrlKey || e.metaKey) && e.key === 'y')) { e.preventDefault(); handleRedo(); }
-      if ((e.ctrlKey || e.metaKey) && e.key === 'c') { e.preventDefault(); handleCopy(); }
-      if ((e.ctrlKey || e.metaKey) && e.key === 'v') { e.preventDefault(); handlePaste(); }
-      if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); handleDelete(); }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
-  // Update modes
+  // Sync Remote Objects
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
-    if (!canvas) return;
+    if (!canvas || !remoteObjects) return;
 
-    canvas.isDrawingMode = tool === 'pen' || tool === 'eraser';
-    canvas.selection = tool === 'select';
+    const currentObjects = canvas.getObjects();
+    const remoteIds = new Set(remoteObjects.map((o: any) => o.id));
 
-    if (canvas.freeDrawingBrush) {
-      canvas.freeDrawingBrush.color = tool === 'eraser' ? '#ffffff' : color;
-      canvas.freeDrawingBrush.width = tool === 'eraser' ? brushSize * 2 : brushSize;
+    // 1. Remove objects that are no longer in remoteObjects (but valid remote objects)
+    currentObjects.forEach((obj: any) => {
+      if (obj.remote && !remoteIds.has(obj.id)) {
+        canvas.remove(obj);
+      }
+    });
+
+    // 2. Update existing objects
+    const toUpdate = remoteObjects.filter((obj: any) => {
+      const existing = currentObjects.find((o: any) => o.id === obj.id);
+      return existing && canvas.getActiveObject() !== existing;
+    });
+
+    toUpdate.forEach((obj: any) => {
+      const existing = currentObjects.find((o: any) => o.id === obj.id);
+      if (existing) {
+        existing.set(obj);
+        (existing as any).remote = true;
+        existing.setCoords();
+      }
+    });
+
+    if (toUpdate.length > 0) canvas.requestRenderAll();
+
+    // 3. Add new objects
+    const toAdd = remoteObjects.filter((obj: any) => !currentObjects.find((o: any) => o.id === obj.id));
+
+    if (toAdd.length > 0) {
+      if (util && util.enlivenObjects) {
+        // Cast to any to avoid strict type checks on this complex utility
+        (util.enlivenObjects(toAdd) as Promise<any[]>).then((enlivenedObjects) => {
+          enlivenedObjects.forEach((enlivened) => {
+            (enlivened as any).remote = true;
+            canvas.add(enlivened);
+          });
+          canvas.requestRenderAll();
+        });
+      }
     }
-    // Set cursor
-    canvas.defaultCursor = tool === 'select' ? 'default' : 'crosshair';
-  }, [tool, color, brushSize]);
+  }, [remoteObjects]);
 
   const addShape = useCallback((shapeType: string) => {
     const canvas = fabricCanvasRef.current;
@@ -133,6 +180,7 @@ export function Whiteboard({
     const center = canvas.getCenterPoint();
 
     const commonProps = {
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       stroke: color,
       strokeWidth: brushSize,
       fill: fillColor,
@@ -143,7 +191,7 @@ export function Whiteboard({
     switch (shapeType) {
       case 'circle': shape = new Circle({ ...commonProps, radius: 50 }); break;
       case 'rect': shape = new Rect({ ...commonProps, width: 100, height: 100 }); break;
-      case 'line': shape = new Line([center.x - 50, center.y, center.x + 50, center.y], { stroke: color, strokeWidth: brushSize, fill: 'transparent' }); break;
+      case 'line': shape = new Line([center.x - 50, center.y, center.x + 50, center.y], { ...commonProps, fill: 'transparent' }); break;
       case 'text': shape = new IText('Type...', { ...commonProps, fontSize: 24, fontFamily: 'sans-serif', fill: color, strokeWidth: 0 }); break;
     }
 
@@ -156,55 +204,38 @@ export function Whiteboard({
 
   const handleToolChange = (newTool: DrawingTool) => {
     setTool(newTool);
-    if (['circle', 'rect', 'line', 'text'].includes(newTool)) {
-      addShape(newTool);
-      setTool('select'); // Switch back to select after adding shape
+  };
+
+  const handleUndo = () => {
+    // Simple attempt: remove top object
+    const canvas = fabricCanvasRef.current;
+    if (canvas) {
+      const objects = canvas.getObjects();
+      if (objects.length > 0) {
+        const last = objects[objects.length - 1];
+        if (!(last as any).remote) {
+          canvas.remove(last);
+          onObjectRemoved({ id: (last as any).id });
+        }
+      }
     }
   };
 
-  // Actions
   const handleClear = () => {
-    if (!fabricCanvasRef.current) return;
-    fabricCanvasRef.current.clear();
-    fabricCanvasRef.current.backgroundColor = '#ffffff';
-    fabricCanvasRef.current.renderAll();
-    onClear();
-  };
-  const handleUndo = () => {
     const canvas = fabricCanvasRef.current;
-    if (!canvas) return;
-    const last = canvas.getObjects().pop();
-    if (last) { historyRef.current.push(last); canvas.remove(last); canvas.renderAll(); }
-  };
-  const handleRedo = () => {
-    const canvas = fabricCanvasRef.current;
-    if (!canvas) return;
-    const last = historyRef.current.pop();
-    if (last) { canvas.add(last); canvas.renderAll(); }
-  };
-  const handleDelete = () => {
-    const canvas = fabricCanvasRef.current;
-    if (canvas) { canvas.getActiveObjects().forEach(o => canvas.remove(o)); canvas.discardActiveObject(); canvas.renderAll(); }
-  };
-  const handleCopy = async () => {
-    const canvas = fabricCanvasRef.current;
-    if (canvas) { const active = canvas.getActiveObject(); if (active) { try { (window as any)._clipboard = await active.clone(); } catch (e) { } } }
-  };
-  const handlePaste = async () => {
-    const canvas = fabricCanvasRef.current;
-    if (canvas && (window as any)._clipboard) {
-      try {
-        const cloned = await (window as any)._clipboard.clone();
-        canvas.discardActiveObject();
-        cloned.set({ left: cloned.left + 20, top: cloned.top + 20, evented: true });
-        canvas.add(cloned);
-        canvas.setActiveObject(cloned);
-        canvas.renderAll();
-      } catch (e) { }
+    if (canvas) {
+      canvas.clear();
+      canvas.backgroundColor = '#ffffff';
+      onClear();
     }
   };
+
   const handleSave = () => {
-    if (fabricCanvasRef.current) { onSave(fabricCanvasRef.current.toDataURL({ format: 'png', multiplier: 2 })); }
+    const canvas = fabricCanvasRef.current;
+    if (canvas) {
+      const dataUrl = canvas.toDataURL({ format: 'png', multiplier: 2 });
+      onSave(dataUrl);
+    }
   };
 
   return (
@@ -244,10 +275,10 @@ export function Whiteboard({
 
         {/* Shapes */}
         <div className="flex flex-col gap-2">
-          <ToolButton active={tool === 'rect'} onClick={() => handleToolChange('rect')} icon={<RectIcon />} title="Rectangle" />
-          <ToolButton active={tool === 'circle'} onClick={() => handleToolChange('circle')} icon={<CircleIcon />} title="Circle" />
-          <ToolButton active={tool === 'line'} onClick={() => handleToolChange('line')} icon={<LineIcon />} title="Line" />
-          <ToolButton active={tool === 'text'} onClick={() => handleToolChange('text')} icon={<TextIcon />} title="Text" />
+          <ToolButton active={false} onClick={() => addShape('rect')} icon={<RectIcon />} title="Rectangle" />
+          <ToolButton active={false} onClick={() => addShape('circle')} icon={<CircleIcon />} title="Circle" />
+          <ToolButton active={false} onClick={() => addShape('line')} icon={<LineIcon />} title="Line" />
+          <ToolButton active={false} onClick={() => addShape('text')} icon={<TextIcon />} title="Text" />
         </div>
 
         <div className="w-8 h-px bg-border my-1" />
