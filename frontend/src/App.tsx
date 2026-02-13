@@ -1,8 +1,8 @@
-import { useCallback, useRef, useState, useEffect } from 'react';
+import { useCallback, useRef, useState, useEffect, Suspense, lazy } from 'react';
 import type { Socket } from 'socket.io-client';
-import { AuthPage } from './pages/AuthPage';
-import { LobbyPage } from './pages/LobbyPage';
-import { RoomPage } from './pages/RoomPage';
+// import { AuthPage } from './pages/AuthPage';
+// import { LobbyPage } from './pages/LobbyPage';
+// import { RoomPage } from './pages/RoomPage';
 import { WaitingLobby } from './components/WaitingLobby';
 import { useAuthStore } from './store/auth.store';
 import { useRoomStore } from './store/room.store';
@@ -11,6 +11,11 @@ import { useParticipantsStore } from './store/participants.store';
 import { useSignaling } from './hooks/useSignaling';
 import { WS_EVENTS } from './constants';
 import type { NewProducerEvent } from './types';
+
+// Lazy load pages
+const AuthPage = lazy(() => import('./pages/AuthPage').then(module => ({ default: module.AuthPage })));
+const LobbyPage = lazy(() => import('./pages/LobbyPage').then(module => ({ default: module.LobbyPage })));
+const RoomPage = lazy(() => import('./pages/RoomPage').then(module => ({ default: module.RoomPage })));
 
 type AppView = 'auth' | 'lobby' | 'waiting' | 'room';
 
@@ -328,34 +333,49 @@ function App() {
   if (token && isInWaitingRoom) view = 'waiting';
   if (token && roomId) view = 'room';
 
-  switch (view) {
-    case 'auth':
-      return <AuthPage />;
-    case 'lobby':
-      return (
-        <LobbyPage
-          onCreateRoom={handleCreateRoom}
-          onJoinRoom={handleJoinRoom}
-        />
-      );
-    case 'waiting':
-      return (
-        <WaitingLobby
-          message={wasRejected ? rejectionMessage : 'Waiting for host approval...'}
-          wasRejected={wasRejected}
-          onLeave={handleBackToLobby}
-        />
-      );
-    case 'room':
-      return (
-        <RoomPage
-          signaling={signaling}
-          existingProducers={existingProducers}
-          onNewProducerRef={newProducerHandlerRef}
-          onLeave={handleLeaveRoom}
-        />
-      );
-  }
+  const renderView = () => {
+    switch (view) {
+      case 'auth':
+        return <AuthPage />;
+      case 'lobby':
+        return (
+          <LobbyPage
+            onCreateRoom={handleCreateRoom}
+            onJoinRoom={handleJoinRoom}
+          />
+        );
+      case 'waiting':
+        return (
+          <WaitingLobby
+            message={wasRejected ? rejectionMessage : 'Waiting for host approval...'}
+            wasRejected={wasRejected}
+            onLeave={handleBackToLobby}
+          />
+        );
+      case 'room':
+        return (
+          <RoomPage
+            signaling={signaling}
+            existingProducers={existingProducers}
+            onNewProducerRef={newProducerHandlerRef}
+            onLeave={handleLeaveRoom}
+          />
+        );
+    }
+  };
+
+  return (
+    <Suspense fallback={
+      <div className="h-screen w-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 rounded-full border-4 border-primary/30 border-t-primary animate-spin" />
+          <p className="text-white text-sm font-medium animate-pulse">Loading...</p>
+        </div>
+      </div>
+    }>
+      {renderView()}
+    </Suspense>
+  );
 }
 
 export default App

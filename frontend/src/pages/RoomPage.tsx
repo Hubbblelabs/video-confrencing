@@ -1,9 +1,9 @@
-import { useEffect, useCallback, useRef, useState } from 'react';
+import { useEffect, useCallback, useRef, useState, lazy, Suspense } from 'react';
 import { VideoGrid } from '../components/VideoGrid';
 import { Controls } from '../components/Controls';
 import { StatusBanner } from '../components/StatusBanner';
 import { ParticipantsPanel } from '../components/ParticipantsPanel';
-import { Whiteboard } from '../components/Whiteboard';
+// import { Whiteboard } from '../components/Whiteboard';
 import { Chat } from '../components/Chat';
 import { WaitingRoom } from '../components/WaitingRoom';
 import { useRoomStore } from '../store/room.store';
@@ -17,6 +17,9 @@ import { useChat } from '../hooks/useChat';
 import { useWaitingRoom } from '../hooks/useWaitingRoom';
 import type { useSignaling } from '../hooks/useSignaling';
 import type { NewProducerEvent } from '../types';
+
+// Lazy load Whiteboard
+const Whiteboard = lazy(() => import('../components/Whiteboard').then(module => ({ default: module.Whiteboard })));
 
 type Signaling = ReturnType<typeof useSignaling>;
 
@@ -277,24 +280,30 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
         }`}>
         {showWhiteboard && (
           <div className="absolute inset-0 z-50 rounded-3xl overflow-hidden bg-background/95 backdrop-blur-xl border border-border shadow-2xl">
-            <Whiteboard
-              roomId={roomId!}
-              userId={userId!}
-              displayName={displayName!}
-              onObjectAdded={whiteboard.sendObjectAdded}
-              onObjectModified={whiteboard.sendObjectModified}
-              onObjectRemoved={whiteboard.sendObjectRemoved}
-              onCursorMove={whiteboard.sendCursorPosition}
-              onClear={whiteboard.sendClear}
-              onSave={(dataUrl) => {
-                const a = document.createElement('a');
-                a.href = dataUrl;
-                a.download = `whiteboard-${Date.now()}.png`;
-                a.click();
-              }}
-              remoteCursors={whiteboard.remoteCursors}
-              remoteObjects={whiteboard.remoteObjects}
-            />
+            <Suspense fallback={
+              <div className="h-full w-full flex items-center justify-center bg-background/50">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-8 h-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+                  <p className="text-white text-xs font-medium">Loading Whiteboard...</p>
+                </div>
+              </div>
+            }>
+              <Whiteboard
+                onObjectAdded={whiteboard.sendObjectAdded}
+                onObjectModified={whiteboard.sendObjectModified}
+                onObjectRemoved={whiteboard.sendObjectRemoved}
+                onCursorMove={whiteboard.sendCursorPosition}
+                onClear={whiteboard.sendClear}
+                onSave={(dataUrl) => {
+                  const a = document.createElement('a');
+                  a.href = dataUrl;
+                  a.download = `whiteboard-\${Date.now()}.png`;
+                  a.click();
+                }}
+                onCursorUpdate={whiteboard.onCursorUpdate}
+                remoteObjects={whiteboard.remoteObjects}
+              />
+            </Suspense>
             <button
               onClick={() => setShowWhiteboard(false)}
               className="absolute top-4 right-4 p-2 rounded-full bg-black/20 hover:bg-black/40 text-white backdrop-blur-md transition-all"

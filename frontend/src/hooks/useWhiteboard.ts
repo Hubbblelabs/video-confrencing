@@ -11,9 +11,17 @@ interface UseWhiteboardProps {
 }
 
 export function useWhiteboard({ socket, roomId, userId, onStateChange }: UseWhiteboardProps) {
-  const [remoteCursors, setRemoteCursors] = useState<Map<string, WhiteboardCursor>>(new Map());
+  // Listeners for direct cursor updates (bypass React state)
+  const cursorListenersRef = useRef<Set<(data: WhiteboardCursor) => void>>(new Set());
   const [remoteObjects, setRemoteObjects] = useState<any[]>([]);
-  const cursorTimeoutRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  // Subscribe method
+  const onCursorUpdate = useCallback((callback: (data: WhiteboardCursor) => void) => {
+    cursorListenersRef.current.add(callback);
+    return () => {
+      cursorListenersRef.current.delete(callback);
+    };
+  }, []);
 
   // Send object added
   const sendObjectAdded = useCallback((object: any) => {
@@ -55,38 +63,19 @@ export function useWhiteboard({ socket, roomId, userId, onStateChange }: UseWhit
   const handleRemoteCursor = useCallback((data: { userId: string; displayName: string; x: number; y: number }) => {
     if (data.userId === userId) return;
 
-    // Clear existing timeout for this user
-    const existingTimeout = cursorTimeoutRef.current.get(data.userId);
-    if (existingTimeout) {
-      clearTimeout(existingTimeout);
-    }
-
     // Generate consistent color for user
-    const color = generateUserColor(data.userId);
+    const color = generateUserColor(data.userId); // Helper function usage
 
-    setRemoteCursors(prev => {
-      const next = new Map(prev);
-      next.set(data.userId, {
-        userId: data.userId,
-        displayName: data.displayName,
-        x: data.x,
-        y: data.y,
-        color,
-      });
-      return next;
-    });
+    const cursorData: WhiteboardCursor = {
+      userId: data.userId,
+      displayName: data.displayName,
+      x: data.x,
+      y: data.y,
+      color,
+    };
 
-    // Remove cursor after 3 seconds of inactivity
-    const timeout = setTimeout(() => {
-      setRemoteCursors(prev => {
-        const next = new Map(prev);
-        next.delete(data.userId);
-        return next;
-      });
-      cursorTimeoutRef.current.delete(data.userId);
-    }, 3000);
-
-    cursorTimeoutRef.current.set(data.userId, timeout);
+    // Notify listeners
+    cursorListenersRef.current.forEach(listener => listener(cursorData));
   }, [userId]);
 
   // Handle remote object added
@@ -143,8 +132,8 @@ export function useWhiteboard({ socket, roomId, userId, onStateChange }: UseWhit
   }, [socket, handleRemoteCursor, handleRemoteObjectAdded, handleRemoteObjectModified, handleRemoteObjectRemoved, handleRemoteClear, handleRemoteState]);
 
   return {
-    remoteCursors: Array.from(remoteCursors.values()),
     remoteObjects,
+    onCursorUpdate,
     sendObjectAdded,
     sendObjectModified,
     sendObjectRemoved,

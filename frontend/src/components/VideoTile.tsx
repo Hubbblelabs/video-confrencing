@@ -1,4 +1,4 @@
-import { useEffect, useRef, memo } from 'react';
+import { useState, useEffect, useRef, memo } from 'react';
 
 interface VideoTileProps {
   videoTrack: MediaStreamTrack | null;
@@ -25,6 +25,7 @@ function VideoTileInner({
 }: VideoTileProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const [isPiP, setIsPiP] = useState(false);
 
   // Attach video track
   useEffect(() => {
@@ -59,6 +60,36 @@ function VideoTileInner({
       el.srcObject = null;
     };
   }, [audioTrack, isMuted, isLocal]);
+
+  // Handle PiP events and toggle
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const onEnterPiP = () => setIsPiP(true);
+    const onLeavePiP = () => setIsPiP(false);
+
+    video.addEventListener('enterpictureinpicture', onEnterPiP);
+    video.addEventListener('leavepictureinpicture', onLeavePiP);
+
+    return () => {
+      video.removeEventListener('enterpictureinpicture', onEnterPiP);
+      video.removeEventListener('leavepictureinpicture', onLeavePiP);
+    };
+  }, []);
+
+  const togglePiP = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent tile click events
+    try {
+      if (document.pictureInPictureElement) {
+        await document.exitPictureInPicture();
+      } else if (videoRef.current && videoRef.current !== document.pictureInPictureElement) {
+        await videoRef.current.requestPictureInPicture();
+      }
+    } catch (err) {
+      console.error('Failed to toggle PiP:', err);
+    }
+  };
 
   return (
     <div
@@ -138,24 +169,56 @@ function VideoTileInner({
           </span>
         </div>
 
-        {/* Active speaker indicator badge */}
-        {isActiveSpeaker && (
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-primary/90 backdrop-blur-md shadow-lg shadow-primary/20">
-            <span className="text-white text-[10px] font-bold uppercase tracking-wider">Speaking</span>
-          </div>
-        )}
+
       </div>
 
-      {/* Hand Raise Indicator */}
-      {handRaised && (
-        <div className="absolute top-4 left-4 z-40 animate-bounce">
-          <div className="bg-primary text-white p-2 rounded-full shadow-lg border border-white/20">
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10 9v6m4-6v6m4-6v6m-8-6V5a2 2 0 114 0v4m-4 0h4m-4 0V5a2 2 0 114 0v4m-4 0v6m0 0H6a2 2 0 00-2 2v6a2 2 0 002 2h12a2 2 0 002-2v-6a2 2 0 00-2-2h-4" />
-            </svg>
-          </div>
+      {/* Top Controls (PiP) */}
+      <div className="absolute top-4 left-4 right-4 flex justify-between items-start opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-30 pointer-events-none">
+        {/* Left side items (like hand raise) can go here if needed, keeping layout balanced */}
+        <div className="pointer-events-auto">
+          {handRaised && (
+            <div className="animate-bounce">
+              <div className="bg-primary text-white p-2 rounded-full shadow-lg border border-white/20">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10 9v6m4-6v6m4-6v6m-8-6V5a2 2 0 114 0v4m-4 0h4m-4 0V5a2 2 0 114 0v4m-4 0v6m0 0H6a2 2 0 00-2 2v6a2 2 0 002 2h12a2 2 0 002-2v-6a2 2 0 00-2-2h-4" />
+                </svg>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+
+        {/* Right side controls */}
+        <div className="flex gap-2 pointer-events-auto">
+          {!isVideoOff && videoTrack && (
+            <button
+              onClick={togglePiP}
+              className="p-2 rounded-lg bg-black/40 backdrop-blur-md border border-white/10 hover:bg-white/10 text-white transition-all shadow-md"
+              title={isPiP ? "Exit Picture-in-Picture" : "Picture-in-Picture"}
+            >
+              {isPiP ? (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M11 15l-3-3m0 0l3-3m-3 3h8M3 12a9 9 0 1118 0 9 9 0 01-18 0z" />
+                </svg>
+              ) : (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                  {/* Custom PiP icon mimic */}
+                  <rect x="14" y="14" width="7" height="5" rx="1" transform="rotate(180 14 14)" stroke="none" fill="currentColor" fillOpacity="0.5" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 11V8a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h4" />
+                </svg>
+              )}
+            </button>
+          )}
+
+          {isLocal && (
+            <div className="px-2.5 py-1.5 rounded-lg bg-black/60 backdrop-blur-xl border border-white/10 shadow-lg flex items-center">
+              <span className="text-white/90 text-[10px] font-bold uppercase tracking-wider">You</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+
 
       {/* Reaction Overlay */}
       {reaction && (
@@ -166,12 +229,7 @@ function VideoTileInner({
         </div>
       )}
 
-      {/* Corner badge for local user */}
-      {isLocal && (
-        <div className="absolute top-4 right-4 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-xl border border-white/10 shadow-lg">
-          <span className="text-white/90 text-[10px] font-bold uppercase tracking-wider">You</span>
-        </div>
-      )}
+
     </div>
   );
 }

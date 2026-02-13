@@ -631,8 +631,8 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
   ) {
     this.assertAuthenticated(socket);
 
-    // Broadcast cursor position to all other users
-    socket.to(payload.roomId).emit(WsEvents.WHITEBOARD_CURSOR, {
+    // Broadcast cursor position to all other users using volatile for efficiency
+    socket.volatile.to(payload.roomId).emit(WsEvents.WHITEBOARD_CURSOR, {
       userId: socket.data.userId,
       displayName: socket.data.displayName,
       x: payload.x,
@@ -794,8 +794,8 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
   ) {
     this.assertAuthenticated(socket);
 
-    // Broadcast typing status to all other users
-    socket.to(payload.roomId).emit(WsEvents.CHAT_USER_TYPING, {
+    // Broadcast typing status to all other users using volatile
+    socket.volatile.to(payload.roomId).emit(WsEvents.CHAT_USER_TYPING, {
       userId: socket.data.userId,
       displayName: socket.data.displayName,
       isTyping: payload.isTyping,
