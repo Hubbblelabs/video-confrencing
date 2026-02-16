@@ -10,6 +10,8 @@ import {
     BreadcrumbSeparator
 } from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
+import { ProfileSettings } from "@/components/profile/ProfileSettings";
+import { useAuthStore } from "@/store/auth.store";
 
 interface AdminLayoutProps {
     children: React.ReactNode;
@@ -18,6 +20,7 @@ interface AdminLayoutProps {
 }
 
 export function AdminLayout({ children, currentView, onViewChange }: AdminLayoutProps) {
+    const { displayName, role } = useAuthStore();
     const getViewTitle = (view: string) => {
         switch (view) {
             case "overview": return "Overview";
@@ -46,6 +49,22 @@ export function AdminLayout({ children, currentView, onViewChange }: AdminLayout
                                 </BreadcrumbItem>
                             </BreadcrumbList>
                         </Breadcrumb>
+                    </div>
+
+                    <div className="ml-auto px-4 flex items-center gap-4">
+                        <ProfileSettings
+                            trigger={
+                                <button className="flex items-center gap-2 hover:bg-muted/50 p-1.5 rounded-full transition-colors">
+                                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold ring-2 ring-transparent hover:ring-primary/20 transition-all">
+                                        {(displayName || 'A').charAt(0).toUpperCase()}
+                                    </div>
+                                    <div className="hidden md:block text-right">
+                                        <div className="text-sm font-medium leading-none">{displayName}</div>
+                                        <div className="text-[10px] text-muted-foreground uppercase">{role}</div>
+                                    </div>
+                                </button>
+                            }
+                        />
                     </div>
                 </header>
                 <main className="flex-1 overflow-auto bg-muted/20">

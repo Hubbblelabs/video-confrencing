@@ -14,6 +14,7 @@ import type {
   CreateRoomRequest,
   JoinRoomRequest,
   Room,
+  User,
 } from '../types/api.types';
 
 // ─────────────────────────────────────────────────────────────
@@ -98,6 +99,20 @@ class ApiClient {
   }
 
   /**
+   * PATCH request
+   */
+  async patch<T>(endpoint: string, body: unknown, token?: string): Promise<T> {
+    return this.request<T>(
+      endpoint,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      },
+      token,
+    );
+  }
+
+  /**
    * DELETE request
    */
   async delete<T>(endpoint: string, token?: string): Promise<T> {
@@ -163,6 +178,12 @@ export const authApi = {
    */
   resendVerification: async (email: string): Promise<void> => {
     return client.post<void>('/auth/resend-verification', { email });
+  },
+  /**
+   * Update user profile
+   */
+  updateProfile: async (data: Partial<RegisterRequest>, token: string): Promise<{ user: User; accessToken: string }> => {
+    return client.patch<{ user: User; accessToken: string }>('/profile', data, token);
   },
 };
 

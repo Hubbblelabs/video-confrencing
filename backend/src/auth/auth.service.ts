@@ -145,7 +145,7 @@ export class AuthService {
     }
   }
 
-  private generateToken(user: UserEntity): { accessToken: string } {
+  generateToken(user: UserEntity): { accessToken: string } {
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,

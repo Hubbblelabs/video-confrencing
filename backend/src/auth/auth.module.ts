@@ -5,8 +5,10 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
+import { ProfileController } from './profile.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { UserEntity } from '../database/entities';
+import { UsersModule } from '../users/users.module';
 
 import { MailService } from './mail.service';
 
@@ -28,8 +30,9 @@ import { MailService } from './mail.service';
       },
     }),
     TypeOrmModule.forFeature([UserEntity]),
+    UsersModule,
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, ProfileController],
   providers: [AuthService, JwtStrategy, MailService],
   exports: [AuthService, JwtModule, MailService],
 })

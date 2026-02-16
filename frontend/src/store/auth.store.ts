@@ -5,6 +5,7 @@ import type { JwtPayload, UserRole } from '../types/api.types';
 const TOKEN_KEY = 'vc_token';
 const USERID_KEY = 'vc_userId';
 const DISPLAYNAME_KEY = 'vc_displayName';
+const EMAIL_KEY = 'vc_email';
 const ROLE_KEY = 'vc_role';
 
 function readPersistedToken(): string | null {
@@ -26,6 +27,14 @@ function readPersistedUserId(): string | null {
 function readPersistedDisplayName(): string | null {
   try {
     return sessionStorage.getItem(DISPLAYNAME_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function readPersistedEmail(): string | null {
+  try {
+    return sessionStorage.getItem(EMAIL_KEY);
   } catch {
     return null;
   }
@@ -57,6 +66,7 @@ function decodeJwt(token: string): JwtPayload | null {
 
 interface AuthStoreState extends AuthState {
   displayName: string | null;
+  email: string | null;
   role: UserRole | null;
 }
 
@@ -69,23 +79,26 @@ export const useAuthStore = create<AuthStore>((set) => ({
   token: readPersistedToken(),
   userId: readPersistedUserId(),
   displayName: readPersistedDisplayName(),
+  email: readPersistedEmail(),
   role: readPersistedRole(),
 
   setAuth: (token) => {
     const payload = decodeJwt(token);
     const userId = payload?.sub || null;
     const displayName = payload?.displayName || null;
+    const email = payload?.email || null;
     const role = payload?.role || null;
 
     try {
       sessionStorage.setItem(TOKEN_KEY, token);
       if (userId) sessionStorage.setItem(USERID_KEY, userId);
       if (displayName) sessionStorage.setItem(DISPLAYNAME_KEY, displayName);
+      if (email) sessionStorage.setItem(EMAIL_KEY, email);
       if (role) sessionStorage.setItem(ROLE_KEY, role);
     } catch {
       // Private browsing — continue in-memory only
     }
-    set({ token, userId, displayName, role });
+    set({ token, userId, displayName, email, role });
   },
 
   clearAuth: () => {
@@ -93,11 +106,12 @@ export const useAuthStore = create<AuthStore>((set) => ({
       sessionStorage.removeItem(TOKEN_KEY);
       sessionStorage.removeItem(USERID_KEY);
       sessionStorage.removeItem(DISPLAYNAME_KEY);
+      sessionStorage.removeItem(EMAIL_KEY);
       sessionStorage.removeItem(ROLE_KEY);
     } catch {
       // noop
     }
-    set({ token: null, userId: null, displayName: null, role: null });
+    set({ token: null, userId: null, displayName: null, email: null, role: null });
   },
 }));
 

@@ -5,6 +5,7 @@ import { SessionCard } from '../components/sessions/SessionCard';
 import { SessionFilters } from '../components/sessions/SessionFilters';
 import { sessionsApi } from '../services/api.service';
 import { useAuthStore } from '../store/auth.store';
+import { Badge } from '@/components/ui/badge';
 
 interface SessionBrowserProps {
     onBack: () => void;
@@ -64,6 +65,8 @@ export function SessionBrowser({ onBack, onSessionDetails }: SessionBrowserProps
         loadSessions();
     }, [filters.query, filters.category, filters.sortBy, filters.order]);
 
+    // ... (existing imports)
+
     return (
         <div className="min-h-screen bg-background text-foreground flex flex-col font-sans overflow-x-hidden">
             {/* Header / Navbar */}
@@ -72,39 +75,48 @@ export function SessionBrowser({ onBack, onSessionDetails }: SessionBrowserProps
                     <div className="flex items-center gap-4">
                         <button
                             onClick={onBack}
-                            className="p-2.5 rounded-2xl bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-all group"
+                            className="p-2.5 rounded-full bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-all group border border-transparent hover:border-border"
                         >
                             <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
                         </button>
-                        <div className="flex flex-col">
-                            <h2 className="text-xl font-bold tracking-tight flex items-center gap-2">
-                                <Compass className="w-5 h-5 text-primary" />
-                                Discovery
-                            </h2>
-                            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest leading-none">
-                                {total} Sessions Available
-                            </p>
+                        <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                                <Compass className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <h2 className="text-lg font-bold tracking-tight leading-none">
+                                    Discovery
+                                </h2>
+                                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest leading-none mt-0.5">
+                                    {total} Sessions Available
+                                </p>
+                            </div>
                         </div>
                     </div>
 
                     <div className="hidden md:flex items-center gap-3">
-                        <div className="px-4 py-2 rounded-xl bg-primary/10 border border-primary/20 text-primary text-xs font-bold">
+                        <Badge variant="secondary" className="px-3 py-1 text-xs font-bold uppercase tracking-wider bg-primary/10 text-primary hover:bg-primary/20 border-primary/20">
                             Live Learning
-                        </div>
+                        </Badge>
                     </div>
                 </div>
             </div>
 
             {/* Hero / Filter Section */}
-            <div className="relative pt-12 pb-16 overflow-hidden">
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-full bg-primary/10 blur-[120px] rounded-full opacity-50 pointer-events-none" />
+            <div className="relative pt-16 pb-12 overflow-hidden">
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-[500px] bg-primary/5 blur-[100px] rounded-full opacity-60 pointer-events-none" />
 
                 <div className="max-w-[1600px] mx-auto px-6 relative z-10">
-                    <div className="text-center space-y-4 mb-12">
-                        <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight">
-                            Learn from the <span className="text-primary italic">Best.</span>
+                    <div className="text-center space-y-6 mb-16">
+                        <h1 className="text-5xl md:text-6xl lg:text-7xl font-black tracking-tighter text-foreground">
+                            Learn from the <span className="italic relative inline-block">
+                                Best.
+                                <svg className="absolute w-full h-3 -bottom-1 left-0 text-primary opacity-20" viewBox="0 0 100 100" preserveAspectRatio="none">
+                                    <path d="M0 50 Q 50 100 100 50" stroke="currentColor" strokeWidth="20" fill="none" />
+                                </svg>
+                            </span>
                         </h1>
-                        <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+                        <p className="text-muted-foreground text-xl max-w-2xl mx-auto leading-relaxed">
                             Join high-quality interactive sessions hosted by expert teachers from around the world.
                         </p>
                     </div>

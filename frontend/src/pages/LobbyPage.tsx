@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Compass } from 'lucide-react';
 import { useAuthStore } from '../store/auth.store';
-import { StudentWallet } from '../components/billing/StudentWallet';
+import { StudentWallet } from "@/components/billing/StudentWallet";
+import { ProfileSettings } from "@/components/profile/ProfileSettings";
 import { UpcomingEvents } from '../components/lobby/UpcomingEvents';
 import { billingApi } from '../services/billing.service';
 
@@ -89,6 +90,10 @@ export function LobbyPage({ onCreateRoom, onJoinRoom, onShowAdmin, onShowAttenda
     }
   };
 
+  const handleLogout = () => {
+    clearAuth();
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-sans overflow-hidden relative selection:bg-primary/20">
       {/* Background Ambience - More subtle and modern */}
@@ -130,18 +135,36 @@ export function LobbyPage({ onCreateRoom, onJoinRoom, onShowAdmin, onShowAttenda
             />
           )}
 
+
+
+          <ProfileSettings
+            trigger={
+              <button
+                className="group flex items-center gap-3 pl-1 pr-2 py-1 rounded-full hover:bg-muted/50 transition-all border border-transparent hover:border-border"
+              >
+                <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-primary/20 to-secondary/20 text-foreground flex items-center justify-center text-sm font-bold border border-white/10 shadow-sm group-hover:shadow-md transition-all">
+                  {(displayName || userId || 'U').charAt(0).toUpperCase()}
+                </div>
+                <div className="text-sm text-left hidden lg:block">
+                  <p className="font-medium leading-none text-foreground/90">{displayName}</p>
+                  <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider mt-0.5">{role}</p>
+                </div>
+              </button>
+            }
+          />
+
           <button
-            onClick={clearAuth}
-            className="group flex items-center gap-3 pl-1 pr-2 py-1 rounded-full hover:bg-muted/50 transition-all border border-transparent hover:border-border"
+            onClick={handleLogout}
+            className="p-2 rounded-full hover:bg-muted/50 transition-all text-muted-foreground hover:text-destructive group ml-2"
+            title="Sign Out"
           >
-            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-primary/20 to-secondary/20 text-foreground flex items-center justify-center text-sm font-bold border border-white/10 shadow-sm group-hover:shadow-md transition-all">
-              {(displayName || userId || 'U').charAt(0).toUpperCase()}
-            </div>
-            <div className="text-sm text-left hidden lg:block">
-              <p className="font-medium leading-none text-foreground/90">{displayName}</p>
-              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider mt-0.5">{role}</p>
-            </div>
-            <svg className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors ml-1 hidden lg:block" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+            <svg
+              className="w-5 h-5 transition-transform group-hover:translate-x-1"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>
           </button>
