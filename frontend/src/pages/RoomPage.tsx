@@ -54,8 +54,25 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
   const [panelOpen, setPanelOpen] = useState<'none' | 'participants' | 'chat' | 'waiting'>('none');
   const [showWhiteboard, setShowWhiteboard] = useState(false);
   const [privateMessageTarget, setPrivateMessageTarget] = useState<string | null>(null);
+  const [meetingTime, setMeetingTime] = useState(0);
 
   const isHost = role === 'host' || role === 'co_host';
+
+  // Meeting timer
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setMeetingTime(prev => prev + 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const formatMeetingTime = (seconds: number) => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    return `${m}:${String(s).padStart(2, '0')}`;
+  };
 
   const handleStartPrivateMessage = (targetUserId: string) => {
     setPrivateMessageTarget(targetUserId);
@@ -65,9 +82,7 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
   const webrtc = useWebRTC(signaling);
   const media = useMedia();
 
-  // Whiteboard hook - socketRef.current might be null initially
-  // We rely on connectionState change to re-render this component, 
-  // which will update the socket passed to hooks if they use the ref directly
+  // Whiteboard hook
   const whiteboardSocket = signaling.socketRef.current;
   const whiteboard = useWhiteboard({
     socket: whiteboardSocket,
@@ -79,8 +94,8 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
   // Chat hook
   const chatSocket = signaling.socketRef.current;
   const participantsData = useParticipantsStore((s) => s.participants);
-  const participants = Object.entries(participantsData).map(([userId, participant]) => ({
-    userId,
+  const participants = Array.from(participantsData.entries()).map(([pUserId, participant]) => ({
+    userId: pUserId,
     displayName: participant.displayName,
   }));
 
@@ -173,17 +188,24 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
   }, [roomId, media, signaling, webrtc, produceLocalTracks, userId, existingProducers, connectionState]);
 
   const handleToggleMic = useCallback(async () => {
-    media.toggleMic();
-    const nowOn = !useMediaStore.getState().isMicOn;
+    const nowOn = media.toggleMic();
     if (nowOn) await webrtc.resumeProducer('audio');
     else await webrtc.pauseProducer('audio');
   }, [media, webrtc]);
 
   const handleToggleCamera = useCallback(async () => {
-    media.toggleCamera();
-    const nowOn = !useMediaStore.getState().isCameraOn;
-    if (nowOn) await webrtc.resumeProducer('video');
-    else await webrtc.pauseProducer('video');
+    const nowOn = await media.toggleCamera();
+    if (nowOn) {
+      // Camera turned ON — replace the dead track on the producer with the fresh one
+      const stream = useMediaStore.getState().localStream;
+      const newTrack = stream?.getVideoTracks()[0];
+      if (newTrack) {
+        await webrtc.replaceProducerTrack('video', newTrack);
+      }
+      await webrtc.resumeProducer('video');
+    } else {
+      await webrtc.pauseProducer('video');
+    }
   }, [media, webrtc]);
 
   const handleToggleScreen = useCallback(async () => {
@@ -249,36 +271,45 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
   }, [roomId, signaling]);
 
   return (
-    <div className="h-screen w-screen bg-background relative overflow-hidden flex flex-col">
+    <div className="h-screen w-screen bg-[#111] relative overflow-hidden flex flex-col">
       <StatusBanner />
 
-      {/* Floating Header */}
-      <div className="absolute top-0 left-0 right-0 z-40 p-6 pointer-events-none">
-        <div className="flex items-center justify-between">
-          {/* Room Info */}
-          <div className="glass-card px-5 py-3 rounded-full flex items-center gap-4 pointer-events-auto hover:bg-white/5 transition-colors shadow-lg shadow-black/5">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-md border border-white/10 shrink-0">
-              <span className="text-white font-bold text-sm">VC</span>
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-0.5">Room ID</span>
-              <div className="flex items-center gap-2">
-                <p className="text-foreground font-semibold text-sm font-mono tracking-wide tabular-nums">{useRoomStore.getState().roomCode || roomId}</p>
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(useRoomStore.getState().roomCode || roomId || '');
-                    // Could add toast here
-                  }}
-                  className="p-1 hover:bg-white/10 rounded-full transition-colors text-muted-foreground hover:text-primary active:scale-95"
-                  title="Copy Code"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                  </svg>
-                </button>
-              </div>
-            </div>
+      {/* Top Bar */}
+      <div className="absolute top-0 left-0 right-0 z-40 h-12 flex items-center justify-between px-4 bg-[#1a1a1a]/80 backdrop-blur-sm border-b border-white/5">
+        {/* Left: Room info */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-white/90">
+            <svg className="w-4 h-4 text-white/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+            <span className="text-sm font-medium text-white/70 font-mono tracking-wide">
+              {useRoomStore.getState().roomCode || roomId}
+            </span>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(useRoomStore.getState().roomCode || roomId || '');
+              }}
+              className="p-1 hover:bg-white/10 rounded transition-colors text-white/40 hover:text-white/80"
+              title="Copy Code"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+            </button>
           </div>
+        </div>
+
+        {/* Center: Meeting Timer */}
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+          <span className="text-white/60 text-xs font-mono tabular-nums tracking-wider">
+            {formatMeetingTime(meetingTime)}
+          </span>
+        </div>
+
+        {/* Right: Display name */}
+        <div className="flex items-center gap-2 text-white/50 text-xs">
+          <span>{displayName}</span>
         </div>
       </div>
 
@@ -287,21 +318,21 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
         <VideoGrid />
       </div>
 
-      {/* Floating Panels */}
+      {/* Side Panels */}
       <div className={`fixed transform transition-all duration-300 ease-in-out z-30 
         ${showWhiteboard
           ? 'inset-0 z-40'
-          : 'top-24 right-4 bottom-32 w-96'
+          : 'top-12 right-0 bottom-24 w-96'
         } 
-        ${(panelOpen !== 'none' || showWhiteboard) ? 'translate-x-0' : 'translate-x-[120%]'}`
+        ${(panelOpen !== 'none' || showWhiteboard) ? 'translate-x-0' : 'translate-x-[110%]'}`
       }>
         {showWhiteboard && (
-          <div className={`absolute inset-0 z-50 overflow-hidden bg-background/95 backdrop-blur-xl border border-border shadow-2xl ${showWhiteboard ? '' : 'rounded-3xl'}`}>
+          <div className={`absolute inset-0 z-50 overflow-hidden bg-[#1a1a1a] border-l border-white/5 ${showWhiteboard ? '' : 'rounded-xl'}`}>
             <Suspense fallback={
-              <div className="h-full w-full flex items-center justify-center bg-background/50">
+              <div className="h-full w-full flex items-center justify-center bg-[#1a1a1a]">
                 <div className="flex flex-col items-center gap-3">
-                  <div className="w-8 h-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
-                  <p className="text-white text-xs font-medium">Loading Whiteboard...</p>
+                  <div className="w-8 h-8 rounded-full border-2 border-blue-500/30 border-t-blue-500 animate-spin" />
+                  <p className="text-white/60 text-xs font-medium">Loading Whiteboard...</p>
                 </div>
               </div>
             }>
@@ -314,7 +345,7 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
                 onSave={(dataUrl) => {
                   const a = document.createElement('a');
                   a.href = dataUrl;
-                  a.download = `whiteboard-\${Date.now()}.png`;
+                  a.download = `whiteboard-${Date.now()}.png`;
                   a.click();
                 }}
                 onCursorUpdate={whiteboard.onCursorUpdate}
@@ -324,9 +355,9 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
             </Suspense>
             <button
               onClick={() => setShowWhiteboard(false)}
-              className="absolute top-4 right-4 p-2 rounded-full bg-black/20 hover:bg-black/40 text-white backdrop-blur-md transition-all"
+              className="absolute top-3 right-3 p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-all"
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
           </div>
         )}
@@ -369,7 +400,7 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
               />
             )}
             {panelOpen === 'waiting' && isHost && (
-              <div className="h-full bg-background/95 backdrop-blur-xl border border-border rounded-2xl overflow-hidden">
+              <div className="h-full bg-[#1a1a1a] border-l border-white/5 overflow-hidden">
                 <WaitingRoom
                   participants={waitingRoom.waitingParticipants}
                   onAdmit={waitingRoom.admitParticipant}
@@ -382,7 +413,7 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
         )}
       </div>
 
-      {/* Floating Dock */}
+      {/* Control Bar */}
       <Controls
         isMicOn={isMicOn}
         isCameraOn={isCameraOn}

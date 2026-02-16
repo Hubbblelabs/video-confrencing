@@ -17,42 +17,41 @@ function ControlButton({ label, variant = 'default', disabled = false, onClick, 
   const getButtonStyles = () => {
     switch (variant) {
       case 'danger':
-        return 'bg-destructive text-white shadow-lg shadow-destructive/30 hover:bg-destructive/90 hover:scale-110';
+        return 'bg-red-600 text-white hover:bg-red-500';
       case 'primary':
-        return 'bg-primary text-white shadow-lg shadow-primary/30 hover:bg-primary/90 hover:scale-110 hover:shadow-primary/50';
+        return 'bg-blue-600 text-white hover:bg-blue-500';
       case 'secondary':
-        return 'bg-zinc-800/80 text-white hover:bg-zinc-700 hover:text-white hover:scale-110 border-white/10';
-      default: // 'default' - Glass/Neutral
-        return 'bg-white/5 text-zinc-100 backdrop-blur-md hover:bg-white/10 hover:scale-110 border-white/10';
+        return 'bg-white/10 text-white hover:bg-white/20';
+      default:
+        return 'bg-[#3c4043] text-white/90 hover:bg-[#4c5053]';
     }
   };
 
   return (
     <div
-      className={`group relative flex flex-col items-center gap-2 ${className}`}
+      className={`group relative flex flex-col items-center ${className}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       <button
-        className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 border relative ${getButtonStyles()}`}
+        className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 relative ${getButtonStyles()}`}
         onClick={onClick}
         disabled={disabled}
       >
-        <div className={`w-6 h-6 transition-transform duration-300 ${isHovered ? 'scale-110' : ''}`}>
+        <div className="w-5 h-5">
           {icon}
         </div>
         {badge !== undefined && badge > 0 && (
-          <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-destructive text-[10px] text-white font-bold flex items-center justify-center animate-bounce shadow-sm border border-background">
+          <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-[10px] text-white font-bold flex items-center justify-center shadow-sm">
             {badge}
           </span>
         )}
       </button>
 
       {/* Tooltip */}
-      <span className={`absolute -top-12 px-3 py-1.5 bg-black/90 text-white text-[10px] uppercase tracking-wider font-bold rounded-lg backdrop-blur-md whitespace-nowrap shadow-xl transition-all duration-200 border border-white/10 z-50 ${isHovered ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-2 scale-95 pointer-events-none'}`}>
+      <span className={`absolute -top-10 px-2.5 py-1 bg-[#2d2d2d] text-white text-[11px] font-medium rounded-md whitespace-nowrap shadow-lg transition-all duration-150 z-50 ${isHovered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1 pointer-events-none'}`}>
         {label}
-        {/* Triangle arrow */}
-        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-black/90"></div>
+        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-[#2d2d2d]"></div>
       </span>
     </div>
   );
@@ -103,9 +102,8 @@ const ScreenShareIcon = (
 
 const LeaveIcon = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-    <polyline points="16 17 21 12 16 7" />
-    <line x1="21" y1="12" x2="9" y2="12" />
+    <path d="M16 17l5-5m0 0l-5-5m5 5H9" />
+    <path d="M9 3H7a2 2 0 00-2 2v14a2 2 0 002 2h2" />
   </svg>
 );
 
@@ -211,144 +209,158 @@ export function Controls({
   const reactions = ['👍', '👏', '💖', '😂', '😮', '🎉'];
 
   return (
-    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 animate-slide-up">
-      {/* Dynamic Island Dock */}
-      <div className="flex items-center gap-6 px-8 py-5 bg-[#121212]/90 backdrop-blur-2xl rounded-3xl shadow-2xl shadow-black/40 border border-white/5 ring-1 ring-white/5 hover:scale-[1.01] transition-all duration-300 ease-out">
-        <ControlButton
-          label={isMicOn ? 'Mute' : 'Unmute'}
-          variant={isMicOn ? 'default' : 'danger'}
-          onClick={onToggleMic}
-          icon={isMicOn ? MicOn : MicOff}
-        />
-        <ControlButton
-          label={isCameraOn ? 'Stop Video' : 'Start Video'}
-          variant={isCameraOn ? 'default' : 'danger'}
-          onClick={onToggleCamera}
-          icon={isCameraOn ? CameraOn : CameraOff}
-        />
-        <div className="relative group/share">
+    <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-center h-20 bg-[#1a1a1a]/95 backdrop-blur-sm border-t border-white/5">
+      <div className="flex items-center gap-3">
+        {/* Media Controls */}
+        <div className="flex items-center gap-2">
           <ControlButton
-            label={isScreenSharing ? 'Stop Share' : showWhiteboard ? 'Stop Board' : 'Present'}
-            variant={isScreenSharing || showWhiteboard ? 'primary' : 'default'}
-            onClick={() => setShowShareMenu(!showShareMenu)}
-            icon={isScreenSharing ? ScreenShareIcon : showWhiteboard ? WhiteboardIcon : ScreenShareIcon}
+            label={isMicOn ? 'Mute' : 'Unmute'}
+            variant={isMicOn ? 'default' : 'danger'}
+            onClick={onToggleMic}
+            icon={isMicOn ? MicOn : MicOff}
           />
-
-          {showShareMenu && (
-            <>
-              {/* Backdrop to close menu */}
-              <div
-                className="fixed inset-0 z-40"
-                onClick={() => setShowShareMenu(false)}
-              />
-
-              {/* Menu */}
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 p-2 bg-[#1e1e1e] border border-white/10 rounded-2xl shadow-xl flex flex-col gap-1 min-w-[200px] z-50 animate-slide-up origin-bottom overflow-hidden ring-1 ring-black/50">
-                <button
-                  onClick={() => {
-                    onToggleScreen();
-                    setShowShareMenu(false);
-                  }}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all w-full text-left font-medium text-sm ${isScreenSharing
-                    ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
-                    : 'text-zinc-100 hover:bg-white/10'
-                    }`}
-                >
-                  <div className="w-5 h-5">{ScreenShareIcon}</div>
-                  {isScreenSharing ? 'Stop Sharing' : 'Share Screen'}
-                </button>
-
-                <button
-                  onClick={() => {
-                    onToggleWhiteboard();
-                    setShowShareMenu(false);
-                  }}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all w-full text-left font-medium text-sm ${showWhiteboard
-                    ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
-                    : 'text-zinc-100 hover:bg-white/10'
-                    }`}
-                >
-                  <div className="w-5 h-5">{WhiteboardIcon}</div>
-                  {showWhiteboard ? 'Stop Whiteboard' : 'Whiteboard'}
-                </button>
-              </div>
-            </>
-          )}
+          <ControlButton
+            label={isCameraOn ? 'Stop Video' : 'Start Video'}
+            variant={isCameraOn ? 'default' : 'danger'}
+            onClick={onToggleCamera}
+            icon={isCameraOn ? CameraOn : CameraOff}
+          />
         </div>
 
-        <div className="w-px h-10 bg-white/10 mx-2" />
+        <div className="w-px h-8 bg-white/10" />
 
-        {isHost && (
-          <ControlButton
-            label="Mute All"
-            variant="default"
-            onClick={onMuteAll}
-            icon={MuteAllIcon}
-          />
-        )}
+        {/* Share Controls */}
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <ControlButton
+              label={isScreenSharing ? 'Stop Share' : showWhiteboard ? 'Stop Board' : 'Present'}
+              variant={isScreenSharing || showWhiteboard ? 'primary' : 'default'}
+              onClick={() => setShowShareMenu(!showShareMenu)}
+              icon={isScreenSharing ? ScreenShareIcon : showWhiteboard ? WhiteboardIcon : ScreenShareIcon}
+            />
 
-        {isHost && (
-          <ControlButton
-            label="Waiting Room"
-            variant={panelOpen === 'waiting' ? 'primary' : 'default'}
-            onClick={() => onTogglePanel('waiting')}
-            icon={WaitingRoomIcon}
-            badge={waitingRoomCount}
-          />
-        )}
-
-        <ControlButton
-          label={handRaised ? 'Lower Hand' : 'Raise Hand'}
-          variant={handRaised ? 'primary' : 'default'}
-          onClick={onToggleHandRaise}
-          icon={HandRaiseIcon}
-        />
-
-        <div className="relative">
-          <ControlButton
-            label="Reactions"
-            variant={showReactionMenu ? 'primary' : 'default'}
-            onClick={() => setShowReactionMenu(!showReactionMenu)}
-            icon={EmojiIcon}
-          />
-
-          {showReactionMenu && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setShowReactionMenu(false)} />
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 p-2 bg-[#1e1e1e] border border-white/10 rounded-full shadow-xl flex gap-1 z-50 animate-slide-up origin-bottom ring-1 ring-black/50">
-                {reactions.map((emoji) => (
+            {showShareMenu && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setShowShareMenu(false)}
+                />
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 p-1.5 bg-[#2d2d2d] border border-white/10 rounded-xl shadow-xl flex flex-col gap-0.5 min-w-[190px] z-50 animate-slide-up">
                   <button
-                    key={emoji}
                     onClick={() => {
-                      onReaction(emoji);
-                      setShowReactionMenu(false);
+                      onToggleScreen();
+                      setShowShareMenu(false);
                     }}
-                    className="w-10 h-10 flex items-center justify-center text-2xl hover:bg-white/10 rounded-full transition-transform hover:scale-125"
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all w-full text-left text-sm ${isScreenSharing
+                      ? 'bg-red-500/15 text-red-400 hover:bg-red-500/25'
+                      : 'text-white/90 hover:bg-white/10'
+                      }`}
                   >
-                    {emoji}
+                    <div className="w-5 h-5">{ScreenShareIcon}</div>
+                    {isScreenSharing ? 'Stop Sharing' : 'Share Screen'}
                   </button>
-                ))}
-              </div>
-            </>
-          )}
+
+                  <button
+                    onClick={() => {
+                      onToggleWhiteboard();
+                      setShowShareMenu(false);
+                    }}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all w-full text-left text-sm ${showWhiteboard
+                      ? 'bg-red-500/15 text-red-400 hover:bg-red-500/25'
+                      : 'text-white/90 hover:bg-white/10'
+                      }`}
+                  >
+                    <div className="w-5 h-5">{WhiteboardIcon}</div>
+                    {showWhiteboard ? 'Stop Whiteboard' : 'Whiteboard'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
-        <ControlButton
-          label="Participants"
-          variant={panelOpen === 'participants' ? 'primary' : 'default'}
-          onClick={() => onTogglePanel('participants')}
-          icon={ParticipantsIcon}
-        />
+        <div className="w-px h-8 bg-white/10" />
 
-        <ControlButton
-          label="Chat"
-          variant={panelOpen === 'chat' ? 'primary' : 'default'}
-          onClick={() => onTogglePanel('chat')}
-          icon={ChatIcon}
-        />
+        {/* Interaction Controls */}
+        <div className="flex items-center gap-2">
+          {isHost && (
+            <ControlButton
+              label="Mute All"
+              variant="default"
+              onClick={onMuteAll}
+              icon={MuteAllIcon}
+            />
+          )}
 
-        <div className="w-px h-10 bg-white/10 mx-2" />
+          {isHost && (
+            <ControlButton
+              label="Waiting Room"
+              variant={panelOpen === 'waiting' ? 'primary' : 'default'}
+              onClick={() => onTogglePanel('waiting')}
+              icon={WaitingRoomIcon}
+              badge={waitingRoomCount}
+            />
+          )}
 
+          <ControlButton
+            label={handRaised ? 'Lower Hand' : 'Raise Hand'}
+            variant={handRaised ? 'primary' : 'default'}
+            onClick={onToggleHandRaise}
+            icon={HandRaiseIcon}
+          />
+
+          <div className="relative">
+            <ControlButton
+              label="Reactions"
+              variant={showReactionMenu ? 'primary' : 'default'}
+              onClick={() => setShowReactionMenu(!showReactionMenu)}
+              icon={EmojiIcon}
+            />
+
+            {showReactionMenu && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowReactionMenu(false)} />
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 p-1.5 bg-[#2d2d2d] border border-white/10 rounded-full shadow-xl flex gap-0.5 z-50 animate-slide-up">
+                  {reactions.map((emoji) => (
+                    <button
+                      key={emoji}
+                      onClick={() => {
+                        onReaction(emoji);
+                        setShowReactionMenu(false);
+                      }}
+                      className="w-9 h-9 flex items-center justify-center text-xl hover:bg-white/10 rounded-full transition-transform hover:scale-125"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="w-px h-8 bg-white/10" />
+
+        {/* Panel Controls */}
+        <div className="flex items-center gap-2">
+          <ControlButton
+            label="Participants"
+            variant={panelOpen === 'participants' ? 'primary' : 'default'}
+            onClick={() => onTogglePanel('participants')}
+            icon={ParticipantsIcon}
+          />
+
+          <ControlButton
+            label="Chat"
+            variant={panelOpen === 'chat' ? 'primary' : 'default'}
+            onClick={() => onTogglePanel('chat')}
+            icon={ChatIcon}
+          />
+        </div>
+
+        <div className="w-px h-8 bg-white/10" />
+
+        {/* Leave */}
         <ControlButton
           label="Leave"
           variant="danger"

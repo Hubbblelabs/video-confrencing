@@ -87,11 +87,13 @@ export interface ProducerClosedEvent {
 export interface ProducerPausedEvent {
   producerId: string;
   userId: string;
+  kind: 'audio' | 'video';
 }
 
 export interface ProducerResumedEvent {
   producerId: string;
   userId: string;
+  kind: 'audio' | 'video';
 }
 
 export interface UserJoinedEvent {

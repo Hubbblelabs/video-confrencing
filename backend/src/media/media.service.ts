@@ -66,7 +66,7 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
   private minPort = 40000;
   private maxPort = 49999;
 
-  constructor(private readonly config: ConfigService) {}
+  constructor(private readonly config: ConfigService) { }
 
   async onModuleInit(): Promise<void> {
     this.listenIp = this.config.get<string>('mediasoup.listenIp', '0.0.0.0');
@@ -282,16 +282,18 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
     this.logger.log(`Producer explicitly closed: ${producerId}`);
   }
 
-  async pauseProducer(producerId: string): Promise<void> {
+  async pauseProducer(producerId: string): Promise<{ kind: string }> {
     const ctx = this.producers.get(producerId);
     if (!ctx) throw new WsMediaException('Producer not found');
     await ctx.producer.pause();
+    return { kind: ctx.producer.kind };
   }
 
-  async resumeProducer(producerId: string): Promise<void> {
+  async resumeProducer(producerId: string): Promise<{ kind: string }> {
     const ctx = this.producers.get(producerId);
     if (!ctx) throw new WsMediaException('Producer not found');
     await ctx.producer.resume();
+    return { kind: ctx.producer.kind };
   }
 
   // ─── Consumer Management ────────────────────────────────────────

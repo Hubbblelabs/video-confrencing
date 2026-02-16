@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
-import { Compass } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Compass, X, Loader2, SearchX } from 'lucide-react';
 import { useAuthStore } from '../store/auth.store';
 import { StudentWallet } from "@/components/billing/StudentWallet";
 import { ProfileSettings } from "@/components/profile/ProfileSettings";
 import { UpcomingEvents } from '../components/lobby/UpcomingEvents';
 import { billingApi } from '../services/billing.service';
+import { sessionsApi } from '../services/api.service';
+import { SessionCard } from '../components/sessions/SessionCard';
 
 interface LobbyPageProps {
   onCreateRoom: (title: string) => Promise<void>;
@@ -45,6 +47,13 @@ export function LobbyPage({ onCreateRoom, onJoinRoom, onShowAdmin, onShowAttenda
   const [loading, setLoading] = useState(false);
   const [currentTime, setCurrentTime] = useState<string>('');
   const [currentDate, setCurrentDate] = useState<string>('');
+
+  // Catalog popup state
+  const [showCatalog, setShowCatalog] = useState(false);
+  const [catalogSessions, setCatalogSessions] = useState<any[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const [catalogTotal, setCatalogTotal] = useState(0);
+  const [catalogQuery, setCatalogQuery] = useState('');
 
   const userId = useAuthStore((s) => s.userId);
   const displayName = useAuthStore((s) => s.displayName);
@@ -92,6 +101,33 @@ export function LobbyPage({ onCreateRoom, onJoinRoom, onShowAdmin, onShowAttenda
 
   const handleLogout = () => {
     clearAuth();
+  };
+
+  // Catalog popup loader
+  const loadCatalog = useCallback(async (query = '') => {
+    const token = useAuthStore.getState().token;
+    setCatalogLoading(true);
+    try {
+      const data = await sessionsApi.getSessions({
+        q: query || undefined,
+        sortBy: 'date',
+        order: 'DESC',
+        limit: 20,
+        offset: 0,
+      }, token || undefined);
+      setCatalogSessions(data.sessions);
+      setCatalogTotal(data.total);
+    } catch (err) {
+      console.error('Failed to load catalog', err);
+    } finally {
+      setCatalogLoading(false);
+    }
+  }, []);
+
+  const handleOpenCatalog = () => {
+    setShowCatalog(true);
+    setCatalogQuery('');
+    loadCatalog();
   };
 
   return (
@@ -244,7 +280,7 @@ export function LobbyPage({ onCreateRoom, onJoinRoom, onShowAdmin, onShowAttenda
 
                   <div className="mt-auto pt-4">
                     <button
-                      onClick={onShowBrowser}
+                      onClick={handleOpenCatalog}
                       className="w-full py-3 px-4 bg-background border border-border/50 hover:border-orange-500/30 hover:bg-orange-500/5 text-foreground hover:text-orange-600 font-medium rounded-xl transition-all duration-200 flex items-center justify-center gap-2 group-hover:shadow-sm"
                     >
                       <span>Explore Catalog</span>
@@ -291,5 +327,103 @@ export function LobbyPage({ onCreateRoom, onJoinRoom, onShowAdmin, onShowAttenda
 
         </div>
       </main>
+
+      {/* Catalog Popup Modal */}
+      {showCatalog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowCatalog(false)} />
+
+          {/* Modal */}
+          <div className="relative w-full max-w-4xl max-h-[85vh] bg-background border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-slide-up">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-600">
+                  <Compass className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold">Session Catalog</h2>
+                  <p className="text-xs text-muted-foreground">{catalogTotal} sessions available</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowCatalog(false)}
+                className="p-2 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Search */}
+            <div className="px-6 py-3 border-b border-border shrink-0">
+              <div className="relative">
+                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="m21 21-4.35-4.35" />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Search sessions..."
+                  value={catalogQuery}
+                  onChange={(e) => {
+                    setCatalogQuery(e.target.value);
+                    loadCatalog(e.target.value);
+                  }}
+                  className="w-full pl-10 pr-4 py-2.5 bg-muted/50 border border-border rounded-xl text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/30 transition-all"
+                />
+              </div>
+            </div>
+
+            {/* Sessions Grid */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {catalogLoading ? (
+                <div className="flex flex-col items-center justify-center py-16 space-y-3">
+                  <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                  <p className="text-muted-foreground text-sm font-medium">Loading sessions...</p>
+                </div>
+              ) : catalogSessions.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {catalogSessions.map((session) => (
+                    <SessionCard
+                      key={session.id}
+                      session={session}
+                      onClick={(id) => {
+                        setShowCatalog(false);
+                        if (onShowBrowser) onShowBrowser();
+                      }}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                    <SearchX className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <h3 className="text-lg font-bold mb-1">No sessions found</h3>
+                  <p className="text-muted-foreground text-sm max-w-xs">
+                    {catalogQuery ? 'Try a different search term.' : 'No sessions are available right now.'}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            {catalogSessions.length > 0 && (
+              <div className="px-6 py-3 border-t border-border text-center shrink-0">
+                <button
+                  onClick={() => {
+                    setShowCatalog(false);
+                    if (onShowBrowser) onShowBrowser();
+                  }}
+                  className="text-sm text-primary hover:text-primary/80 font-medium transition-colors"
+                >
+                  View all in full page →
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>);
 }

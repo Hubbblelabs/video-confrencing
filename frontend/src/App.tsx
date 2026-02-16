@@ -111,17 +111,21 @@ function App() {
       useParticipantsStore.getState().removeConsumer(data.userId, data.producerId);
     },
     onProducerPaused: (data) => {
-      // Update participant mute state when their audio producer is paused
-      const participant = useParticipantsStore.getState().participants.get(data.userId);
-      if (participant && participant.audioTrack) {
-        useParticipantsStore.getState().setParticipantMuted(data.userId, true);
+      // Update participant state when their producer is paused
+      const store = useParticipantsStore.getState();
+      if (data.kind === 'audio') {
+        store.setParticipantMuted(data.userId, true);
+      } else if (data.kind === 'video') {
+        store.setParticipantVideoOff(data.userId, true);
       }
     },
     onProducerResumed: (data) => {
-      // Update participant mute state when their audio producer is resumed
-      const participant = useParticipantsStore.getState().participants.get(data.userId);
-      if (participant && participant.audioTrack) {
-        useParticipantsStore.getState().setParticipantMuted(data.userId, false);
+      // Update participant state when their producer is resumed
+      const store = useParticipantsStore.getState();
+      if (data.kind === 'audio') {
+        store.setParticipantMuted(data.userId, false);
+      } else if (data.kind === 'video') {
+        store.setParticipantVideoOff(data.userId, false);
       }
     },
     onHandRaised: (data) => {

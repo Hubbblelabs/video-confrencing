@@ -32,7 +32,7 @@ export class WebrtcService {
     private readonly media: MediaService,
     private readonly rooms: RoomsService,
     private readonly audit: AuditService,
-  ) {}
+  ) { }
 
   /**
    * Initializes a mediasoup router for the room if one doesn't already exist.
@@ -193,17 +193,17 @@ export class WebrtcService {
   }
 
   /**
-   * Pauses a producer (e.g., user mutes audio).
+   * Pauses a producer (e.g., user mutes audio or turns off camera).
    */
-  async pauseProducer(producerId: string): Promise<void> {
-    await this.media.pauseProducer(producerId);
+  async pauseProducer(producerId: string): Promise<{ kind: string }> {
+    return await this.media.pauseProducer(producerId);
   }
 
   /**
    * Resumes a paused producer.
    */
-  async resumeProducer(producerId: string): Promise<void> {
-    await this.media.resumeProducer(producerId);
+  async resumeProducer(producerId: string): Promise<{ kind: string }> {
+    return await this.media.resumeProducer(producerId);
   }
 
   /**

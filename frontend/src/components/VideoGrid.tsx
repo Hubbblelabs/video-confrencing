@@ -63,7 +63,6 @@ export function VideoGrid() {
       items = ['local', ...remoteList.slice(0, PAGE_SIZE - 1)];
     } else {
       // Page > 0: Remotes only (shifted by -1 because local took a spot on page 0)
-      // The index in remoteList corresponds to (page * PAGE_SIZE) - 1
       const remoteStart = (page * PAGE_SIZE) - 1;
       const remoteEnd = remoteStart + PAGE_SIZE;
       items = remoteList.slice(remoteStart, remoteEnd);
@@ -78,8 +77,8 @@ export function VideoGrid() {
   const localAudioTrack = localStream?.getAudioTracks()[0] ?? null;
 
   return (
-    <div className={`relative w-full h-full p-6 pt-20 pb-28 flex flex-col items-center justify-center`}>
-      <div className={`w-full h-full ${gridClass} gap-6 overflow-y-auto scrollbar-hide`}>
+    <div className="relative w-full h-full p-3 pt-16 pb-24 flex flex-col items-center justify-center">
+      <div className={`w-full h-full ${gridClass} gap-2 overflow-y-auto scrollbar-hide`}>
         {visibleParticipants.map((item) => {
           if (item === 'local') {
             return (
@@ -116,25 +115,25 @@ export function VideoGrid() {
 
       {/* Pagination Controls */}
       {totalPages > 1 && (
-        <div className="absolute bottom-32 left-1/2 -translate-x-1/2 flex gap-4 bg-black/40 backdrop-blur-md p-2 rounded-full border border-white/10 z-50">
+        <div className="absolute bottom-28 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-[#202124]/90 backdrop-blur-sm px-3 py-1.5 rounded-full border border-white/10 z-50">
           <button
             onClick={() => setPage(p => Math.max(0, p - 1))}
             disabled={page === 0}
-            className="p-2 rounded-full hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent transition-colors text-white"
+            className="p-1.5 rounded-full hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent transition-colors text-white"
           >
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <span className="flex items-center text-white text-sm font-medium px-2">
+          <span className="text-white text-xs font-medium px-1 tabular-nums">
             {page + 1} / {totalPages}
           </span>
           <button
             onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
             disabled={page === totalPages - 1}
-            className="p-2 rounded-full hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent transition-colors text-white"
+            className="p-1.5 rounded-full hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent transition-colors text-white"
           >
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </button>

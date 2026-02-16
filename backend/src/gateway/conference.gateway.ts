@@ -576,12 +576,13 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
       throw new Error('User not in any room');
     }
 
-    await this.webrtc.pauseProducer(payload.producerId);
+    const { kind } = await this.webrtc.pauseProducer(payload.producerId);
 
     // Broadcast to other users in the room
     socket.to(roomId).emit(WsEvents.PRODUCER_PAUSED, {
       userId,
       producerId: payload.producerId,
+      kind,
     });
 
     return { paused: true };
@@ -601,12 +602,13 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
       throw new Error('User not in any room');
     }
 
-    await this.webrtc.resumeProducer(payload.producerId);
+    const { kind } = await this.webrtc.resumeProducer(payload.producerId);
 
     // Broadcast to other users in the room
     socket.to(roomId).emit(WsEvents.PRODUCER_RESUMED, {
       userId,
       producerId: payload.producerId,
+      kind,
     });
 
     return { resumed: true };
