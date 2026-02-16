@@ -16,6 +16,9 @@ import { WebrtcService } from '../webrtc/webrtc.service';
 import { WsEvents } from './ws-events';
 import { RoomRole, UserRole } from '../shared/enums';
 import { WsExceptionFilter } from './ws-exception.filter';
+import { ChatService } from '../chat/chat.service';
+import { QnaService } from '../qna/qna.service';
+
 
 // ─── Payload Interfaces ───────────────────────────────────────────
 
@@ -146,6 +149,8 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
     private readonly wsAuth: WsAuthService,
     private readonly rooms: RoomsService,
     private readonly webrtc: WebrtcService,
+    private readonly chatService: ChatService,
+    private readonly qnaService: QnaService,
   ) { }
 
   // ─── Connection Lifecycle ─────────────────────────────────────
@@ -713,14 +718,22 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
   ) {
     this.assertAuthenticated(socket);
 
+    const savedMessage = await this.chatService.saveMessage({
+      roomId: payload.roomId,
+      userId: socket.data.userId!,
+      content: payload.message,
+      type: 'text',
+    });
+
     const messageData = {
-      id: `${Date.now()}-${socket.data.userId}`,
+      id: savedMessage.id,
       roomId: payload.roomId,
       userId: socket.data.userId,
       displayName: socket.data.displayName,
       message: payload.message,
-      timestamp: new Date().toISOString(),
+      timestamp: savedMessage.createdAt.toISOString(),
       type: 'text',
+      profilePictureUrl: (savedMessage as any).user?.profilePictureUrl,
     };
 
     // Broadcast to all users in the room (including sender)
@@ -736,22 +749,31 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
   ) {
     this.assertAuthenticated(socket);
 
-    const messageData = {
-      id: `${Date.now()}-${socket.data.userId}`,
-      roomId: payload.roomId,
-      userId: socket.data.userId,
-      displayName: socket.data.displayName,
-      targetUserId: payload.targetUserId,
-      message: payload.message,
-      timestamp: new Date().toISOString(),
-      type: 'private',
-    };
-
-    // Find target socket and send to both sender and target
+    // Verify target user exists in room
     const sockets = await this.server.in(payload.roomId).fetchSockets();
     const targetSocket = sockets.find((s: any) => s.data.userId === payload.targetUserId);
 
     if (targetSocket) {
+      const savedMessage = await this.chatService.saveMessage({
+        roomId: payload.roomId,
+        userId: socket.data.userId!,
+        targetUserId: payload.targetUserId,
+        content: payload.message,
+        type: 'private',
+      });
+
+      const messageData = {
+        id: savedMessage.id,
+        roomId: payload.roomId,
+        userId: socket.data.userId,
+        displayName: socket.data.displayName,
+        targetUserId: payload.targetUserId,
+        message: payload.message,
+        timestamp: savedMessage.createdAt.toISOString(),
+        type: 'private',
+        profilePictureUrl: (savedMessage as any).user?.profilePictureUrl,
+      };
+
       // Send to target
       targetSocket.emit(WsEvents.CHAT_PRIVATE_MESSAGE_RECEIVED, messageData);
       // Send back to sender
@@ -759,7 +781,7 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
       return { success: true, messageId: messageData.id };
     }
 
-    return { success: false, error: 'User not found' };
+    return { success: false, error: 'User not found in room' };
   }
 
   @SubscribeMessage(WsEvents.CHAT_FILE_UPLOAD)
@@ -769,17 +791,27 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
   ) {
     this.assertAuthenticated(socket);
 
+    const savedMessage = await this.chatService.saveMessage({
+      roomId: payload.roomId,
+      userId: socket.data.userId!,
+      type: 'file',
+      fileName: payload.fileName,
+      fileType: payload.fileType,
+      fileSize: payload.fileSize,
+    });
+
     const messageData = {
-      id: `${Date.now()}-${socket.data.userId}`,
+      id: savedMessage.id,
       roomId: payload.roomId,
       userId: socket.data.userId,
       displayName: socket.data.displayName,
       fileName: payload.fileName,
       fileType: payload.fileType,
-      fileData: payload.fileData,
+      fileData: payload.fileData, // Live participants get the data
       fileSize: payload.fileSize,
-      timestamp: new Date().toISOString(),
+      timestamp: savedMessage.createdAt.toISOString(),
       type: 'file',
+      profilePictureUrl: (savedMessage as any).user?.profilePictureUrl,
     };
 
     // Broadcast to all users in the room
@@ -803,6 +835,113 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
     });
 
     return { success: true };
+  }
+
+  @SubscribeMessage(WsEvents.CHAT_HISTORY)
+  async handleGetChatHistory(
+    @ConnectedSocket() socket: AppSocket,
+    @MessageBody() payload: { roomId: string },
+  ) {
+    this.assertAuthenticated(socket);
+
+    const messages = await this.chatService.getMessages(payload.roomId);
+
+    return {
+      messages: messages.map((m: any) => ({
+        id: m.id,
+        roomId: m.roomId,
+        userId: m.userId,
+        displayName: (m as any).user.displayName,
+        profilePictureUrl: (m as any).user.profilePictureUrl,
+        message: m.content,
+        fileName: m.fileName,
+        fileType: m.fileType,
+        fileSize: m.fileSize,
+        fileUrl: m.fileUrl,
+        timestamp: m.createdAt.toISOString(),
+        type: m.type,
+      }))
+    };
+  }
+
+  // ─── Q&A Events ───────────────────────────────────────────────
+
+  @SubscribeMessage(WsEvents.QNA_ASK)
+  async handleAskQuestion(
+    @ConnectedSocket() socket: AppSocket,
+    @MessageBody() payload: { roomId: string; content: string },
+  ) {
+    this.assertAuthenticated(socket);
+    const question = await this.qnaService.askQuestion(payload.roomId, socket.data.userId!, payload.content);
+
+    // Broadcast
+    this.server.to(payload.roomId).emit(WsEvents.QNA_QUESTION_ASKED, {
+      id: question.id,
+      roomId: question.roomId,
+      userId: question.userId,
+      displayName: (question as any).user.displayName,
+      profilePictureUrl: (question as any).user.profilePictureUrl,
+      content: question.content,
+      upvotes: 0,
+      isAnswered: false,
+      timestamp: question.createdAt.toISOString(),
+      isUpvoted: false
+    });
+    return { success: true, questionId: question.id };
+  }
+
+  @SubscribeMessage(WsEvents.QNA_UPVOTE)
+  async handleUpvoteQuestion(
+    @ConnectedSocket() socket: AppSocket,
+    @MessageBody() payload: { roomId: string; questionId: string },
+  ) {
+    this.assertAuthenticated(socket);
+    const result = await this.qnaService.upvoteQuestion(payload.questionId, socket.data.userId!);
+
+    // Broadcast update
+    this.server.to(payload.roomId).emit(WsEvents.QNA_QUESTION_UPDATED, {
+      questionId: payload.questionId,
+      upvotes: result.upvotes,
+    });
+    return { success: true };
+  }
+
+  @SubscribeMessage(WsEvents.QNA_ANSWER)
+  async handleAnswerQuestion(
+    @ConnectedSocket() socket: AppSocket,
+    @MessageBody() payload: { roomId: string; questionId: string },
+  ) {
+    this.assertAuthenticated(socket);
+
+    const question = await this.qnaService.markAnswered(payload.questionId, true);
+    this.server.to(payload.roomId).emit(WsEvents.QNA_QUESTION_ANSWERED, {
+      questionId: payload.questionId,
+      isAnswered: true
+    });
+    return { success: true };
+  }
+
+  @SubscribeMessage(WsEvents.QNA_DELETE)
+  async handleDeleteQuestion(
+    @ConnectedSocket() socket: AppSocket,
+    @MessageBody() payload: { roomId: string; questionId: string },
+  ) {
+    this.assertAuthenticated(socket);
+    await this.qnaService.deleteQuestion(payload.questionId);
+    this.server.to(payload.roomId).emit(WsEvents.QNA_QUESTION_DELETED, {
+      questionId: payload.questionId
+    });
+    return { success: true };
+  }
+
+  @SubscribeMessage(WsEvents.QNA_HISTORY)
+  async handleGetQuestions(
+    @ConnectedSocket() socket: AppSocket,
+    @MessageBody() payload: { roomId: string },
+  ) {
+    this.assertAuthenticated(socket);
+    const questions = await this.qnaService.getQuestions(payload.roomId, socket.data.userId);
+    return { questions };
   }
 
   // ─── Reaction / Hand Raise Events ─────────────────────────────

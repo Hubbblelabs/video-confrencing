@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { UserEntity, MeetingEntity, AuditLogEntity } from './entities';
+import { UserEntity, MeetingEntity, AuditLogEntity, WalletEntity, TransactionEntity, RoomParticipantEntity } from './entities';
 
 @Module({
   imports: [
@@ -15,7 +15,8 @@ import { UserEntity, MeetingEntity, AuditLogEntity } from './entities';
         username: config.get<string>('postgres.username'),
         password: config.get<string>('postgres.password'),
         database: config.get<string>('postgres.database'),
-        entities: [UserEntity, MeetingEntity, AuditLogEntity],
+        entities: [UserEntity, MeetingEntity, AuditLogEntity, WalletEntity, TransactionEntity, RoomParticipantEntity],
+        autoLoadEntities: true,
         synchronize: config.get<string>('app.nodeEnv') === 'development',
         logging: config.get<string>('app.nodeEnv') === 'development',
         ssl: config.get<string>('app.nodeEnv') === 'production' ? { rejectUnauthorized: false } : false,
@@ -25,8 +26,8 @@ import { UserEntity, MeetingEntity, AuditLogEntity } from './entities';
         },
       }),
     }),
-    TypeOrmModule.forFeature([UserEntity, MeetingEntity, AuditLogEntity]),
+    TypeOrmModule.forFeature([UserEntity, MeetingEntity, AuditLogEntity, WalletEntity, TransactionEntity, RoomParticipantEntity]),
   ],
   exports: [TypeOrmModule],
 })
-export class DatabaseModule {}
+export class DatabaseModule { }

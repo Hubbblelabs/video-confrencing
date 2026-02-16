@@ -8,6 +8,8 @@ import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { UserEntity } from '../database/entities';
 
+import { MailService } from './mail.service';
+
 @Module({
   imports: [
     PassportModule.register({ defaultStrategy: 'jwt' }),
@@ -28,7 +30,7 @@ import { UserEntity } from '../database/entities';
     TypeOrmModule.forFeature([UserEntity]),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
-  exports: [AuthService, JwtModule],
+  providers: [AuthService, JwtStrategy, MailService],
+  exports: [AuthService, JwtModule, MailService],
 })
-export class AuthModule {}
+export class AuthModule { }

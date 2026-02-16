@@ -19,15 +19,57 @@ model User {
   updatedAt       DateTime          @default(now()) @updatedAt @db.Timestamptz(6)
   role            users_role_enum   @default(STUDENT)
   displayName     String            @db.VarChar(100)
+  bio             String?           @db.Text
+  profilePictureUrl String?         @db.VarChar(500)
+  specialties     String[]
+  emailVerified    Boolean           @default(false)
+  verificationToken String?          @db.VarChar(255)
+  verificationTokenExpires DateTime? @db.Timestamptz(6)
+  resetToken       String?           @db.VarChar(255)
+  resetTokenExpires DateTime?       @db.Timestamptz(6)
   auditLogs       AuditLog[]
   authProviders   AuthProvider[]
   meetings        meetings[]
   recordingsOwned Recording[]       @relation("RecordingOwner")
   participations  RoomParticipant[]
   ownedRooms      Room[]
+  transactions    Transaction[]
+  wallet          Wallet?
+  chatMessages    ChatMessage[]
+  questions       Question[]
+  upvotes         QuestionUpvote[]
 
   @@index([email], map: "IDX_97672ac88f789774dd47f7c8be")
   @@map("users")
+}
+
+model Wallet {
+  id        String   @id(map: "PK_8402e5df5a30a229380e83e4f7e") @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId    String   @unique(map: "IDX_2ecdb33f23e9a6fc392025c0b9") @db.Uuid
+  balance   Int      @default(0)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_2ecdb33f23e9a6fc392025c0b97")
+
+  @@map("wallets")
+}
+
+model Transaction {
+  id                    String                   @id(map: "PK_a219afd8dd77ed80f5a862f1db9") @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId                String                   @db.Uuid
+  meetingId             String?                  @db.Uuid
+  type                  transactions_type_enum
+  amount                Int
+  status                transactions_status_enum @default(pending)
+  providerTransactionId String?                  @db.VarChar(255)
+  metadata              Json?
+  createdAt             DateTime                 @default(now()) @db.Timestamptz(6)
+  user                  User                     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_6bb58f2b6e30cb51a6504599f41")
+  meetings              meetings?                @relation(fields: [meetingId], references: [id], onUpdate: NoAction, map: "FK_d9de21333ef897deda930257597")
+
+  @@index([userId], map: "IDX_6bb58f2b6e30cb51a6504599f4")
+  @@index([meetingId], map: "IDX_d9de21333ef897deda93025759")
+  @@map("transactions")
 }
 
 /// AuthProvider - Supports multiple identity providers per user
@@ -56,29 +98,28 @@ model AuthProvider {
 /// Room - Represents a video conference meeting (scheduled or instant)
 /// Control-plane only - real-time state (participants, media) lives in Redis
 model Room {
-  id               String            @id @default(uuid()) @db.Uuid
-  ownerId          String            @db.Uuid
-  roomCode         String            @unique @db.VarChar(20)
-  title            String            @db.VarChar(255)
+  id               String      @id @default(uuid()) @db.Uuid
+  ownerId          String      @db.Uuid
+  roomCode         String      @unique @db.VarChar(20)
+  title            String      @db.VarChar(255)
   description      String?
-  scheduledStart   DateTime?         @db.Timestamptz(3)
-  scheduledEnd     DateTime?         @db.Timestamptz(3)
-  maxParticipants  Int               @default(100)
-  isPublic         Boolean           @default(false)
-  isRecordable     Boolean           @default(true)
-  requireAuth      Boolean           @default(true)
-  status           RoomStatus        @default(CREATED)
-  startedAt        DateTime?         @db.Timestamptz(3)
-  endedAt          DateTime?         @db.Timestamptz(3)
-  peakParticipants Int               @default(0)
-  totalJoins       Int               @default(0)
+  scheduledStart   DateTime?   @db.Timestamptz(3)
+  scheduledEnd     DateTime?   @db.Timestamptz(3)
+  maxParticipants  Int         @default(100)
+  isPublic         Boolean     @default(false)
+  isRecordable     Boolean     @default(true)
+  requireAuth      Boolean     @default(true)
+  status           RoomStatus  @default(CREATED)
+  startedAt        DateTime?   @db.Timestamptz(3)
+  endedAt          DateTime?   @db.Timestamptz(3)
+  peakParticipants Int         @default(0)
+  totalJoins       Int         @default(0)
   durationSeconds  Int?
-  deletedAt        DateTime?         @db.Timestamptz(3)
-  createdAt        DateTime          @default(now()) @db.Timestamptz(3)
-  updatedAt        DateTime          @updatedAt @db.Timestamptz(3)
+  deletedAt        DateTime?   @db.Timestamptz(3)
+  createdAt        DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime    @updatedAt @db.Timestamptz(3)
   recordings       Recording[]
-  participants     RoomParticipant[]
-  owner            User              @relation(fields: [ownerId], references: [id])
+  owner            User        @relation(fields: [ownerId], references: [id])
 
   @@index([ownerId])
   @@index([roomCode])
@@ -93,31 +134,29 @@ model Room {
 /// RoomParticipant - Explicit many-to-many relation between User and Room
 /// Tracks full participation lifecycle including kicks, bans, role changes
 model RoomParticipant {
-  id              String          @id @default(uuid()) @db.Uuid
-  userId          String          @db.Uuid
-  roomId          String          @db.Uuid
-  role            ParticipantRole @default(PARTICIPANT)
-  joinedAt        DateTime        @default(now()) @db.Timestamptz(3)
-  leftAt          DateTime?       @db.Timestamptz(3)
-  isKicked        Boolean         @default(false)
-  kickedAt        DateTime?       @db.Timestamptz(3)
-  kickedBy        String?         @db.Uuid
-  kickReason      String?         @db.VarChar(500)
-  isBanned        Boolean         @default(false)
-  bannedAt        DateTime?       @db.Timestamptz(3)
-  bannedBy        String?         @db.Uuid
-  banReason       String?         @db.VarChar(500)
+  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId          String    @db.Uuid
+  roomId          String    @db.Uuid
+  joinedAt        DateTime  @default(now()) @db.Timestamptz(6)
+  leftAt          DateTime? @db.Timestamptz(6)
+  isKicked        Boolean   @default(false)
+  kickedAt        DateTime? @db.Timestamptz(6)
+  kickedBy        String?   @db.Uuid
+  kickReason      String?   @db.VarChar(500)
+  isBanned        Boolean   @default(false)
+  bannedAt        DateTime? @db.Timestamptz(6)
+  bannedBy        String?   @db.Uuid
+  banReason       String?   @db.VarChar(500)
   durationSeconds Int?
-  room            Room            @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role            String    @default("PARTICIPANT") @db.VarChar(50)
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_2fffd7766a5c57a31e8e81c1b40")
 
-  @@unique([userId, roomId, joinedAt])
-  @@index([userId])
-  @@index([roomId])
-  @@index([roomId, leftAt])
-  @@index([userId, leftAt])
-  @@index([roomId, role])
-  @@index([isBanned, roomId])
+  @@unique([userId, roomId, joinedAt], map: "IDX_5ace18777b8f88bfe6d4b3e6c9")
+  @@index([userId], map: "IDX_2fffd7766a5c57a31e8e81c1b4")
+  @@index([roomId, role], map: "IDX_563e667d18098c72537b741ad8")
+  @@index([roomId, leftAt], map: "IDX_7e8aadd9ed43a9ce4148de3812")
+  @@index([userId, leftAt], map: "IDX_81316b3c844d3b09e7d6447e7d")
+  @@index([roomId], map: "IDX_e5a9c5cf868f51dabb972930d4")
   @@map("room_participants")
 }
 
@@ -191,10 +230,32 @@ model meetings {
   peakParticipants Int                  @default(0)
   createdAt        DateTime             @default(now()) @db.Timestamptz(6)
   updatedAt        DateTime             @default(now()) @db.Timestamptz(6)
+  scheduledStart   DateTime?            @db.Timestamptz(6)
+  scheduledEnd     DateTime?            @db.Timestamptz(6)
+  description      String?              @db.Text
+  price            Int                  @default(0)
+  category         String?              @db.VarChar(100)
+  thumbnailUrl     String?              @db.VarChar(500)
+  tags             String[]
   users            User                 @relation(fields: [hostId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_f4c16c40d16a9eb2003c5dd1ff2")
+  transactions     Transaction[]
+  chatMessages     ChatMessage[]
+  questions        Question[]
 
   @@index([roomCode], map: "IDX_bad0d82fe56792d4a051f63a79")
   @@index([hostId], map: "IDX_f4c16c40d16a9eb2003c5dd1ff")
+}
+
+enum TransactionType {
+  TOPUP
+  DEBIT
+  REFUND
+}
+
+enum TransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
 }
 
 /// User authentication provider type
@@ -217,15 +278,6 @@ enum RoomStatus {
   CANCELLED
 
   @@map("room_status")
-}
-
-/// Participant role within a specific room
-enum ParticipantRole {
-  HOST
-  CO_HOST
-  PARTICIPANT
-
-  @@map("participant_role")
 }
 
 /// Recording lifecycle status
@@ -259,10 +311,81 @@ enum meetings_status_enum {
   waiting
   active
   closed
+  scheduled
+  cancelled
 }
 
 enum users_role_enum {
   STUDENT
   TEACHER
   ADMIN
+}
+
+enum transactions_status_enum {
+  pending
+  success
+  failed
+}
+
+enum transactions_type_enum {
+  topup
+  debit
+  refund
+}
+
+/// ChatMessage - Persistent storage for room chats
+model ChatMessage {
+  id           String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  roomId       String    @db.Uuid
+  userId       String    @db.Uuid
+  content      String?   @db.Text
+  type         String    @default("text") @db.VarChar(20) // text, file, private
+  targetUserId String?   @db.Uuid
+  fileUrl      String?   @db.VarChar(500)
+  fileName     String?   @db.VarChar(255)
+  fileSize     Int?
+  fileType     String?   @db.VarChar(100)
+  isDeleted    Boolean   @default(false)
+  createdAt    DateTime  @default(now()) @db.Timestamptz(6)
+  
+  // ...
+  meeting      meetings  @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([roomId])
+  @@index([createdAt])
+  @@map("chat_messages")
+}
+
+/// Question - Q&A module for sessions
+model Question {
+  id           String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  roomId       String           @db.Uuid
+  userId       String           @db.Uuid
+  content      String           @db.Text
+  isAnswered   Boolean          @default(false)
+  isApproved   Boolean          @default(true) // For moderated Q&A
+  createdAt    DateTime         @default(now()) @db.Timestamptz(6)
+  
+  meeting      meetings         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  upvotes      QuestionUpvote[]
+
+  @@index([roomId])
+  @@index([isAnswered])
+  @@map("questions")
+}
+
+/// QuestionUpvote - Tracking user upvotes on questions
+model QuestionUpvote {
+  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  questionId String   @db.Uuid
+  userId     String   @db.Uuid
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, userId])
+  @@map("question_upvotes")
 }

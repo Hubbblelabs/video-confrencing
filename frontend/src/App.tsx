@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState, useEffect, Suspense, lazy } from 'react';
+import { useLocation } from 'react-router-dom';
 import type { Socket } from 'socket.io-client';
 // import { AuthPage } from './pages/AuthPage';
 // import { LobbyPage } from './pages/LobbyPage';
@@ -18,8 +19,12 @@ const LobbyPage = lazy(() => import('./pages/LobbyPage').then(module => ({ defau
 const RoomPage = lazy(() => import('./pages/RoomPage').then(module => ({ default: module.RoomPage })));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then(module => ({ default: module.AdminDashboard })));
 const AttendancePage = lazy(() => import('./pages/AttendancePage').then(module => ({ default: module.AttendancePage })));
+const SessionBrowser = lazy(() => import('./pages/SessionBrowser').then(module => ({ default: module.SessionBrowser })));
+const SessionDetailsPage = lazy(() => import('./pages/SessionDetailsPage'));
+const VerifyEmailPage = lazy(() => import('./pages/VerifyEmailPage'));
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
 
-type AppView = 'auth' | 'lobby' | 'waiting' | 'room' | 'admin' | 'attendance';
+type AppView = 'auth' | 'lobby' | 'waiting' | 'room' | 'admin' | 'attendance' | 'browser' | 'session-details' | 'verify-email' | 'reset-password';
 
 function App() {
   const token = useAuthStore((s) => s.token);
@@ -30,6 +35,10 @@ function App() {
   // Admin view state
   const [showAdminView, setShowAdminView] = useState(false);
   const [showAttendanceView, setShowAttendanceView] = useState(false);
+  const [showBrowserView, setShowBrowserView] = useState(false);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [urlView, setUrlView] = useState<AppView | null>(null);
+  const location = useLocation();
 
   const [existingProducers, setExistingProducers] = useState<
     Array<{ producerId: string; userId: string; kind: string }>
@@ -48,9 +57,15 @@ function App() {
   const hasAttemptedRejoin = useRef(false);
   const hasRedirectedAdmin = useRef(false);
 
+  useEffect(() => {
+    const path = location.pathname;
+    if (path === '/verify-email') setUrlView('verify-email');
+    if (path === '/reset-password') setUrlView('reset-password');
+  }, [location]);
+
   // Auto-redirect admin to dashboard on login
   useEffect(() => {
-    if (token && role === 'ADMIN' && !hasRedirectedAdmin.current && !roomId && !isInWaitingRoom) {
+    if (token && (role === 'ADMIN' || role === 'TEACHER') && !hasRedirectedAdmin.current && !roomId && !isInWaitingRoom) {
       setShowAdminView(true);
       hasRedirectedAdmin.current = true;
     }
@@ -301,6 +316,29 @@ function App() {
   // ─── Auto-rejoin on refresh ───────────────────────────────────
 
   useEffect(() => {
+    const path = location.pathname;
+    // Handle deep linking for rooms
+    const matchRoom = path.match(/^\/room\/([a-f0-9-]+)$/i);
+    if (matchRoom && matchRoom[1]) {
+      const targetRoomId = matchRoom[1];
+      if (
+        token &&
+        targetRoomId !== roomId &&
+        targetRoomId !== waitingRoomId &&
+        !hasAttemptedRejoin.current
+      ) {
+        hasAttemptedRejoin.current = true;
+        // Ensure we switch away from admin view
+        setShowAdminView(false);
+        setShowAttendanceView(false);
+        setShowBrowserView(false);
+        // Start join process
+        handleJoinRoom(targetRoomId).catch(console.error);
+      }
+    }
+  }, [token, roomId, waitingRoomId, handleJoinRoom, location]);
+
+  useEffect(() => {
     // Only auto-rejoin once on mount if there's a persisted room but we're not connected
     const persistedRoomId = useRoomStore.getState().roomId;
 
@@ -341,17 +379,22 @@ function App() {
     setRejectionMessage('');
     setShowAdminView(false);
     setShowAttendanceView(false);
+    setShowBrowserView(false);
+    setSelectedSessionId(null);
     signaling.disconnect();
   }, [signaling]);
 
   // ─── View routing ─────────────────────────────────────────────
 
   let view: AppView = 'auth';
-  if (token) view = 'lobby';
-  if (token && showAdminView && role === 'ADMIN') view = 'admin';
-  if (token && showAttendanceView && (role === 'ADMIN' || role === 'TEACHER')) view = 'attendance';
-  if (token && isInWaitingRoom) view = 'waiting';
-  if (token && roomId) view = 'room';
+  if (urlView) view = urlView;
+  else if (token) view = 'lobby';
+  if (token && !urlView && showAdminView && (role === 'ADMIN' || role === 'TEACHER')) view = 'admin';
+  if (token && !urlView && showAttendanceView && (role === 'ADMIN' || role === 'TEACHER')) view = 'attendance';
+  if (token && !urlView && showBrowserView) view = 'browser';
+  if (token && !urlView && showBrowserView && selectedSessionId) view = 'session-details';
+  if (token && !urlView && isInWaitingRoom) view = 'waiting';
+  if (token && !urlView && roomId) view = 'room';
 
   const renderView = () => {
     switch (view) {
@@ -364,12 +407,28 @@ function App() {
             onJoinRoom={handleJoinRoom}
             onShowAdmin={() => setShowAdminView(true)}
             onShowAttendance={() => setShowAttendanceView(true)}
+            onShowBrowser={() => setShowBrowserView(true)}
           />
         );
       case 'admin':
         return <AdminDashboard />;
       case 'attendance':
         return <AttendancePage />;
+      case 'browser':
+        return (
+          <SessionBrowser
+            onBack={() => setShowBrowserView(false)}
+            onSessionDetails={(id) => setSelectedSessionId(id)}
+          />
+        );
+      case 'session-details':
+        return (
+          <SessionDetailsPage
+            sessionId={selectedSessionId!}
+            onBack={() => setSelectedSessionId(null)}
+            onJoinRoom={handleJoinRoom}
+          />
+        );
       case 'waiting':
         return (
           <WaitingLobby
@@ -387,6 +446,16 @@ function App() {
             onLeave={handleLeaveRoom}
           />
         );
+      case 'verify-email':
+        return <VerifyEmailPage onComplete={() => {
+          setUrlView(null);
+          window.history.replaceState({}, '', '/');
+        }} />;
+      case 'reset-password':
+        return <ResetPasswordPage onBack={() => {
+          setUrlView(null);
+          window.history.replaceState({}, '', '/');
+        }} />;
     }
   };
 

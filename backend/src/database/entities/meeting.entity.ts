@@ -23,6 +23,21 @@ export class MeetingEntity {
   @Index()
   roomCode!: string;
 
+  @Column({ type: 'text', nullable: true })
+  description!: string | null;
+
+  @Column({ type: 'int', default: 0 })
+  price!: number;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  category!: string | null;
+
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  thumbnailUrl!: string | null;
+
+  @Column({ type: 'simple-array', nullable: true })
+  tags!: string[] | null;
+
   @Column({ type: 'uuid' })
   @Index()
   hostId!: string;
@@ -42,6 +57,12 @@ export class MeetingEntity {
 
   @Column({ type: 'timestamptz', nullable: true })
   endedAt!: Date | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  scheduledStart!: Date | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  scheduledEnd!: Date | null;
 
   @Column({ type: 'int', default: 0 })
   peakParticipants!: number;

@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Not, MoreThan, LessThan, Between } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import { ConfigService } from '@nestjs/config';
 import { RedisService } from '../redis/redis.service';
@@ -10,6 +10,8 @@ import { MeetingEntity, UserEntity, RoomParticipantEntity, ParticipantRole } fro
 import { RoomRole, RoomStatus, AuditAction } from '../shared/enums';
 import type { RoomParticipant, RedisRoomState } from '../shared/interfaces';
 import { WsRoomException } from '../shared/exceptions';
+import { BillingService } from '../billing/billing.service';
+import { UserRole } from '../shared/enums';
 
 @Injectable()
 export class RoomsService {
@@ -26,6 +28,7 @@ export class RoomsService {
     private readonly redis: RedisService,
     private readonly audit: AuditService,
     private readonly config: ConfigService,
+    private readonly billing: BillingService,
   ) {
     this.maxParticipants = this.config.get<number>('room.maxParticipants', 100);
   }
@@ -182,6 +185,25 @@ export class RoomsService {
     // Fetch user's display name from database
     const user = await this.userRepo.findOne({ where: { id: params.userId } });
     const displayName = user?.displayName || 'Unknown User';
+
+    // Credit logic for students
+    if (user && user.role === UserRole.STUDENT && !isHost) {
+      const sessionCost = 10; // Default cost per session
+
+      const wallet = await this.billing.getOrCreateWallet(params.userId);
+      if (wallet.balance < sessionCost) {
+        throw new WsRoomException('Insufficient credits to join this session');
+      }
+
+      await this.billing.debitCredits({
+        userId: params.userId,
+        amount: sessionCost,
+        meetingId: actualRoomId,
+        metadata: { action: 'join_room', roomCode: roomData['roomCode'] }
+      });
+
+      this.logger.log(`Debited ${sessionCost} credits from student ${params.userId} for session ${actualRoomId}`);
+    }
 
     const participant: RoomParticipant = {
       userId: params.userId,
@@ -645,6 +667,88 @@ export class RoomsService {
     if (participant.role !== RoomRole.CO_HOST) {
       throw new WsRoomException('Only hosts or co-hosts can perform this action');
     }
+  }
+
+  async getMeetingHistory(filters: {
+    startDate?: Date;
+    endDate?: Date;
+    limit?: number;
+    offset?: number;
+    hostUserId?: string;
+  }): Promise<{ meetings: MeetingEntity[]; total: number }> {
+    const query = this.meetingRepo.createQueryBuilder('meeting')
+      .leftJoinAndSelect('meeting.host', 'host')
+      .where('meeting.status = :status', { status: RoomStatus.CLOSED })
+      .orderBy('meeting.endedAt', 'DESC');
+
+    if (filters.hostUserId) {
+      query.andWhere('meeting.hostId = :hostUserId', { hostUserId: filters.hostUserId });
+    }
+
+    if (filters.startDate) {
+      query.andWhere('meeting.endedAt >= :startDate', { startDate: filters.startDate });
+    }
+    if (filters.endDate) {
+      query.andWhere('meeting.endedAt <= :endDate', { endDate: filters.endDate });
+    }
+
+    const total = await query.getCount();
+    const meetings = await query
+      .skip(filters.offset || 0)
+      .take(filters.limit || 50)
+      .getMany();
+
+    return { meetings, total };
+  }
+
+  async getMeetingSchedule(filters: {
+    startDate?: Date;
+    endDate?: Date;
+    hostUserId?: string;
+  }): Promise<MeetingEntity[]> {
+    const query = this.meetingRepo.createQueryBuilder('meeting')
+      .leftJoinAndSelect('meeting.host', 'host')
+      .where('meeting.status = :status', { status: RoomStatus.SCHEDULED })
+      .orderBy('meeting.scheduledStart', 'ASC');
+
+    if (filters.hostUserId) {
+      query.andWhere('meeting.hostId = :hostUserId', { hostUserId: filters.hostUserId });
+    }
+
+    if (filters.startDate) {
+      query.andWhere('meeting.scheduledStart >= :startDate', { startDate: filters.startDate });
+    } else {
+      query.andWhere('meeting.scheduledStart >= :now', { now: new Date() });
+    }
+
+    if (filters.endDate) {
+      query.andWhere('meeting.scheduledStart <= :endDate', { endDate: filters.endDate });
+    }
+
+    return query.getMany();
+  }
+
+  async scheduleMeeting(params: {
+    hostUserId: string;
+    title: string;
+    scheduledStart: Date;
+    scheduledEnd: Date;
+    maxParticipants?: number;
+  }): Promise<MeetingEntity> {
+    const roomCode = this.generateRoomCode();
+    const max = Math.min(params.maxParticipants ?? this.maxParticipants, 500);
+
+    const meeting = this.meetingRepo.create({
+      title: params.title,
+      roomCode,
+      hostId: params.hostUserId,
+      status: RoomStatus.SCHEDULED,
+      maxParticipants: max,
+      scheduledStart: params.scheduledStart,
+      scheduledEnd: params.scheduledEnd,
+    });
+
+    return this.meetingRepo.save(meeting);
   }
 
   private generateRoomCode(): string {

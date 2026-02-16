@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import type { ChatMessage, TypingIndicator } from '../types/chat.types';
+import type { ChatMessage, TypingIndicator, Question } from '../types/chat.types';
+import { QnA } from './QnA';
 
 interface ChatProps {
   messages: ChatMessage[];
@@ -15,6 +16,14 @@ interface ChatProps {
   privateMessageTarget: string | null;
   onCancelPrivateMessage: () => void;
   onStartPrivateMessage: (userId: string) => void;
+
+  // QnA Props
+  questions: Question[];
+  onAskQuestion: (content: string) => void;
+  onUpvoteQuestion: (questionId: string) => void;
+  onMarkAnswered: (questionId: string) => void;
+  onDeleteQuestion: (questionId: string) => void;
+  isHost: boolean;
 }
 
 export function Chat({
@@ -31,7 +40,14 @@ export function Chat({
   privateMessageTarget,
   onCancelPrivateMessage,
   onStartPrivateMessage,
+  questions,
+  onAskQuestion,
+  onUpvoteQuestion,
+  onMarkAnswered,
+  onDeleteQuestion,
+  isHost
 }: ChatProps) {
+  const [activeTab, setActiveTab] = useState<'chat' | 'qna'>('chat');
   const [inputValue, setInputValue] = useState('');
   // privateMessageTarget lifted to parent
   const [showParticipants, setShowParticipants] = useState(false);
@@ -40,24 +56,16 @@ export function Chat({
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (activeTab === 'chat') {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, activeTab]);
 
   const handleSend = () => {
     if (!inputValue.trim()) return;
 
     if (privateMessageTarget) {
       onSendPrivateMessage(privateMessageTarget, inputValue);
-      // Don't close private mode automatically, or do? 
-      // User might want to send multiple messages.
-      // previous logic: setPrivateMessageTarget(null); -> this closed it after one message.
-      // Let's keep it open for better UX? Or stick to previous behavior?
-      // "private message is unavailable" -> usually means "hard to access".
-      // If I send a DM, I expect to stay in DM mode until I cancel.
-      // But for now, let's stick to closing it to match previous logic, or maybe keep it open.
-      // Let's keep it open! It's better UX.
-      // But wait, the original code closed it: setPrivateMessageTarget(null);
-      // Let's keep it open.
     } else {
       onSendMessage(inputValue);
     }
@@ -97,6 +105,7 @@ export function Chat({
   const startPrivateMessage = (userId: string) => {
     onStartPrivateMessage(userId);
     setShowParticipants(false);
+    setActiveTab('chat'); // Switch to chat when starting private message
   };
   const cancelPrivateMessage = () => {
     onCancelPrivateMessage();
@@ -141,243 +150,268 @@ export function Chat({
     <div className="h-full w-full flex flex-col bg-background/95 backdrop-blur-xl rounded-2xl overflow-hidden border border-border shadow-2xl animate-slide-in-right">
       {/* Header */}
       <div className="flex items-center justify-between p-4 bg-muted/30 border-b border-border backdrop-blur-md">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-gradient-to-br from-primary/20 to-accent/20 rounded-lg border border-white/5">
-            <ChatIcon className="text-primary w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="font-bold text-foreground text-sm font-heading">Live Chat</h3>
-            <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">
-              {messages.length} MESSAGES
-            </span>
-          </div>
-        </div>
-        <div className="flex items-center gap-1">
+        <div className="flex bg-black/20 p-1 rounded-xl">
           <button
-            onClick={() => setShowParticipants(!showParticipants)}
-            className={`p-2 rounded-lg transition-all ${showParticipants ? 'bg-primary/20 text-primary' : 'hover:bg-white/10 text-muted-foreground hover:text-foreground'}`}
-            title="Private Message"
+            onClick={() => setActiveTab('chat')}
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'chat'
+              ? 'bg-primary text-white shadow-lg shadow-primary/20'
+              : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
+              }`}
           >
-            <UsersIcon />
+            Chat
           </button>
           <button
-            onClick={onExport}
-            className="p-2 rounded-lg hover:bg-white/10 text-muted-foreground hover:text-foreground transition-all"
-            title="Export Chat"
+            onClick={() => setActiveTab('qna')}
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'qna'
+              ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg shadow-indigo-500/20'
+              : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
+              }`}
           >
-            <ExportIcon />
-          </button>
-          <button
-            onClick={onClear}
-            className="p-2 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
-            title="Clear Chat"
-          >
-            <ClearIcon />
+            Q&A
           </button>
         </div>
+
+        {activeTab === 'chat' && (
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setShowParticipants(!showParticipants)}
+              className={`p-2 rounded-lg transition-all ${showParticipants ? 'bg-primary/20 text-primary' : 'hover:bg-white/10 text-muted-foreground hover:text-foreground'}`}
+              title="Private Message"
+            >
+              <UsersIcon />
+            </button>
+            <button
+              onClick={onExport}
+              className="p-2 rounded-lg hover:bg-white/10 text-muted-foreground hover:text-foreground transition-all"
+              title="Export Chat"
+            >
+              <ExportIcon />
+            </button>
+            <button
+              onClick={onClear}
+              className="p-2 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
+              title="Clear Chat"
+            >
+              <ClearIcon />
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Participants Panel Overlay */}
-      {showParticipants && (
-        <div className="absolute top-[72px] inset-x-0 z-20 p-2 bg-[#1a1a1a]/95 backdrop-blur-xl border-b border-white/10 animate-fade-in shadow-2xl">
-          <div className="text-xs font-bold text-muted-foreground mb-2 px-2 uppercase tracking-wider">
-            Select User to Message
-          </div>
-          <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto px-1 pb-1 scrollbar-thin scrollbar-thumb-white/10">
-            {participants.map(participant => (
-              participant.userId !== currentUserId && (
-                <button
-                  key={participant.userId}
-                  onClick={() => startPrivateMessage(participant.userId)}
-                  className="flex items-center gap-2 text-xs px-3 py-2 rounded-xl bg-white/5 hover:bg-primary/20 border border-white/5 hover:border-primary/30 text-foreground transition-all"
-                >
-                  <div className="w-5 h-5 rounded-full bg-gradient-to-br from-primary to-secondary text-[9px] flex items-center justify-center font-bold text-white shadow-sm">
-                    {participant.displayName.charAt(0)}
-                  </div>
-                  {participant.displayName}
-                </button>
-              )
-            ))}
-            {participants.length <= 1 && (
-              <div className="text-xs text-muted-foreground px-2 py-1">No other participants</div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Private Message Banner */}
-      {privateMessageTarget && targetUser && (
-        <div className="px-4 py-2 bg-gradient-to-r from-blue-500/10 to-transparent border-b border-blue-500/20 flex items-center justify-between backdrop-blur-sm">
-          <div className="flex items-center gap-2 text-xs font-bold text-blue-400 uppercase tracking-wide">
-            <LockIcon />
-            <span>Private to <span className="text-foreground border-b border-blue-500/30">{targetUser.displayName}</span></span>
-          </div>
-          <button
-            onClick={cancelPrivateMessage}
-            className="text-muted-foreground hover:text-foreground transition-colors w-5 h-5 flex items-center justify-center rounded-full hover:bg-white/10"
-          >
-            ✕
-          </button>
-        </div>
-      )}
-
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-        {messages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-muted-foreground space-y-4">
-            <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center backdrop-blur-sm border border-white/5">
-              <ChatIcon className="w-8 h-8 opacity-40 text-muted-foreground" />
+      {activeTab === 'qna' ? (
+        <QnA
+          questions={questions}
+          onAskQuestion={onAskQuestion}
+          onUpvoteQuestion={onUpvoteQuestion}
+          onMarkAnswered={onMarkAnswered}
+          onDeleteQuestion={onDeleteQuestion}
+          isHost={isHost}
+        />
+      ) : (
+        <>
+          {/* Participants Panel Overlay */}
+          {showParticipants && (
+            <div className="absolute top-[72px] inset-x-0 z-20 p-2 bg-[#1a1a1a]/95 backdrop-blur-xl border-b border-white/10 animate-fade-in shadow-2xl">
+              <div className="text-xs font-bold text-muted-foreground mb-2 px-2 uppercase tracking-wider">
+                Select User to Message
+              </div>
+              <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto px-1 pb-1 scrollbar-thin scrollbar-thumb-white/10">
+                {participants.map(participant => (
+                  participant.userId !== currentUserId && (
+                    <button
+                      key={participant.userId}
+                      onClick={() => startPrivateMessage(participant.userId)}
+                      className="flex items-center gap-2 text-xs px-3 py-2 rounded-xl bg-white/5 hover:bg-primary/20 border border-white/5 hover:border-primary/30 text-foreground transition-all"
+                    >
+                      <div className="w-5 h-5 rounded-full bg-gradient-to-br from-primary to-secondary text-[9px] flex items-center justify-center font-bold text-white shadow-sm">
+                        {participant.displayName.charAt(0)}
+                      </div>
+                      {participant.displayName}
+                    </button>
+                  )
+                ))}
+                {participants.length <= 1 && (
+                  <div className="text-xs text-muted-foreground px-2 py-1">No other participants</div>
+                )}
+              </div>
             </div>
-            <div className="text-center">
-              <p className="text-sm font-bold text-foreground/80">No messages yet</p>
-              <p className="text-xs mt-1 opacity-50">Be the first to say hello!</p>
-            </div>
-          </div>
-        ) : (
-          messages.map((message) => {
-            const isOwn = message.userId === currentUserId;
-            const isPrivate = message.type === 'private';
-            const isFile = message.type === 'file';
-            const isImage = isFile && message.fileType?.startsWith('image/');
+          )}
 
-            return (
-              <div
-                key={message.id}
-                className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'} group animate-slide-up`}
+          {/* Private Message Banner */}
+          {privateMessageTarget && targetUser && (
+            <div className="px-4 py-2 bg-gradient-to-r from-blue-500/10 to-transparent border-b border-blue-500/20 flex items-center justify-between backdrop-blur-sm">
+              <div className="flex items-center gap-2 text-xs font-bold text-blue-400 uppercase tracking-wide">
+                <LockIcon />
+                <span>Private to <span className="text-foreground border-b border-blue-500/30">{targetUser.displayName}</span></span>
+              </div>
+              <button
+                onClick={cancelPrivateMessage}
+                className="text-muted-foreground hover:text-foreground transition-colors w-5 h-5 flex items-center justify-center rounded-full hover:bg-white/10"
               >
-                <div className="flex items-center gap-2 mb-1 px-1 opacity-70 group-hover:opacity-100 transition-opacity">
-                  {!isOwn && (
-                    <span className="text-[10px] font-bold text-foreground tracking-wide">
-                      {message.displayName}
-                    </span>
-                  )}
-                  {isPrivate && (
-                    <span className="text-[9px] text-blue-400 flex items-center gap-0.5 bg-blue-500/10 px-1.5 py-0.5 rounded-full border border-blue-500/20 font-bold tracking-wider">
-                      <LockIcon size={8} />
-                      PRIVATE
-                    </span>
-                  )}
-                  <span className="text-[9px] text-muted-foreground">
-                    {formatTime(message.timestamp)}
-                  </span>
-                </div>
+                ✕
+              </button>
+            </div>
+          )}
 
-                <div
-                  className={`max-w-[85%] rounded-2xl p-3 shadow-sm backdrop-blur-sm border ${isOwn
-                    ? 'bg-gradient-to-br from-primary/90 to-primary/80 text-white rounded-tr-sm border-primary/50 shadow-primary/10'
-                    : isPrivate
-                      ? 'bg-blue-500/10 border-blue-500/20 text-foreground rounded-tl-sm'
-                      : 'bg-white/10 text-foreground border-white/10 rounded-tl-sm hover:bg-white/15 transition-colors'
-                    }`}
-                >
-                  {/* Message Content */}
-                  {isFile ? (
-                    <div className="space-y-2">
-                      {isImage && message.fileData ? (
-                        <div className="relative group/image overflow-hidden rounded-lg border border-white/10">
-                          <img
-                            src={message.fileData}
-                            alt={message.fileName}
-                            className="max-w-full h-auto object-cover transition-transform duration-500 group-hover/image:scale-105"
-                            style={{ maxHeight: '200px' }}
-                          />
-                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/image:opacity-100 transition-opacity duration-300 flex items-center justify-center backdrop-blur-[2px]">
-                            <button
-                              onClick={() => downloadFile(message)}
-                              className="p-2 bg-white/20 rounded-full hover:bg-primary hover:text-white backdrop-blur-md transition-all text-white border border-white/20"
-                            >
-                              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                              </svg>
-                            </button>
-                          </div>
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+            {messages.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-muted-foreground space-y-4">
+                <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center backdrop-blur-sm border border-white/5">
+                  <ChatIcon className="w-8 h-8 opacity-40 text-muted-foreground" />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-bold text-foreground/80">No messages yet</p>
+                  <p className="text-xs mt-1 opacity-50">Be the first to say hello!</p>
+                </div>
+              </div>
+            ) : (
+              messages.map((message) => {
+                const isOwn = message.userId === currentUserId;
+                const isPrivate = message.type === 'private';
+                const isFile = message.type === 'file';
+                const isImage = isFile && message.fileType?.startsWith('image/');
+
+                return (
+                  <div
+                    key={message.id}
+                    className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'} group animate-slide-up`}
+                  >
+                    <div className="flex items-center gap-2 mb-1 px-1 opacity-70 group-hover:opacity-100 transition-opacity">
+                      {!isOwn && (
+                        <span className="text-[10px] font-bold text-foreground tracking-wide">
+                          {message.displayName}
+                        </span>
+                      )}
+                      {isPrivate && (
+                        <span className="text-[9px] text-blue-400 flex items-center gap-0.5 bg-blue-500/10 px-1.5 py-0.5 rounded-full border border-blue-500/20 font-bold tracking-wider">
+                          <LockIcon size={8} />
+                          PRIVATE
+                        </span>
+                      )}
+                      <span className="text-[9px] text-muted-foreground">
+                        {formatTime(message.timestamp)}
+                      </span>
+                    </div>
+
+                    <div
+                      className={`max-w-[85%] rounded-2xl p-3 shadow-sm backdrop-blur-sm border ${isOwn
+                        ? 'bg-gradient-to-br from-primary/90 to-primary/80 text-white rounded-tr-sm border-primary/50 shadow-primary/10'
+                        : isPrivate
+                          ? 'bg-blue-500/10 border-blue-500/20 text-foreground rounded-tl-sm'
+                          : 'bg-white/10 text-foreground border-white/10 rounded-tl-sm hover:bg-white/15 transition-colors'
+                        }`}
+                    >
+                      {/* Message Content */}
+                      {isFile ? (
+                        <div className="space-y-2">
+                          {isImage && message.fileData ? (
+                            <div className="relative group/image overflow-hidden rounded-lg border border-white/10">
+                              <img
+                                src={message.fileData}
+                                alt={message.fileName}
+                                className="max-w-full h-auto object-cover transition-transform duration-500 group-hover/image:scale-105"
+                                style={{ maxHeight: '200px' }}
+                              />
+                              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/image:opacity-100 transition-opacity duration-300 flex items-center justify-center backdrop-blur-[2px]">
+                                <button
+                                  onClick={() => downloadFile(message)}
+                                  className="p-2 bg-white/20 rounded-full hover:bg-primary hover:text-white backdrop-blur-md transition-all text-white border border-white/20"
+                                >
+                                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-3 p-2.5 rounded-xl bg-black/20 border border-white/5 hover:bg-black/30 transition-colors">
+                              <span className="text-2xl drop-shadow-md">{getFileIcon(message.fileType)}</span>
+                              <div className="flex-1 min-w-0">
+                                <div className="font-medium truncate text-sm">{message.fileName}</div>
+                                <div className="text-[10px] opacity-70 font-mono mt-0.5">
+                                  {formatFileSize(message.fileSize)}
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => downloadFile(message)}
+                                className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white/80 hover:text-white"
+                              >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                              </button>
+                            </div>
+                          )}
                         </div>
                       ) : (
-                        <div className="flex items-center gap-3 p-2.5 rounded-xl bg-black/20 border border-white/5 hover:bg-black/30 transition-colors">
-                          <span className="text-2xl drop-shadow-md">{getFileIcon(message.fileType)}</span>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium truncate text-sm">{message.fileName}</div>
-                            <div className="text-[10px] opacity-70 font-mono mt-0.5">
-                              {formatFileSize(message.fileSize)}
-                            </div>
-                          </div>
-                          <button
-                            onClick={() => downloadFile(message)}
-                            className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white/80 hover:text-white"
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                            </svg>
-                          </button>
+                        <div className="text-sm whitespace-pre-wrap break-words leading-relaxed font-medium">
+                          {message.message}
                         </div>
                       )}
                     </div>
-                  ) : (
-                    <div className="text-sm whitespace-pre-wrap break-words leading-relaxed font-medium">
-                      {message.message}
-                    </div>
-                  )}
+                  </div>
+                );
+              })
+            )}
+
+            {/* Typing Indicator */}
+            {typingUsers.length > 0 && (
+              <div className="flex items-center gap-2 px-2 animate-fade-in bg-white/5 w-fit p-2 rounded-full border border-white/5">
+                <div className="flex gap-1">
+                  <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" />
+                  <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
+                  <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
                 </div>
+                <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wide">
+                  {typingUsers.map(u => u.displayName).join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing...
+                </span>
               </div>
-            );
-          })
-        )}
+            )}
 
-        {/* Typing Indicator */}
-        {typingUsers.length > 0 && (
-          <div className="flex items-center gap-2 px-2 animate-fade-in bg-white/5 w-fit p-2 rounded-full border border-white/5">
-            <div className="flex gap-1">
-              <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" />
-              <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
-              <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
-            </div>
-            <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wide">
-              {typingUsers.map(u => u.displayName).join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing...
-            </span>
+            <div ref={messagesEndRef} />
           </div>
-        )}
 
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Input */}
-      <div className="p-4 bg-muted/30 border-t border-border backdrop-blur-md">
-        <div className="flex items-end gap-2 bg-white/5 p-1.5 rounded-2xl border border-white/10 focus-within:bg-black/40 focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20 transition-all duration-300">
-          <input
-            ref={fileInputRef}
-            type="file"
-            onChange={handleFileSelect}
-            className="hidden"
-            accept="image/*,.pdf,.doc,.docx,.txt,.zip,.rar"
-          />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="p-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors"
-            title="Attach File"
-          >
-            <AttachIcon />
-          </button>
-          <textarea
-            value={inputValue}
-            onChange={handleInputChange}
-            onKeyPress={handleKeyPress}
-            placeholder={privateMessageTarget ? `Message ${targetUser?.displayName}...` : 'Type a message...'}
-            className="flex-1 max-h-24 bg-transparent border-none text-foreground placeholder:text-muted-foreground/50 resize-none focus:ring-0 py-2.5 px-1 text-sm scrollbar-hide font-medium leading-relaxed"
-            rows={1}
-          />
-          <button
-            onClick={handleSend}
-            disabled={!inputValue.trim()}
-            className={`p-2.5 rounded-xl transition-all duration-300 ${inputValue.trim()
-              ? 'bg-gradient-to-r from-primary to-secondary text-white shadow-lg shadow-primary/20 hover:shadow-primary/40 hover:scale-105 active:scale-95'
-              : 'bg-white/5 text-muted-foreground/50 cursor-not-allowed'
-              }`}
-            title="Send Message"
-          >
-            <SendIcon />
-          </button>
-        </div>
-      </div>
+          {/* Input */}
+          <div className="p-4 bg-muted/30 border-t border-border backdrop-blur-md">
+            <div className="flex items-end gap-2 bg-white/5 p-1.5 rounded-2xl border border-white/10 focus-within:bg-black/40 focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20 transition-all duration-300">
+              <input
+                ref={fileInputRef}
+                type="file"
+                onChange={handleFileSelect}
+                className="hidden"
+                accept="image/*,.pdf,.doc,.docx,.txt,.zip,.rar"
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="p-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors"
+                title="Attach File"
+              >
+                <AttachIcon />
+              </button>
+              <textarea
+                value={inputValue}
+                onChange={handleInputChange}
+                onKeyPress={handleKeyPress}
+                placeholder={privateMessageTarget ? `Message ${targetUser?.displayName}...` : 'Type a message...'}
+                className="flex-1 max-h-24 bg-transparent border-none text-foreground placeholder:text-muted-foreground/50 resize-none focus:ring-0 py-2.5 px-1 text-sm scrollbar-hide font-medium leading-relaxed"
+                rows={1}
+              />
+              <button
+                onClick={handleSend}
+                disabled={!inputValue.trim()}
+                className={`p-2.5 rounded-xl transition-all duration-300 ${inputValue.trim()
+                  ? 'bg-gradient-to-r from-primary to-secondary text-white shadow-lg shadow-primary/20 hover:shadow-primary/40 hover:scale-105 active:scale-95'
+                  : 'bg-white/5 text-muted-foreground/50 cursor-not-allowed'
+                  }`}
+                title="Send Message"
+              >
+                <SendIcon />
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

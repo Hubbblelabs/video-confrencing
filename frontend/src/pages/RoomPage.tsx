@@ -13,7 +13,10 @@ import { useParticipantsStore } from '../store/participants.store';
 import { useWebRTC } from '../hooks/useWebRTC';
 import { useMedia } from '../hooks/useMedia';
 import { useWhiteboard } from '../hooks/useWhiteboard';
+import { useQnA } from '../hooks/useQnA';
 import { useChat } from '../hooks/useChat';
+// ... imports
+
 import { useWaitingRoom } from '../hooks/useWaitingRoom';
 import type { useSignaling } from '../hooks/useSignaling';
 import type { NewProducerEvent } from '../types';
@@ -93,6 +96,11 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
     socket: waitingRoomSocket,
     roomId: roomId || '',
     isHost,
+  });
+
+  const qna = useQnA({
+    socket: signaling.socketRef.current,
+    roomId: roomId || '',
   });
 
   const joinedRef = useRef(false);
@@ -199,8 +207,8 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
 
   const handleLeave = useCallback(async () => {
     if (roomId) {
-      try { 
-        await signaling.leaveRoom(roomId); 
+      try {
+        await signaling.leaveRoom(roomId);
       } catch {
         // Ignore error during cleanup
       }
@@ -334,6 +342,14 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
                 privateMessageTarget={privateMessageTarget}
                 onCancelPrivateMessage={() => setPrivateMessageTarget(null)}
                 onStartPrivateMessage={handleStartPrivateMessage}
+
+                // QnA
+                questions={qna.questions}
+                onAskQuestion={qna.askQuestion}
+                onUpvoteQuestion={qna.upvoteQuestion}
+                onMarkAnswered={qna.markAnswered}
+                onDeleteQuestion={qna.deleteQuestion}
+                isHost={isHost}
               />
             )}
             {panelOpen === 'participants' && (

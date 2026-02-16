@@ -63,6 +63,17 @@ export const WsEvents = {
   CHAT_FILE_RECEIVED: 'chat:fileReceived',
   CHAT_USER_TYPING: 'chat:userTyping',
 
+  // Q&A
+  QNA_ASK: 'qna:ask',
+  QNA_UPVOTE: 'qna:upvote',
+  QNA_ANSWER: 'qna:answer',
+  QNA_DELETE: 'qna:delete',
+  QNA_HISTORY: 'qna:history',
+  QNA_QUESTION_ASKED: 'qna:questionAsked',
+  QNA_QUESTION_UPDATED: 'qna:questionUpdated',
+  QNA_QUESTION_ANSWERED: 'qna:questionAnswered',
+  QNA_QUESTION_DELETED: 'qna:questionDeleted',
+
   // Waiting Room
   JOIN_WAITING_ROOM: 'waitingRoom:join',
   ADMIT_PARTICIPANT: 'waitingRoom:admit',

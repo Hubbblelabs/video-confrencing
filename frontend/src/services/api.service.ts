@@ -136,6 +136,34 @@ export const authApi = {
   verify: async (token: string): Promise<{ valid: boolean }> => {
     return client.get<{ valid: boolean }>('/auth/verify', token);
   },
+
+  /**
+   * Request password reset link
+   */
+  forgotPassword: async (email: string): Promise<void> => {
+    return client.post<void>('/auth/forgot-password', { email });
+  },
+
+  /**
+   * Reset password with token
+   */
+  resetPassword: async (data: any): Promise<void> => {
+    return client.post<void>('/auth/reset-password', data);
+  },
+
+  /**
+   * Verify email with token
+   */
+  verifyEmail: async (token: string): Promise<void> => {
+    return client.post<void>('/auth/verify-email', { token });
+  },
+
+  /**
+   * Resend verification email
+   */
+  resendVerification: async (email: string): Promise<void> => {
+    return client.post<void>('/auth/resend-verification', { email });
+  },
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -196,6 +224,39 @@ export const healthApi = {
    */
   check: async (): Promise<{ status: string; timestamp: string }> => {
     return client.get<{ status: string; timestamp: string }>('/health');
+  },
+};
+
+// ─────────────────────────────────────────────────────────────
+// Sessions API (Discovery)
+// ─────────────────────────────────────────────────────────────
+
+export const sessionsApi = {
+  /**
+   * Get all sessions with filters
+   */
+  getSessions: async (params: any, token?: string): Promise<{ sessions: any[]; total: number }> => {
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        query.append(key, String(value));
+      }
+    });
+    return client.get<{ sessions: any[]; total: number }>(`/sessions?${query.toString()}`, token);
+  },
+
+  /**
+   * Get session by ID
+   */
+  getSession: async (id: string, token?: string): Promise<any> => {
+    return client.get<any>(`/sessions/${id}`, token);
+  },
+
+  /**
+   * Get teacher profile
+   */
+  getTeacher: async (id: string, token?: string): Promise<any> => {
+    return client.get<any>(`/sessions/teacher/${id}`, token);
   },
 };
 

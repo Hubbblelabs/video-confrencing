@@ -8,6 +8,7 @@ import {
   ParseIntPipe,
   Optional,
   ParseUUIDPipe,
+  Req,
 } from '@nestjs/common';
 import { AttendanceService } from './attendance.service';
 import { JwtAuthGuard, RolesGuard, Roles } from '../auth/guards';
@@ -17,7 +18,7 @@ import { UserRole } from '../shared/enums';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.ADMIN, UserRole.TEACHER)
 export class AttendanceController {
-  constructor(private readonly attendanceService: AttendanceService) {}
+  constructor(private readonly attendanceService: AttendanceService) { }
 
   /**
    * GET /attendance
@@ -25,6 +26,7 @@ export class AttendanceController {
    */
   @Get()
   async getAttendanceRecords(
+    @Req() req: any,
     @Query('userId') userId?: string,
     @Query('roomId') roomId?: string,
     @Query('startDate') startDate?: string,
@@ -34,6 +36,10 @@ export class AttendanceController {
     @Query('offset', new ParseIntPipe({ optional: true })) offset?: number,
   ) {
     const filters: any = {};
+
+    if (req.user.role === UserRole.TEACHER) {
+      filters.hostUserId = req.user.id;
+    }
 
     if (userId) filters.userId = userId;
     if (roomId) filters.roomId = roomId;
@@ -52,12 +58,17 @@ export class AttendanceController {
    */
   @Get('statistics')
   async getStatistics(
+    @Req() req: any,
     @Query('userId') userId?: string,
     @Query('roomId') roomId?: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
     const filters: any = {};
+
+    if (req.user.role === UserRole.TEACHER) {
+      filters.hostUserId = req.user.id;
+    }
 
     if (userId) filters.userId = userId;
     if (roomId) filters.roomId = roomId;
@@ -73,12 +84,17 @@ export class AttendanceController {
    */
   @Get('summary')
   async getUserSummary(
+    @Req() req: any,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
     @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
     @Query('offset', new ParseIntPipe({ optional: true })) offset?: number,
   ) {
     const filters: any = {};
+
+    if (req.user.role === UserRole.TEACHER) {
+      filters.hostUserId = req.user.id;
+    }
 
     if (startDate) filters.startDate = new Date(startDate);
     if (endDate) filters.endDate = new Date(endDate);
@@ -93,8 +109,9 @@ export class AttendanceController {
    * Get currently active sessions
    */
   @Get('active')
-  async getActiveSessions() {
-    return this.attendanceService.getActiveSessions();
+  async getActiveSessions(@Req() req: any) {
+    const hostUserId = req.user.role === UserRole.TEACHER ? req.user.id : undefined;
+    return this.attendanceService.getActiveSessions(hostUserId);
   }
 
   /**

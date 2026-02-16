@@ -49,3 +49,36 @@ export interface TypingPayload {
   roomId: string;
   isTyping: boolean;
 }
+
+export interface Question {
+  id: string;
+  roomId: string;
+  userId: string;
+  displayName: string;
+  profilePictureUrl?: string; // Add if available
+  content: string;
+  upvotes: number;
+  isUpvoted: boolean;
+  isAnswered: boolean;
+  timestamp: string;
+}
+
+export interface AskQuestionPayload {
+  roomId: string;
+  content: string;
+}
+
+export interface UpvoteQuestionPayload {
+  roomId: string; // needed for broadcasting
+  questionId: string;
+}
+
+export interface AnswerQuestionPayload {
+  roomId: string;
+  questionId: string;
+}
+
+export interface DeleteQuestionPayload {
+  roomId: string;
+  questionId: string;
+}

@@ -24,12 +24,12 @@ import { CreateUserDto, UpdateUserDto, UpdateUserRoleDto } from './dto';
 @Roles(UserRole.ADMIN)
 @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(private readonly usersService: UsersService) { }
 
   @Get()
   async findAll(@Query('role') role?: UserRole) {
     const users = await this.usersService.findAll(role);
-    
+
     // Remove password hashes from response
     return users.map(user => ({
       id: user.id,
@@ -43,6 +43,7 @@ export class UsersController {
   }
 
   @Get('statistics')
+  @Roles(UserRole.ADMIN, UserRole.TEACHER)
   async getStatistics() {
     return this.usersService.getStatistics();
   }
@@ -50,7 +51,7 @@ export class UsersController {
   @Get(':id')
   async findOne(@Param('id') id: string) {
     const user = await this.usersService.findOne(id);
-    
+
     // Remove password hash from response
     return {
       id: user.id,
@@ -66,7 +67,7 @@ export class UsersController {
   @Post()
   async create(@Body() dto: CreateUserDto) {
     const user = await this.usersService.create(dto);
-    
+
     return {
       id: user.id,
       email: user.email,
@@ -80,7 +81,7 @@ export class UsersController {
   @Put(':id')
   async update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
     const user = await this.usersService.update(id, dto);
-    
+
     return {
       id: user.id,
       email: user.email,
@@ -94,7 +95,7 @@ export class UsersController {
   @Patch(':id/role')
   async updateRole(@Param('id') id: string, @Body() dto: UpdateUserRoleDto) {
     const user = await this.usersService.updateRole(id, dto);
-    
+
     return {
       id: user.id,
       email: user.email,

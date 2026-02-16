@@ -20,7 +20,11 @@ import { MediaModule } from './media/media.module';
 import { WebrtcModule } from './webrtc/webrtc.module';
 import { GatewayModule } from './gateway/gateway.module';
 import { AttendanceModule } from './attendance/attendance.module';
+import { BillingModule } from './billing/billing.module';
+import { SessionsModule } from './sessions/sessions.module';
 import { HealthController } from './health.controller';
+import { ChatModule } from './chat/chat.module';
+import { QnaModule } from './qna/qna.module';
 
 @Module({
   imports: [
@@ -45,7 +49,11 @@ import { HealthController } from './health.controller';
     WebrtcModule,
     GatewayModule,
     AttendanceModule,
+    BillingModule,
+    SessionsModule,
+    ChatModule,
+    QnaModule,
   ],
   controllers: [HealthController],
 })
-export class AppModule {}
+export class AppModule { }

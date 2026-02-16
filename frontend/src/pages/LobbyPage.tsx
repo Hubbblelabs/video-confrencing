@@ -1,14 +1,44 @@
 import { useState, useEffect } from 'react';
+import { Compass } from 'lucide-react';
 import { useAuthStore } from '../store/auth.store';
+import { StudentWallet } from '../components/billing/StudentWallet';
+import { UpcomingEvents } from '../components/lobby/UpcomingEvents';
+import { billingApi } from '../services/billing.service';
 
 interface LobbyPageProps {
   onCreateRoom: (title: string) => Promise<void>;
   onJoinRoom: (roomId: string) => Promise<void>;
   onShowAdmin?: () => void;
   onShowAttendance?: () => void;
+  onShowBrowser?: () => void;
 }
 
-export function LobbyPage({ onCreateRoom, onJoinRoom, onShowAdmin, onShowAttendance }: LobbyPageProps) {
+
+
+function BalanceIndicator() {
+  const token = useAuthStore((s) => s.token);
+  const [balance, setBalance] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!token) return;
+    const fetchBalance = async () => {
+      try {
+        const wallet = await billingApi.getWallet(token);
+        setBalance(wallet.balance);
+      } catch (err) {
+        console.error('Failed to fetch balance');
+      }
+    };
+    fetchBalance();
+    const interval = setInterval(fetchBalance, 30000);
+    return () => clearInterval(interval);
+  }, [token]);
+
+  if (balance === null) return <div className="w-12 h-4 bg-muted animate-pulse rounded" />;
+  return <span className="text-sm font-bold">{balance} credits</span>;
+}
+
+export function LobbyPage({ onCreateRoom, onJoinRoom, onShowAdmin, onShowAttendance, onShowBrowser }: LobbyPageProps) {
   const [roomId, setRoomId] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -60,206 +90,183 @@ export function LobbyPage({ onCreateRoom, onJoinRoom, onShowAdmin, onShowAttenda
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col font-sans overflow-hidden relative">
-      {/* Background Ambience */}
-      <div className="absolute top-[-20%] left-[-10%] w-[800px] h-[800px] rounded-full bg-primary/5 blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] rounded-full bg-secondary/5 blur-[100px] pointer-events-none" />
-
+    <div className="min-h-screen bg-background text-foreground flex flex-col font-sans overflow-hidden relative selection:bg-primary/20">
+      {/* Background Ambience - More subtle and modern */}
+      <div className="absolute top-[-20%] left-[-10%] w-[1000px] h-[1000px] rounded-full bg-primary/5 blur-[150px] pointer-events-none mix-blend-screen" />
+      <div className="absolute bottom-[-20%] right-[-10%] w-[800px] h-[800px] rounded-full bg-secondary/5 blur-[120px] pointer-events-none mix-blend-screen" />
+      <div className="absolute top-[20%] right-[10%] w-[600px] h-[600px] rounded-full bg-blue-500/5 blur-[100px] pointer-events-none mix-blend-screen opacity-50" />
 
       {/* Header */}
-      <header className="px-6 py-4 flex items-center justify-between relative z-10 w-full max-w-[1600px] mx-auto">
+      <header className="px-4 sm:px-6 py-4 flex items-center justify-between relative z-10 w-full max-w-7xl mx-auto border-b border-border/40 bg-background/50 backdrop-blur-md sticky top-0">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-orange-600 flex items-center justify-center shadow-md shadow-primary/20 text-white">
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-orange-600 flex items-center justify-center shadow-lg shadow-primary/20 text-white ring-1 ring-white/10">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
             </svg>
           </div>
-          <span className="text-xl font-medium tracking-tight text-foreground/90 font-heading">Meet</span>
+          <span className="text-xl font-bold tracking-tight text-foreground font-heading">Meet</span>
         </div>
 
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-muted-foreground hidden sm:block">{currentTime} • {currentDate}</span>
-          <div className="h-8 w-[1px] bg-border hidden sm:block"></div>
-          {(role === 'ADMIN' || role === 'TEACHER') && onShowAttendance && (
-            <>
-              <button
-                onClick={onShowAttendance}
-                className="px-3 py-2 rounded-lg bg-blue-500/10 text-blue-500 border border-blue-500/20 hover:bg-blue-500/20 transition-all text-sm font-medium flex items-center gap-2"
-                title="Attendance"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                </svg>
-                <span className="hidden sm:inline">Attendance</span>
-              </button>
-              <div className="h-8 w-[1px] bg-border"></div>
-            </>
-          )}
-          {role === 'ADMIN' && onShowAdmin && (
-            <>
-              <button
-                onClick={onShowAdmin}
-                className="px-3 py-2 rounded-lg bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 transition-all text-sm font-medium flex items-center gap-2"
-                title="Admin Dashboard"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                <span className="hidden sm:inline">Admin</span>
-              </button>
-              <div className="h-8 w-[1px] bg-border"></div>
-            </>
-          )}
-          <div className="flex items-center gap-3 mr-2">
-            <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold border border-primary/20">
-              {(displayName || userId || 'U').charAt(0).toUpperCase()}
-            </div>
+        <div className="flex items-center gap-3 sm:gap-6">
+          <div className="hidden md:flex flex-col items-end">
+            <span className="text-sm font-medium text-foreground">{currentTime}</span>
+            <span className="text-xs text-muted-foreground">{currentDate}</span>
           </div>
+
+          <div className="h-8 w-[1px] bg-border hidden md:block"></div>
+
+          {role === 'STUDENT' && (
+            <StudentWallet
+              trigger={
+                <button className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary/10 border border-secondary/20 text-secondary-foreground transition-all hover:bg-secondary/15 hover:border-secondary/30">
+                  <div className="p-1 rounded-full bg-secondary/20">
+                    <svg className="w-3.5 h-3.5 text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <BalanceIndicator />
+                </button>
+              }
+            />
+          )}
+
           <button
             onClick={clearAuth}
-            className="p-2 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-            title="Sign Out"
+            className="group flex items-center gap-3 pl-1 pr-2 py-1 rounded-full hover:bg-muted/50 transition-all border border-transparent hover:border-border"
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-primary/20 to-secondary/20 text-foreground flex items-center justify-center text-sm font-bold border border-white/10 shadow-sm group-hover:shadow-md transition-all">
+              {(displayName || userId || 'U').charAt(0).toUpperCase()}
+            </div>
+            <div className="text-sm text-left hidden lg:block">
+              <p className="font-medium leading-none text-foreground/90">{displayName}</p>
+              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider mt-0.5">{role}</p>
+            </div>
+            <svg className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors ml-1 hidden lg:block" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>
           </button>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col lg:flex-row items-center justify-center relative z-10 w-full max-w-[1600px] mx-auto px-6 py-8 lg:py-0 gap-12 lg:gap-24">
+      {/* Main Content Dashboard */}
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 py-8 relative z-10">
 
-        {/* Left Column: Actions */}
-        <div className="flex-1 max-w-2xl lg:max-w-xl w-full flex flex-col justify-center items-start space-y-8 animate-fade-in">
+        {/* Welcome Section */}
+        <div className="mb-10 animate-fade-in-up">
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground font-heading">
+            Good {new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 18 ? 'Afternoon' : 'Evening'}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-orange-500">{displayName?.split(' ')[0] || 'Student'}</span>
+          </h1>
+          <p className="text-muted-foreground mt-2 text-lg">Ready to learn something new today?</p>
+        </div>
 
-          <div className="space-y-4">
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-normal tracking-tight text-foreground font-heading">
-              Premium video meetings.
-              <span className="block text-muted-foreground/80 mt-2">Now free for everyone.</span>
-            </h1>
-            <p className="text-lg text-muted-foreground max-w-lg leading-relaxed">
-              We re-engineered the service we built for secure business meetings, meet, to make it free and available for all.
-            </p>
-            {role && (
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-                {role === 'ADMIN' ? 'Admin' : role === 'TEACHER' ? 'Teacher' : 'Student'}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+
+          {/* Main Column (8 cols) */}
+          <div className="lg:col-span-8 space-y-8">
+
+            {/* Visual Actions Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+              {/* Join Room Card */}
+              <div className="bg-background/60 backdrop-blur-xl border border-border/60 rounded-3xl p-6 sm:p-8 shadow-sm hover:shadow-lg transition-all duration-300 group overflow-hidden relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-50 group-hover:opacity-100 transition-opacity" />
+                <div className="relative z-10 flex flex-col h-full">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center mb-6 text-blue-600 group-hover:scale-110 transition-transform duration-300">
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-xl font-bold text-foreground mb-2">Join a Room</h3>
+                  <p className="text-muted-foreground mb-6 text-sm leading-relaxed">Have a meeting code? Enter it below to join your class instantly.</p>
+
+                  <form onSubmit={handleJoin} className="mt-auto">
+                    <div className="relative flex items-center">
+                      <div className="absolute left-3 text-muted-foreground pointer-events-none">
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
+                        </svg>
+                      </div>
+                      <input
+                        type="text"
+                        value={roomId}
+                        onChange={(e) => setRoomId(e.target.value)}
+                        placeholder="abc-def-ghi"
+                        className="w-full pl-10 pr-20 py-3 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm"
+                      />
+                      <button
+                        type="submit"
+                        disabled={loading || !roomId.trim()}
+                        className="absolute right-1 top-1 bottom-1 px-4 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                      >
+                        {loading ? '...' : 'Join'}
+                      </button>
+                    </div>
+                    {error && <p className="text-xs text-red-500 mt-2 font-medium flex items-center gap-1 animate-fade-in">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                      {error}
+                    </p>}
+                  </form>
+                </div>
               </div>
-            )}
+
+              {/* Browse Sessions Card */}
+              <div className="bg-background/60 backdrop-blur-xl border border-border/60 rounded-3xl p-6 sm:p-8 shadow-sm hover:shadow-lg transition-all duration-300 group overflow-hidden relative flex flex-col">
+                <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent opacity-50 group-hover:opacity-100 transition-opacity" />
+                <div className="relative z-10 flex flex-col h-full">
+                  <div className="w-12 h-12 rounded-2xl bg-orange-500/10 flex items-center justify-center mb-6 text-orange-600 group-hover:scale-110 transition-transform duration-300">
+                    <Compass className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-xl font-bold text-foreground mb-2">Browse Sessions</h3>
+                  <p className="text-muted-foreground mb-6 text-sm leading-relaxed">Explore open classes, public seminars, and community events happening now.</p>
+
+                  <div className="mt-auto pt-4">
+                    <button
+                      onClick={onShowBrowser}
+                      className="w-full py-3 px-4 bg-background border border-border/50 hover:border-orange-500/30 hover:bg-orange-500/5 text-foreground hover:text-orange-600 font-medium rounded-xl transition-all duration-200 flex items-center justify-center gap-2 group-hover:shadow-sm"
+                    >
+                      <span>Explore Catalog</span>
+                      <svg className="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Upcoming Events Section */}
+            <div className="animate-fade-in-up delay-100">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold tracking-tight font-heading">Upcoming Classes</h2>
+                  <p className="text-muted-foreground text-sm">Your scheduled sessions for this week.</p>
+                </div>
+              </div>
+              <UpcomingEvents onJoinRoom={onJoinRoom} />
+            </div>
+
           </div>
 
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full">
+          {/* Sidebar Column (4 cols) */}
+          <div className="lg:col-span-4 space-y-6 animate-fade-in-up delay-200">
 
-            {canCreateRoom && (
-              <button
-                onClick={handleCreate}
-                disabled={loading}
-                className="flex items-center gap-2 px-6 py-3.5 bg-primary text-white text-base font-medium rounded-lg shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:bg-primary/90 active:scale-[0.98] transition-all duration-200 disabled:opacity-70 group"
-              >
-                <svg className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                </svg>
-                <span>New meeting</span>
-              </button>
-            )}
-
-            <form onSubmit={handleJoin} className="flex items-center relative w-full sm:w-auto flex-1 max-w-sm group">
-              <div className="absolute left-3.5 text-muted-foreground group-focus-within:text-foreground transition-colors pointer-events-none">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                </svg>
+            {/* Quick Tips / Info */}
+            <div className="bg-gradient-to-br from-primary to-orange-600 rounded-3xl p-6 text-white shadow-lg shadow-primary/20 relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-4 opacity-10">
+                <svg className="w-32 h-32" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zm0 9l2.5-1.25L12 8.5l-2.5 1.25L12 11zm0 2.5l-5-2.5-5 2.5L12 22l10-8.5-5-2.5-5 2.5z" /></svg>
               </div>
-              <input
-                type="text"
-                value={roomId}
-                onChange={(e) => setRoomId(e.target.value)}
-                placeholder="Enter a code or link"
-                className="w-full pl-11 pr-4 py-3.5 bg-background border border-muted-foreground/30 rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 placeholder:text-muted-foreground/60"
-              />
-              {roomId.trim().length > 0 && (
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="absolute right-2 px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/5 rounded animate-fade-in"
-                >
-                  Join
+              <div className="relative z-10">
+                <h3 className="text-lg font-bold mb-2">Need Help?</h3>
+                <p className="text-white/80 text-sm mb-4">Check out our documentation for guides on how to use the whiteboard and screen sharing features.</p>
+                <button className="text-xs font-bold bg-white/20 hover:bg-white/30 transition-colors px-3 py-1.5 rounded-lg backdrop-blur-sm">
+                  View Docs
                 </button>
-              )}
-            </form>
-
-          </div>
-
-          <div className="h-px w-full bg-border/40 max-w-lg"></div>
-
-          <div>
-            <p className="text-sm text-muted-foreground/80">
-              <a href="#" className="text-primary hover:underline">Learn more</a> about meet
-            </p>
-          </div>
-
-          {error && (
-            <div className="bg-destructive/10 text-destructive text-sm px-4 py-3 rounded-lg border border-destructive/20 flex items-center gap-2 animate-fade-in max-w-md">
-              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              {error}
+              </div>
             </div>
-          )}
+
+          </div>
 
         </div>
-
-        {/* Right Column: Visual */}
-        <div className="flex-1 w-full max-w-xl hidden lg:flex items-center justify-center relative">
-          <div className="relative w-full aspect-square max-w-[500px]">
-            {/* Decorative Carousel Placeholder */}
-            <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/10 to-teal-500/10 rounded-full blur-[60px] animate-pulse-slow"></div>
-
-            <div className="relative z-10 w-full h-full flex flex-col items-center justify-center text-center p-8">
-
-              <div className="relative w-full h-[320px] bg-background/40 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden mb-8 group hover:scale-[1.02] transition-transform duration-500">
-                {/* Fake Meet UI inside */}
-                <div className="absolute inset-0 bg-muted/20"></div>
-                <div className="absolute top-4 right-4 flex gap-2">
-                  <div className="w-2.5 h-2.5 rounded-full bg-red-400"></div>
-                  <div className="w-2.5 h-2.5 rounded-full bg-yellow-400"></div>
-                  <div className="w-2.5 h-2.5 rounded-full bg-green-400"></div>
-                </div>
-
-                <div className="absolute inset-x-8 top-16 bottom-8 grid grid-cols-2 gap-3">
-                  <div className="bg-muted/40 rounded-lg animate-pulse"></div>
-                  <div className="bg-muted/50 rounded-lg animate-pulse delay-100"></div>
-                  <div className="bg-muted/30 rounded-lg animate-pulse delay-200"></div>
-                  <div className="bg-muted/60 rounded-lg animate-pulse delay-300"></div>
-                </div>
-
-                <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm"></div>
-                  <div className="w-8 h-8 rounded-full bg-red-500/80 backdrop-blur-sm"></div>
-                  <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm"></div>
-                </div>
-              </div>
-
-              <div className="space-y-2 max-w-sm">
-                <h3 className="text-xl font-medium text-foreground">Get a link you can share</h3>
-                <p className="text-sm text-muted-foreground">Click <span className="font-semibold text-primary">New meeting</span> to get a link you can send to people you want to meet with</p>
-              </div>
-
-              {/* Pagination dots */}
-              <div className="flex gap-2 mt-6">
-                <div className="w-2 h-2 rounded-full bg-primary"></div>
-                <div className="w-2 h-2 rounded-full bg-border"></div>
-                <div className="w-2 h-2 rounded-full bg-border"></div>
-              </div>
-
-            </div>
-          </div>
-        </div>
-
       </main>
-    </div>
-  );
+    </div>);
 }

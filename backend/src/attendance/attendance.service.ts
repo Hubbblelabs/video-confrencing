@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
-import { RoomParticipantEntity } from '../database/entities';
+import { RoomParticipantEntity, MeetingEntity } from '../database/entities';
 
 export interface AttendanceRecord {
   id: string;
@@ -42,7 +42,7 @@ export class AttendanceService {
   constructor(
     @InjectRepository(RoomParticipantEntity)
     private readonly participantRepo: Repository<RoomParticipantEntity>,
-  ) {}
+  ) { }
 
   /**
    * Get all attendance records with optional filters
@@ -55,11 +55,12 @@ export class AttendanceService {
     role?: string;
     limit?: number;
     offset?: number;
+    hostUserId?: string;
   }): Promise<{ records: AttendanceRecord[]; total: number }> {
     const query = this.participantRepo
       .createQueryBuilder('rp')
       .leftJoinAndSelect('rp.user', 'user')
-      .leftJoin('rooms', 'room', 'rp.roomId = room.id')
+      .leftJoinAndMapOne('rp.room', MeetingEntity, 'room', 'room.id = rp.roomId') // Use mapOne to get room details if needed, or just leftJoin for filtering
       .select([
         'rp.id as id',
         'rp.userId as "userId"',
@@ -71,9 +72,13 @@ export class AttendanceService {
         'rp.joinedAt as "joinedAt"',
         'rp.leftAt as "leftAt"',
         'rp.durationSeconds as "durationSeconds"',
-        'ROUND(rp.durationSeconds::numeric / 60, 2) as "durationMinutes"',
+        'ROUND(rp."durationSeconds"::numeric / 60, 2) as "durationMinutes"',
         'rp.isKicked as "isKicked"',
       ]);
+
+    if (filters.hostUserId) {
+      query.andWhere('room."hostId" = :hostUserId', { hostUserId: filters.hostUserId });
+    }
 
     if (filters.userId) {
       query.andWhere('rp.userId = :userId', { userId: filters.userId });
@@ -121,12 +126,14 @@ export class AttendanceService {
     endDate?: Date;
     userId?: string;
     roomId?: string;
+    hostUserId?: string;
   }): Promise<AttendanceStatistics> {
     const query = this.participantRepo
       .createQueryBuilder('rp')
+      .leftJoin(MeetingEntity, 'room', 'rp.roomId = room.id')
       .select([
         'COUNT(rp.id) as "totalSessions"',
-        'SUM(rp.durationSeconds) as "totalSeconds"',
+        'SUM(rp."durationSeconds") as "totalSeconds"',
         'COUNT(DISTINCT rp.userId) as "uniqueUsers"',
         'COUNT(DISTINCT rp.roomId) as "uniqueRooms"',
       ])
@@ -146,6 +153,10 @@ export class AttendanceService {
 
     if (filters.roomId) {
       query.andWhere('rp.roomId = :roomId', { roomId: filters.roomId });
+    }
+
+    if (filters.hostUserId) {
+      query.andWhere('room."hostId" = :hostUserId', { hostUserId: filters.hostUserId });
     }
 
     const result = await query.getRawOne();
@@ -172,20 +183,26 @@ export class AttendanceService {
     endDate?: Date;
     limit?: number;
     offset?: number;
+    hostUserId?: string;
   }): Promise<{ users: UserAttendanceSummary[]; total: number }> {
     const query = this.participantRepo
       .createQueryBuilder('rp')
       .leftJoin('rp.user', 'user')
+      .leftJoin('rooms', 'room', 'rp.roomId = room.id')
       .select([
         'rp.userId as "userId"',
         'user.displayName as "userName"',
         'user.email as "userEmail"',
         'COUNT(rp.id) as "totalSessions"',
-        'SUM(rp.durationSeconds) as "totalSeconds"',
+        'SUM(rp."durationSeconds") as "totalSeconds"',
         'MAX(rp.joinedAt) as "lastAttended"',
       ])
       .where('rp.leftAt IS NOT NULL') // Only completed sessions
       .groupBy('rp.userId, user.displayName, user.email');
+
+    if (filters.hostUserId) {
+      query.andWhere('room."hostId" = :hostUserId', { hostUserId: filters.hostUserId });
+    }
 
     if (filters.startDate) {
       query.andWhere('rp.joinedAt >= :startDate', { startDate: filters.startDate });
@@ -198,8 +215,13 @@ export class AttendanceService {
     // Count unique users
     const countQuery = this.participantRepo
       .createQueryBuilder('rp')
+      .leftJoin('rooms', 'room', 'rp.roomId = room.id')
       .select('COUNT(DISTINCT rp.userId) as count')
       .where('rp.leftAt IS NOT NULL');
+
+    if (filters.hostUserId) {
+      countQuery.andWhere('room.hostId = :hostUserId', { hostUserId: filters.hostUserId });
+    }
 
     if (filters.startDate) {
       countQuery.andWhere('rp.joinedAt >= :startDate', { startDate: filters.startDate });
@@ -239,7 +261,7 @@ export class AttendanceService {
   /**
    * Get active sessions (users currently in meetings)
    */
-  async getActiveSessions(): Promise<AttendanceRecord[]> {
+  async getActiveSessions(hostUserId?: string): Promise<AttendanceRecord[]> {
     const query = this.participantRepo
       .createQueryBuilder('rp')
       .leftJoinAndSelect('rp.user', 'user')
@@ -258,8 +280,13 @@ export class AttendanceService {
         'NULL as "durationMinutes"',
         'rp.isKicked as "isKicked"',
       ])
-      .where('rp.leftAt IS NULL')
-      .orderBy('rp.joinedAt', 'DESC');
+      .where('rp.leftAt IS NULL');
+
+    if (hostUserId) {
+      query.andWhere('room.hostId = :hostUserId', { hostUserId });
+    }
+
+    query.orderBy('rp.joinedAt', 'DESC');
 
     return query.getRawMany();
   }
@@ -283,7 +310,7 @@ export class AttendanceService {
         'rp.joinedAt as "joinedAt"',
         'rp.leftAt as "leftAt"',
         'rp.durationSeconds as "durationSeconds"',
-        'ROUND(rp.durationSeconds::numeric / 60, 2) as "durationMinutes"',
+        'ROUND(rp."durationSeconds"::numeric / 60, 2) as "durationMinutes"',
         'rp.isKicked as "isKicked"',
       ])
       .where('rp.roomId = :roomId', { roomId })

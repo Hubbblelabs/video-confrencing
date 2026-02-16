@@ -12,6 +12,14 @@ export class CreateRoomDto {
   maxParticipants?: number;
 }
 
+export class ScheduleMeetingDto extends CreateRoomDto {
+  @IsString()
+  scheduledStart!: string;
+
+  @IsString()
+  scheduledEnd!: string;
+}
+
 export class JoinRoomDto {
   @IsString()
   roomId!: string;

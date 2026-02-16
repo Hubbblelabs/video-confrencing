@@ -4,13 +4,15 @@ import { AdminLayout } from '../components/layout/AdminLayout';
 import { AdminOverview } from './admin/AdminOverview';
 import { UserManagement } from './admin/UserManagement';
 import { AttendanceManagement } from './admin/AttendanceManagement';
+import { MeetingHistory } from './admin/MeetingHistory';
+import { MeetingSchedule } from './admin/MeetingSchedule';
 
 export function AdminDashboard() {
   const currentUserRole = useAuthStore((s) => s.role);
   const [currentView, setCurrentView] = useState('overview');
 
-  // Check if user is admin
-  if (currentUserRole !== 'ADMIN') {
+  // Check if user is admin or teacher
+  if (currentUserRole !== 'ADMIN' && currentUserRole !== 'TEACHER') {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4 text-white">
         <div className="text-center">
@@ -30,25 +32,9 @@ export function AdminDashboard() {
       case 'attendance':
         return <AttendanceManagement />;
       case 'meeting-history':
-        return (
-          <div className="flex flex-col gap-4">
-            <h2 className="text-2xl font-bold tracking-tight">Meeting History</h2>
-            <p className="text-muted-foreground">Historical records of all meetings and sessions will appear here.</p>
-            <div className="rounded-lg border border-dashed p-8 text-center">
-              <p className="text-sm text-muted-foreground">Meeting history module coming soon.</p>
-            </div>
-          </div>
-        );
+        return <MeetingHistory />;
       case 'meeting-schedule':
-        return (
-          <div className="flex flex-col gap-4">
-            <h2 className="text-2xl font-bold tracking-tight">Meeting Schedule</h2>
-            <p className="text-muted-foreground">Plan and manage upcoming meeting schedules.</p>
-            <div className="rounded-lg border border-dashed p-8 text-center">
-              <p className="text-sm text-muted-foreground">Scheduling module coming soon.</p>
-            </div>
-          </div>
-        );
+        return <MeetingSchedule />;
       default:
         return <AdminOverview />;
     }

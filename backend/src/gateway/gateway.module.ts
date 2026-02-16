@@ -5,9 +5,12 @@ import { AuthModule } from '../auth/auth.module';
 import { RoomsModule } from '../rooms/rooms.module';
 import { WebrtcModule } from '../webrtc/webrtc.module';
 
+import { ChatModule } from '../chat/chat.module';
+import { QnaModule } from '../qna/qna.module';
+
 @Module({
-  imports: [AuthModule, RoomsModule, WebrtcModule],
+  imports: [AuthModule, RoomsModule, WebrtcModule, ChatModule, QnaModule],
   providers: [ConferenceGateway, WsAuthService],
   exports: [ConferenceGateway],
 })
-export class GatewayModule {}
+export class GatewayModule { }

@@ -47,6 +47,7 @@ export function AdminSidebar({ currentView, onViewChange }: AdminSidebarProps) {
             title: "User Management",
             icon: Users,
             id: "users",
+            adminOnly: true,
         },
         {
             title: "Attendance",
@@ -63,7 +64,7 @@ export function AdminSidebar({ currentView, onViewChange }: AdminSidebarProps) {
             icon: Calendar,
             id: "meeting-schedule",
         },
-    ];
+    ].filter(item => !item.adminOnly || role === 'ADMIN');
 
     const handleLogout = () => {
         clearAuth();
@@ -82,7 +83,11 @@ export function AdminSidebar({ currentView, onViewChange }: AdminSidebarProps) {
             </SidebarHeader>
             <SidebarContent>
                 <SidebarGroup>
-                    {!isCollapsed && <SidebarGroupLabel>Administrative</SidebarGroupLabel>}
+                    {!isCollapsed && (
+                        <SidebarGroupLabel>
+                            {role === 'ADMIN' ? 'Administrative' : 'Management'}
+                        </SidebarGroupLabel>
+                    )}
                     <SidebarGroupContent>
                         <SidebarMenu>
                             {items.map((item) => (
