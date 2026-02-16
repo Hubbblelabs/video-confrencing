@@ -14,10 +14,12 @@ import { RedisModule } from './redis/redis.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
 import { RoomsModule } from './rooms/rooms.module';
 import { MediaModule } from './media/media.module';
 import { WebrtcModule } from './webrtc/webrtc.module';
 import { GatewayModule } from './gateway/gateway.module';
+import { AttendanceModule } from './attendance/attendance.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -37,10 +39,12 @@ import { HealthController } from './health.controller';
 
     // Feature modules
     AuthModule,
+    UsersModule,
     RoomsModule,
     MediaModule,
     WebrtcModule,
     GatewayModule,
+    AttendanceModule,
   ],
   controllers: [HealthController],
 })

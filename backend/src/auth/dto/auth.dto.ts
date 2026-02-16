@@ -1,4 +1,5 @@
-import { IsEmail, IsString, MinLength, MaxLength } from 'class-validator';
+import { IsEmail, IsString, MinLength, MaxLength, IsEnum, IsOptional } from 'class-validator';
+import { UserRole } from '../../shared/enums';
 
 export class RegisterDto {
   @IsEmail()
@@ -13,6 +14,10 @@ export class RegisterDto {
   @MinLength(1)
   @MaxLength(100)
   displayName!: string;
+
+  @IsEnum(UserRole)
+  @IsOptional()
+  role?: UserRole;
 }
 
 export class LoginDto {

@@ -199,7 +199,11 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
 
   const handleLeave = useCallback(async () => {
     if (roomId) {
-      try { await signaling.leaveRoom(roomId); } catch { }
+      try { 
+        await signaling.leaveRoom(roomId); 
+      } catch {
+        // Ignore error during cleanup
+      }
     }
     media.stopMedia();
     media.stopScreenShare();

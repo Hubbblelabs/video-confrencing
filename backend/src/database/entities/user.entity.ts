@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { MeetingEntity } from './meeting.entity';
 import { AuditLogEntity } from './audit-log.entity';
+import { UserRole } from '../../shared/enums';
 
 @Entity('users')
 export class UserEntity {
@@ -24,6 +25,13 @@ export class UserEntity {
 
   @Column({ type: 'varchar', length: 100 })
   displayName!: string;
+
+  @Column({ 
+    type: 'enum', 
+    enum: UserRole, 
+    default: UserRole.STUDENT 
+  })
+  role!: UserRole;
 
   @Column({ type: 'boolean', default: true })
   isActive!: boolean;

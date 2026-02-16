@@ -10,6 +10,7 @@ import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { UserEntity } from '../database/entities';
 import { RegisterDto, LoginDto } from './dto';
+import { UserRole } from '../shared/enums';
 import type { JwtPayload } from '../shared/interfaces';
 
 const BCRYPT_ROUNDS = 12;
@@ -36,10 +37,11 @@ export class AuthService {
       email: dto.email,
       passwordHash,
       displayName: dto.displayName,
+      role: dto.role || UserRole.STUDENT, // Default to STUDENT if not specified
     });
 
     const saved = await this.userRepo.save(user);
-    this.logger.log(`User registered: ${saved.id}`);
+    this.logger.log(`User registered: ${saved.id} with role: ${saved.role}`);
 
     return this.generateToken(saved);
   }
@@ -79,6 +81,7 @@ export class AuthService {
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
+      role: user.role,
       displayName: user.displayName,
     };
 

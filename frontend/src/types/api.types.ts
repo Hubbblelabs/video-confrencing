@@ -6,6 +6,12 @@
  */
 
 // ─────────────────────────────────────────────────────────────
+// User Roles
+// ─────────────────────────────────────────────────────────────
+
+export type UserRole = 'STUDENT' | 'TEACHER' | 'ADMIN';
+
+// ─────────────────────────────────────────────────────────────
 // Auth DTOs
 // ─────────────────────────────────────────────────────────────
 
@@ -18,6 +24,7 @@ export interface RegisterRequest {
   email: string;
   password: string;
   displayName: string;
+  role?: UserRole;
 }
 
 export interface AuthResponse {
@@ -32,6 +39,7 @@ export interface JwtPayload {
   sub: string;        // User ID
   email: string;
   displayName: string;
+  role: UserRole;
   iat: number;        // Issued at
   exp: number;        // Expires at
 }
@@ -44,6 +52,7 @@ export interface User {
   id: string;
   email: string;
   displayName: string;
+  role: UserRole;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

@@ -1,9 +1,10 @@
-import type { RoomRole } from '../enums';
+import type { RoomRole, UserRole } from '../enums';
 
 export interface JwtPayload {
   sub: string;
   email: string;
   displayName: string;
+  role: UserRole;
   iat?: number;
   exp?: number;
 }
@@ -13,6 +14,7 @@ export interface AuthenticatedSocket {
   userId: string;
   email: string;
   displayName: string;
+  userRole: UserRole;
   roomId?: string;
   role?: RoomRole;
 }

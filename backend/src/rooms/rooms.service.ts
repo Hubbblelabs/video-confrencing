@@ -6,7 +6,7 @@ import { ConfigService } from '@nestjs/config';
 import { RedisService } from '../redis/redis.service';
 import { RedisKeys } from '../redis/redis-keys';
 import { AuditService } from '../audit/audit.service';
-import { MeetingEntity, UserEntity } from '../database/entities';
+import { MeetingEntity, UserEntity, RoomParticipantEntity, ParticipantRole } from '../database/entities';
 import { RoomRole, RoomStatus, AuditAction } from '../shared/enums';
 import type { RoomParticipant, RedisRoomState } from '../shared/interfaces';
 import { WsRoomException } from '../shared/exceptions';
@@ -21,6 +21,8 @@ export class RoomsService {
     private readonly meetingRepo: Repository<MeetingEntity>,
     @InjectRepository(UserEntity)
     private readonly userRepo: Repository<UserEntity>,
+    @InjectRepository(RoomParticipantEntity)
+    private readonly roomParticipantRepo: Repository<RoomParticipantEntity>,
     private readonly redis: RedisService,
     private readonly audit: AuditService,
     private readonly config: ConfigService,
@@ -208,6 +210,22 @@ export class RoomsService {
     }
     await pipeline.exec();
 
+    // Create attendance record in PostgreSQL for tracking
+    try {
+      const participantRole = isHost ? ParticipantRole.HOST : ParticipantRole.PARTICIPANT;
+      const attendanceRecord = this.roomParticipantRepo.create({
+        userId: params.userId,
+        roomId: actualRoomId,
+        role: participantRole,
+        joinedAt: new Date(),
+      });
+      await this.roomParticipantRepo.save(attendanceRecord);
+      this.logger.log(`Attendance record created for user ${params.userId} in room ${actualRoomId}`);
+    } catch (error) {
+      this.logger.error(`Failed to create attendance record: ${(error as Error).message}`);
+      // Don't fail the join if attendance tracking fails
+    }
+
     // Update peak participants
     const newCount = currentCount + 1;
     await this.meetingRepo
@@ -244,6 +262,41 @@ export class RoomsService {
     pipeline.del(RedisKeys.socketToUser(params.socketId));
     pipeline.del(RedisKeys.userToSocket(params.userId));
     await pipeline.exec();
+
+    // Update attendance record with leave time and calculate duration
+    try {
+      const attendanceRecord = await this.roomParticipantRepo.findOne({
+        where: {
+          userId: params.userId,
+          roomId: params.roomId,
+          leftAt: null as any, // Still in the room
+        },
+        order: {
+          joinedAt: 'DESC', // Get the most recent join
+        },
+      });
+
+      if (attendanceRecord) {
+        const leftAt = new Date();
+        const durationMs = leftAt.getTime() - attendanceRecord.joinedAt.getTime();
+        const durationSeconds = Math.floor(durationMs / 1000);
+
+        attendanceRecord.leftAt = leftAt;
+        attendanceRecord.durationSeconds = durationSeconds;
+        await this.roomParticipantRepo.save(attendanceRecord);
+
+        this.logger.log(
+          `Attendance record updated for user ${params.userId} in room ${params.roomId}. Duration: ${durationSeconds}s`,
+        );
+      } else {
+        this.logger.warn(
+          `No active attendance record found for user ${params.userId} in room ${params.roomId}`,
+        );
+      }
+    } catch (error) {
+      this.logger.error(`Failed to update attendance record: ${(error as Error).message}`);
+      // Don't fail the leave if attendance tracking fails
+    }
 
     const remaining = await this.redis.hlen(RedisKeys.roomParticipants(params.roomId));
 

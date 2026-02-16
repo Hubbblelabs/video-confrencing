@@ -4,10 +4,11 @@ import { useAuthStore } from '../store/auth.store';
 interface LobbyPageProps {
   onCreateRoom: (title: string) => Promise<void>;
   onJoinRoom: (roomId: string) => Promise<void>;
+  onShowAdmin?: () => void;
+  onShowAttendance?: () => void;
 }
 
-export function LobbyPage({ onCreateRoom, onJoinRoom }: LobbyPageProps) {
-  const [roomTitle, setRoomTitle] = useState('');
+export function LobbyPage({ onCreateRoom, onJoinRoom, onShowAdmin, onShowAttendance }: LobbyPageProps) {
   const [roomId, setRoomId] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -16,7 +17,10 @@ export function LobbyPage({ onCreateRoom, onJoinRoom }: LobbyPageProps) {
 
   const userId = useAuthStore((s) => s.userId);
   const displayName = useAuthStore((s) => s.displayName);
+  const role = useAuthStore((s) => s.role);
   const clearAuth = useAuthStore((s) => s.clearAuth);
+
+  const canCreateRoom = role === 'TEACHER' || role === 'ADMIN';
 
   useEffect(() => {
     const updateTime = () => {
@@ -33,7 +37,7 @@ export function LobbyPage({ onCreateRoom, onJoinRoom }: LobbyPageProps) {
     setLoading(true);
     setError(null);
     try {
-      await onCreateRoom(roomTitle || 'New Meeting');
+      await onCreateRoom('New Meeting');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create room');
     } finally {
@@ -76,6 +80,37 @@ export function LobbyPage({ onCreateRoom, onJoinRoom }: LobbyPageProps) {
         <div className="flex items-center gap-4">
           <span className="text-sm text-muted-foreground hidden sm:block">{currentTime} • {currentDate}</span>
           <div className="h-8 w-[1px] bg-border hidden sm:block"></div>
+          {(role === 'ADMIN' || role === 'TEACHER') && onShowAttendance && (
+            <>
+              <button
+                onClick={onShowAttendance}
+                className="px-3 py-2 rounded-lg bg-blue-500/10 text-blue-500 border border-blue-500/20 hover:bg-blue-500/20 transition-all text-sm font-medium flex items-center gap-2"
+                title="Attendance"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                </svg>
+                <span className="hidden sm:inline">Attendance</span>
+              </button>
+              <div className="h-8 w-[1px] bg-border"></div>
+            </>
+          )}
+          {role === 'ADMIN' && onShowAdmin && (
+            <>
+              <button
+                onClick={onShowAdmin}
+                className="px-3 py-2 rounded-lg bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 transition-all text-sm font-medium flex items-center gap-2"
+                title="Admin Dashboard"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span className="hidden sm:inline">Admin</span>
+              </button>
+              <div className="h-8 w-[1px] bg-border"></div>
+            </>
+          )}
           <div className="flex items-center gap-3 mr-2">
             <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold border border-primary/20">
               {(displayName || userId || 'U').charAt(0).toUpperCase()}
@@ -107,20 +142,30 @@ export function LobbyPage({ onCreateRoom, onJoinRoom }: LobbyPageProps) {
             <p className="text-lg text-muted-foreground max-w-lg leading-relaxed">
               We re-engineered the service we built for secure business meetings, meet, to make it free and available for all.
             </p>
+            {role && (
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                {role === 'ADMIN' ? 'Admin' : role === 'TEACHER' ? 'Teacher' : 'Student'}
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full">
 
-            <button
-              onClick={handleCreate}
-              disabled={loading}
-              className="flex items-center gap-2 px-6 py-3.5 bg-primary text-white text-base font-medium rounded-lg shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:bg-primary/90 active:scale-[0.98] transition-all duration-200 disabled:opacity-70 group"
-            >
-              <svg className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
-              <span>New meeting</span>
-            </button>
+            {canCreateRoom && (
+              <button
+                onClick={handleCreate}
+                disabled={loading}
+                className="flex items-center gap-2 px-6 py-3.5 bg-primary text-white text-base font-medium rounded-lg shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:bg-primary/90 active:scale-[0.98] transition-all duration-200 disabled:opacity-70 group"
+              >
+                <svg className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                <span>New meeting</span>
+              </button>
+            )}
 
             <form onSubmit={handleJoin} className="flex items-center relative w-full sm:w-auto flex-1 max-w-sm group">
               <div className="absolute left-3.5 text-muted-foreground group-focus-within:text-foreground transition-colors pointer-events-none">

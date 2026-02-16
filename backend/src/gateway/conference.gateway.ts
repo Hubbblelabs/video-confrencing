@@ -7,14 +7,14 @@ import {
   MessageBody,
   ConnectedSocket,
 } from '@nestjs/websockets';
-import { Logger, UseFilters, UsePipes, ValidationPipe } from '@nestjs/common';
+import { Logger, UseFilters, UsePipes, ValidationPipe, ForbiddenException } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import type { DtlsParameters, MediaKind, RtpCapabilities, RtpParameters } from 'mediasoup/node/lib/types';
 import { WsAuthService, AppSocket } from './ws-auth.service';
 import { RoomsService } from '../rooms/rooms.service';
 import { WebrtcService } from '../webrtc/webrtc.service';
 import { WsEvents } from './ws-events';
-import { RoomRole } from '../shared/enums';
+import { RoomRole, UserRole } from '../shared/enums';
 import { WsExceptionFilter } from './ws-exception.filter';
 
 // ─── Payload Interfaces ───────────────────────────────────────────
@@ -218,6 +218,7 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
   ) {
     this.logger.debug(`CREATE_ROOM called by socket ${socket.id}, socket.data: ${JSON.stringify(socket.data)}`);
     this.assertAuthenticated(socket);
+    this.assertRole(socket, [UserRole.TEACHER, UserRole.ADMIN]);
     this.assertRateLimit(socket);
 
     const result = await this.rooms.createRoom({
@@ -1054,6 +1055,21 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
   private assertAuthenticated(socket: AppSocket): void {
     if (!socket.data?.userId) {
       throw new Error('Socket not authenticated');
+    }
+  }
+
+  private assertRole(socket: AppSocket, allowedRoles: UserRole[]): void {
+    if (!socket.data?.userRole) {
+      throw new ForbiddenException('User role not found');
+    }
+
+    // Admin can access everything
+    if (socket.data.userRole === UserRole.ADMIN) {
+      return;
+    }
+
+    if (!allowedRoles.includes(socket.data.userRole)) {
+      throw new ForbiddenException(`Insufficient permissions. Required roles: ${allowedRoles.join(', ')}`);
     }
   }
 

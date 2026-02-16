@@ -4,6 +4,7 @@ import { authApi } from '../services/api.service';
 import type {
   LoginRequest,
   RegisterRequest,
+  UserRole,
 } from '../types/api.types';
 import { ValidationRules } from '../types/api.types';
 
@@ -14,6 +15,7 @@ export function AuthPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [role, setRole] = useState<UserRole>('STUDENT' as UserRole);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -48,7 +50,7 @@ export function AuthPage() {
     try {
       const requestData: LoginRequest | RegisterRequest = mode === 'login'
         ? { email: email.trim(), password }
-        : { email: email.trim(), password, displayName: displayName.trim() };
+        : { email: email.trim(), password, displayName: displayName.trim(), role };
 
       const response = mode === 'login'
         ? await authApi.login(requestData as LoginRequest)
@@ -154,19 +156,42 @@ export function AuthPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-4">
               {mode === 'register' && (
-                <div className="animate-slide-up">
-                  <label className="text-sm font-medium text-foreground/80 block mb-1.5 ml-1">Display Name</label>
-                  <div className="relative group">
-                    <input
-                      type="text"
-                      value={displayName}
-                      onChange={(e) => setDisplayName(e.target.value)}
-                      className="w-full px-5 py-3.5 bg-muted/30 border border-input rounded-xl text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-300"
-                      placeholder="e.g. Sarah Connor"
-                    />
-                    <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-primary to-secondary opacity-0 group-hover:opacity-10 pointer-events-none transition-opacity duration-300"></div>
+                <>
+                  <div className="animate-slide-up">
+                    <label className="text-sm font-medium text-foreground/80 block mb-1.5 ml-1">Display Name</label>
+                    <div className="relative group">
+                      <input
+                        type="text"
+                        value={displayName}
+                        onChange={(e) => setDisplayName(e.target.value)}
+                        className="w-full px-5 py-3.5 bg-muted/30 border border-input rounded-xl text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-300"
+                        placeholder="e.g. Sarah Connor"
+                      />
+                      <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-primary to-secondary opacity-0 group-hover:opacity-10 pointer-events-none transition-opacity duration-300"></div>
+                    </div>
                   </div>
-                </div>
+
+                  <div className="animate-slide-up" style={{ animationDelay: '0.05s' }}>
+                    <label className="text-sm font-medium text-foreground/80 block mb-1.5 ml-1">Role</label>
+                    <div className="relative group">
+                      <select
+                        value={role}
+                        onChange={(e) => setRole(e.target.value as UserRole)}
+                        className="w-full px-5 py-3.5 bg-muted/30 border border-input rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-300 appearance-none"
+                      >
+                        <option value="STUDENT">Student - Attend meetings</option>
+                        <option value="TEACHER">Teacher - Create & manage meetings</option>
+                        <option value="ADMIN">Admin - Full access</option>
+                      </select>
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                        <svg className="w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                      <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-primary to-secondary opacity-0 group-hover:opacity-10 pointer-events-none transition-opacity duration-300"></div>
+                    </div>
+                  </div>
+                </>
               )}
 
               <div className="animate-slide-up" style={{ animationDelay: '0.1s' }}>
@@ -244,7 +269,8 @@ export function AuthPage() {
               </span>
             </div>
           </div>
-
+  setRole('STUDENT');
+              
           <div className="grid grid-cols-2 gap-4">
             <button className="flex items-center justify-center px-4 py-2.5 bg-muted/30 border border-input rounded-xl hover:bg-muted hover:border-foreground/20 transition-all duration-200">
               <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
@@ -267,6 +293,7 @@ export function AuthPage() {
                 setMode(mode === 'login' ? 'register' : 'login');
                 setError(null);
                 setDisplayName('');
+                setRole('STUDENT' as UserRole);
               }}
               className="font-bold text-primary hover:text-secondary underline decoration-2 decoration-transparent hover:decoration-current transition-all"
             >

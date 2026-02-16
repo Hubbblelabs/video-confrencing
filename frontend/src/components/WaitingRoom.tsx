@@ -9,23 +9,17 @@ interface WaitingRoomProps {
 }
 
 export function WaitingRoom({ participants, onAdmit, onReject, onAdmitAll }: WaitingRoomProps) {
-  const [waitTime, setWaitTime] = useState(0);
+  const [currentTime, setCurrentTime] = useState(Date.now());
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setWaitTime((prev) => prev + 1);
+      setCurrentTime(Date.now());
     }, 1000);
     return () => clearInterval(interval);
   }, []);
 
-  const formatWaitTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-  };
-
   const formatParticipantWaitTime = (joinedAt: number) => {
-    const seconds = Math.floor((Date.now() - joinedAt) / 1000);
+    const seconds = Math.floor((currentTime - joinedAt) / 1000);
     if (seconds < 60) return `${seconds}s`;
     const minutes = Math.floor(seconds / 60);
     return `${minutes}m ${seconds % 60}s`;
@@ -142,11 +136,5 @@ const CheckIcon = ({ size = 16 }: { size?: number }) => (
 const XIcon = ({ size = 16 }: { size?: number }) => (
   <svg width={size} height={size} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-  </svg>
-);
-
-const InfoIcon = ({ className = '', size = 16 }: { className?: string; size?: number }) => (
-  <svg className={className} width={size} height={size} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-    <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
   </svg>
 );

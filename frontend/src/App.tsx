@@ -16,13 +16,20 @@ import type { NewProducerEvent } from './types';
 const AuthPage = lazy(() => import('./pages/AuthPage').then(module => ({ default: module.AuthPage })));
 const LobbyPage = lazy(() => import('./pages/LobbyPage').then(module => ({ default: module.LobbyPage })));
 const RoomPage = lazy(() => import('./pages/RoomPage').then(module => ({ default: module.RoomPage })));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then(module => ({ default: module.AdminDashboard })));
+const AttendancePage = lazy(() => import('./pages/AttendancePage').then(module => ({ default: module.AttendancePage })));
 
-type AppView = 'auth' | 'lobby' | 'waiting' | 'room';
+type AppView = 'auth' | 'lobby' | 'waiting' | 'room' | 'admin' | 'attendance';
 
 function App() {
   const token = useAuthStore((s) => s.token);
   const userId = useAuthStore((s) => s.userId);
+  const role = useAuthStore((s) => s.role);
   const roomId = useRoomStore((s) => s.roomId);
+
+  // Admin view state
+  const [showAdminView, setShowAdminView] = useState(false);
+  const [showAttendanceView, setShowAttendanceView] = useState(false);
 
   const [existingProducers, setExistingProducers] = useState<
     Array<{ producerId: string; userId: string; kind: string }>
@@ -39,6 +46,15 @@ function App() {
 
   // Track if we've attempted auto-rejoin
   const hasAttemptedRejoin = useRef(false);
+  const hasRedirectedAdmin = useRef(false);
+
+  // Auto-redirect admin to dashboard on login
+  useEffect(() => {
+    if (token && role === 'ADMIN' && !hasRedirectedAdmin.current && !roomId && !isInWaitingRoom) {
+      setShowAdminView(true);
+      hasRedirectedAdmin.current = true;
+    }
+  }, [token, role, roomId, isInWaitingRoom]);
 
   // ─── Signaling with event listeners ───────────────────────────
 
@@ -323,6 +339,8 @@ function App() {
     setWaitingRoomId(null);
     setWasRejected(false);
     setRejectionMessage('');
+    setShowAdminView(false);
+    setShowAttendanceView(false);
     signaling.disconnect();
   }, [signaling]);
 
@@ -330,6 +348,8 @@ function App() {
 
   let view: AppView = 'auth';
   if (token) view = 'lobby';
+  if (token && showAdminView && role === 'ADMIN') view = 'admin';
+  if (token && showAttendanceView && (role === 'ADMIN' || role === 'TEACHER')) view = 'attendance';
   if (token && isInWaitingRoom) view = 'waiting';
   if (token && roomId) view = 'room';
 
@@ -342,8 +362,14 @@ function App() {
           <LobbyPage
             onCreateRoom={handleCreateRoom}
             onJoinRoom={handleJoinRoom}
+            onShowAdmin={() => setShowAdminView(true)}
+            onShowAttendance={() => setShowAttendanceView(true)}
           />
         );
+      case 'admin':
+        return <AdminDashboard />;
+      case 'attendance':
+        return <AttendancePage />;
       case 'waiting':
         return (
           <WaitingLobby

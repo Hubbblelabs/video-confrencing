@@ -1,17 +1,3 @@
-// ═══════════════════════════════════════════════════════════════
-// Production-Grade Video Conferencing Platform - Prisma Schema
-// ═══════════════════════════════════════════════════════════════
-// Database: PostgreSQL (control-plane only, real-time state in Redis)
-// ORM: Prisma
-// Backend: NestJS
-// Design Principles:
-// - Migration-safe and extensible
-// - Explicit relation tables (no polymorphic garbage)
-// - Clear ownership semantics
-// - Safe evolution paths
-// - Enterprise-grade audit trail
-// ═══════════════════════════════════════════════════════════════
-
 generator client {
   provider      = "prisma-client-js"
   binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
@@ -22,141 +8,25 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ═══════════════════════════════════════════════════════════════
-// ENUMS
-// ═══════════════════════════════════════════════════════════════
-
-/// User authentication provider type
-enum AuthProviderType {
-  LOCAL    // Username/password
-  GOOGLE   // OAuth Google
-  GITHUB   // OAuth GitHub
-  MICROSOFT // OAuth Microsoft
-  APPLE    // OAuth Apple
-  SAML     // Future SAML SSO
-  
-  @@map("auth_provider_type")
-}
-
-/// Room lifecycle status
-enum RoomStatus {
-  CREATED   // Room created but not started (waiting room)
-  LIVE      // Active meeting in progress
-  ENDED     // Meeting ended normally
-  CANCELLED // Meeting cancelled before starting
-  
-  @@map("room_status")
-}
-
-/// Participant role within a specific room
-enum ParticipantRole {
-  HOST        // Full control: kick, mute all, close room, recordings
-  CO_HOST     // Elevated: kick, mute all (but cannot close room)
-  PARTICIPANT // Basic: speak, share, chat
-  
-  @@map("participant_role")
-}
-
-/// Recording lifecycle status
-enum RecordingStatus {
-  STARTED     // Recording initiated
-  IN_PROGRESS // Recording in progress (chunks being written)
-  STOPPED     // Recording stopped normally
-  FAILED      // Recording failed (storage/encoding error)
-  PROCESSING  // Post-processing (transcoding, thumbnail generation)
-  READY       // Ready for playback
-  
-  @@map("recording_status")
-}
-
-/// Audit event types (immutable security trail)
-enum AuditAction {
-  // Authentication
-  USER_REGISTERED
-  USER_LOGIN_SUCCESS
-  USER_LOGIN_FAILED
-  USER_LOGOUT
-  
-  // Room lifecycle
-  ROOM_CREATED
-  ROOM_STARTED
-  ROOM_ENDED
-  ROOM_CANCELLED
-  
-  // Participant actions
-  USER_JOINED
-  USER_LEFT
-  USER_KICKED
-  USER_BANNED
-  
-  // Permissions
-  ROLE_CHANGED
-  ROLE_PROMOTION
-  ROLE_DEMOTION
-  
-  // Media control
-  USER_MUTED
-  USER_UNMUTED
-  ALL_MUTED
-  SCREEN_SHARE_STARTED
-  SCREEN_SHARE_STOPPED
-  
-  // Recording
-  RECORDING_STARTED
-  RECORDING_STOPPED
-  RECORDING_DELETED
-  
-  // WebRTC media
-  PRODUCER_CREATED
-  PRODUCER_CLOSED
-  CONSUMER_CREATED
-  CONSUMER_CLOSED
-  
-  // Security
-  UNAUTHORIZED_ACCESS_ATTEMPT
-  RATE_LIMIT_EXCEEDED
-  SUSPICIOUS_ACTIVITY
-  
-  @@map("audit_action")
-}
-
-// ═══════════════════════════════════════════════════════════════
-// CORE MODELS
-// ═══════════════════════════════════════════════════════════════
-
 /// Users - Central identity model
 /// Soft deletes supported for GDPR compliance and audit trail integrity
 model User {
-  id           String   @id @default(uuid()) @db.Uuid
-  username     String   @unique @db.VarChar(100)
-  email        String?  @unique @db.VarChar(255) // Optional for OAuth-only users
-  passwordHash String?  @db.VarChar(255) // Nullable for OAuth-only users
-  displayName  String   @db.VarChar(150)
-  
-  // Account status
-  isActive     Boolean  @default(true)
-  isVerified   Boolean  @default(false) // Email verification status
-  
-  // Soft delete (NEVER hard delete users - audit trail dependency)
-  deletedAt    DateTime? @db.Timestamptz(3)
-  
-  // Timestamps
-  createdAt    DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt    DateTime @updatedAt @db.Timestamptz(3)
-  lastLoginAt  DateTime? @db.Timestamptz(3)
-  
-  // Relations
-  authProviders    AuthProvider[]     // Multiple OAuth providers per user
-  ownedRooms       Room[]             // Rooms where user is the owner
-  participations   RoomParticipant[]  // Room participation history
-  auditLogs        AuditLog[]         // User-initiated audit events
-  recordingsOwned  Recording[]        @relation("RecordingOwner")
-  
-  // Indexes for performance
-  @@index([email])
-  @@index([username])
-  @@index([isActive, deletedAt]) // Active user queries
-  @@index([createdAt])
+  id              String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  email           String            @unique(map: "UQ_97672ac88f789774dd47f7c8be3") @db.VarChar(255)
+  passwordHash    String            @db.VarChar(255)
+  isActive        Boolean           @default(true)
+  createdAt       DateTime          @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime          @default(now()) @updatedAt @db.Timestamptz(6)
+  role            users_role_enum   @default(STUDENT)
+  displayName     String            @db.VarChar(100)
+  auditLogs       AuditLog[]
+  authProviders   AuthProvider[]
+  meetings        meetings[]
+  recordingsOwned Recording[]       @relation("RecordingOwner")
+  participations  RoomParticipant[]
+  ownedRooms      Room[]
+
+  @@index([email], map: "IDX_97672ac88f789774dd47f7c8be")
   @@map("users")
 }
 
@@ -166,26 +36,17 @@ model AuthProvider {
   id             String           @id @default(uuid()) @db.Uuid
   userId         String           @db.Uuid
   providerType   AuthProviderType
-  providerId     String           @db.VarChar(255) // External provider's user ID
-  providerEmail  String?          @db.VarChar(255) // Email from provider
-  
-  // OAuth tokens (encrypted at rest)
-  accessToken    String?          @db.Text // If we need to make API calls
-  refreshToken   String?          @db.Text
+  providerId     String           @db.VarChar(255)
+  providerEmail  String?          @db.VarChar(255)
+  accessToken    String?
+  refreshToken   String?
   tokenExpiresAt DateTime?        @db.Timestamptz(3)
-  
-  // Provider-specific metadata (scopes, profile URL, etc.)
-  metadata       Json?            @db.JsonB
-  
-  // Timestamps
+  metadata       Json?
   createdAt      DateTime         @default(now()) @db.Timestamptz(3)
   updatedAt      DateTime         @updatedAt @db.Timestamptz(3)
   lastUsedAt     DateTime?        @db.Timestamptz(3)
-  
-  // Relations
   user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  // Prevent duplicate provider linkages
+
   @@unique([providerType, providerId])
   @@index([userId])
   @@index([providerType, providerId])
@@ -195,103 +56,68 @@ model AuthProvider {
 /// Room - Represents a video conference meeting (scheduled or instant)
 /// Control-plane only - real-time state (participants, media) lives in Redis
 model Room {
-  id              String      @id @default(uuid()) @db.Uuid
-  
-  // Ownership
-  ownerId         String      @db.Uuid
-  
-  // Room identity
-  roomCode        String      @unique @db.VarChar(20) // Human-readable join code
-  title           String      @db.VarChar(255)
-  description     String?     @db.Text
-  
-  // Scheduling support
-  scheduledStart  DateTime?   @db.Timestamptz(3)
-  scheduledEnd    DateTime?   @db.Timestamptz(3)
-  
-  // Capacity & settings
-  maxParticipants Int         @default(100) @db.Integer
-  isPublic        Boolean     @default(false) // Public rooms allow anyone with code
-  isRecordable    Boolean     @default(true)  // Allow recordings
-  requireAuth     Boolean     @default(true)  // Must be authenticated to join
-  
-  // Lifecycle
-  status          RoomStatus  @default(CREATED)
-  startedAt       DateTime?   @db.Timestamptz(3) // When first participant joined
-  endedAt         DateTime?   @db.Timestamptz(3) // When host closed or last left
-  
-  // Analytics (computed from Redis or aggregated)
-  peakParticipants Int        @default(0) @db.Integer
-  totalJoins       Int        @default(0) @db.Integer
-  durationSeconds  Int?       @db.Integer // Computed: endedAt - startedAt
-  
-  // Soft delete (preserve meeting history)
-  deletedAt       DateTime?   @db.Timestamptz(3)
-  
-  // Timestamps
-  createdAt       DateTime    @default(now()) @db.Timestamptz(3)
-  updatedAt       DateTime    @updatedAt @db.Timestamptz(3)
-  
-  // Relations
-  owner           User        @relation(fields: [ownerId], references: [id], onDelete: Restrict)
-  participants    RoomParticipant[]
-  recordings      Recording[]
-  auditLogs       AuditLog[]
-  
-  // Indexes for query performance
+  id               String            @id @default(uuid()) @db.Uuid
+  ownerId          String            @db.Uuid
+  roomCode         String            @unique @db.VarChar(20)
+  title            String            @db.VarChar(255)
+  description      String?
+  scheduledStart   DateTime?         @db.Timestamptz(3)
+  scheduledEnd     DateTime?         @db.Timestamptz(3)
+  maxParticipants  Int               @default(100)
+  isPublic         Boolean           @default(false)
+  isRecordable     Boolean           @default(true)
+  requireAuth      Boolean           @default(true)
+  status           RoomStatus        @default(CREATED)
+  startedAt        DateTime?         @db.Timestamptz(3)
+  endedAt          DateTime?         @db.Timestamptz(3)
+  peakParticipants Int               @default(0)
+  totalJoins       Int               @default(0)
+  durationSeconds  Int?
+  deletedAt        DateTime?         @db.Timestamptz(3)
+  createdAt        DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime          @updatedAt @db.Timestamptz(3)
+  recordings       Recording[]
+  participants     RoomParticipant[]
+  owner            User              @relation(fields: [ownerId], references: [id])
+
   @@index([ownerId])
   @@index([roomCode])
   @@index([status])
   @@index([scheduledStart])
   @@index([createdAt])
-  @@index([status, startedAt]) // Active rooms query
-  @@index([ownerId, status])   // User's active rooms
+  @@index([status, startedAt])
+  @@index([ownerId, status])
   @@map("rooms")
 }
 
 /// RoomParticipant - Explicit many-to-many relation between User and Room
 /// Tracks full participation lifecycle including kicks, bans, role changes
 model RoomParticipant {
-  id          String          @id @default(uuid()) @db.Uuid
-  
-  // Relations
-  userId      String          @db.Uuid
-  roomId      String          @db.Uuid
-  
-  // Role & permissions in this specific room
-  role        ParticipantRole @default(PARTICIPANT)
-  
-  // Participation lifecycle
-  joinedAt    DateTime        @default(now()) @db.Timestamptz(3)
-  leftAt      DateTime?       @db.Timestamptz(3)
-  
-  // Kick/ban support
-  isKicked    Boolean         @default(false)
-  kickedAt    DateTime?       @db.Timestamptz(3)
-  kickedBy    String?         @db.Uuid // User ID who kicked
-  kickReason  String?         @db.VarChar(500)
-  
-  isBanned    Boolean         @default(false) // Prevents rejoining
-  bannedAt    DateTime?       @db.Timestamptz(3)
-  bannedBy    String?         @db.Uuid
-  banReason   String?         @db.VarChar(500)
-  
-  // Analytics
-  durationSeconds Int?        @db.Integer // Computed: leftAt - joinedAt
-  
-  // Relations
-  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  room        Room            @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  
-  // A user can have multiple participation records in same room (rejoin support)
-  // But only ONE active participation at a time
-  @@unique([userId, roomId, joinedAt]) // Composite unique for rejoin tracking
+  id              String          @id @default(uuid()) @db.Uuid
+  userId          String          @db.Uuid
+  roomId          String          @db.Uuid
+  role            ParticipantRole @default(PARTICIPANT)
+  joinedAt        DateTime        @default(now()) @db.Timestamptz(3)
+  leftAt          DateTime?       @db.Timestamptz(3)
+  isKicked        Boolean         @default(false)
+  kickedAt        DateTime?       @db.Timestamptz(3)
+  kickedBy        String?         @db.Uuid
+  kickReason      String?         @db.VarChar(500)
+  isBanned        Boolean         @default(false)
+  bannedAt        DateTime?       @db.Timestamptz(3)
+  bannedBy        String?         @db.Uuid
+  banReason       String?         @db.VarChar(500)
+  durationSeconds Int?
+  room            Room            @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roomId, joinedAt])
   @@index([userId])
   @@index([roomId])
-  @@index([roomId, leftAt])        // Active participants query
-  @@index([userId, leftAt])        // User's active rooms
-  @@index([roomId, role])          // Host/co-host lookup
-  @@index([isBanned, roomId])      // Ban enforcement
+  @@index([roomId, leftAt])
+  @@index([userId, leftAt])
+  @@index([roomId, role])
+  @@index([isBanned, roomId])
   @@map("room_participants")
 }
 
@@ -299,59 +125,38 @@ model RoomParticipant {
 /// Actual media files stored in S3/GCS (URL reference only)
 model Recording {
   id              String          @id @default(uuid()) @db.Uuid
-  
-  // Ownership
   roomId          String          @db.Uuid
-  ownerId         String          @db.Uuid // User who started recording (usually host)
-  
-  // Storage reference (NOT the file itself)
-  storageKey      String          @unique @db.VarChar(500) // S3/GCS object key
-  storageUrl      String?         @db.Text // Presigned URL or CDN URL
+  ownerId         String          @db.Uuid
+  storageKey      String          @unique @db.VarChar(500)
+  storageUrl      String?
   storageBucket   String          @db.VarChar(100)
-  
-  // Recording metadata
   filename        String          @db.VarChar(255)
-  sizeBytes       BigInt?         @db.BigInt // File size
-  durationSeconds Int?            @db.Integer // Video duration
-  
-  // Video specifics
-  codec           String?         @db.VarChar(50)   // e.g., 'vp8', 'h264'
-  resolution      String?         @db.VarChar(20)   // e.g., '1920x1080'
-  fps             Int?            @db.Integer
-  bitrate         Int?            @db.Integer       // kbps
-  
-  // Lifecycle
+  sizeBytes       BigInt?
+  durationSeconds Int?
+  codec           String?         @db.VarChar(50)
+  resolution      String?         @db.VarChar(20)
+  fps             Int?
+  bitrate         Int?
   status          RecordingStatus @default(STARTED)
   startedAt       DateTime        @default(now()) @db.Timestamptz(3)
   stoppedAt       DateTime?       @db.Timestamptz(3)
-  
-  // Error tracking
-  errorMessage    String?         @db.Text
-  retryCount      Int             @default(0) @db.Integer
-  
-  // Access control
+  errorMessage    String?
+  retryCount      Int             @default(0)
   isPublic        Boolean         @default(false)
-  expiresAt       DateTime?       @db.Timestamptz(3) // Auto-delete old recordings
-  
-  // Soft delete (GDPR/retention policy)
+  expiresAt       DateTime?       @db.Timestamptz(3)
   deletedAt       DateTime?       @db.Timestamptz(3)
-  
-  // Timestamps
   createdAt       DateTime        @default(now()) @db.Timestamptz(3)
   updatedAt       DateTime        @updatedAt @db.Timestamptz(3)
-  
-  // Relations
-  room            Room            @relation(fields: [roomId], references: [id], onDelete: Restrict)
-  owner           User            @relation("RecordingOwner", fields: [ownerId], references: [id], onDelete: Restrict)
-  
-  // Indexes
+  owner           User            @relation("RecordingOwner", fields: [ownerId], references: [id])
+  room            Room            @relation(fields: [roomId], references: [id])
+
   @@index([roomId])
   @@index([ownerId])
   @@index([status])
   @@index([storageKey])
   @@index([createdAt])
-  @@index([expiresAt])              // Cleanup job
-  @@index([roomId, status])         // Room's recordings
+  @@index([expiresAt])
+  @@index([roomId, status])
   @@map("recordings")
 }
 
@@ -359,59 +164,105 @@ model Recording {
 /// Append-only design (never update or delete)
 /// Partitioned by date for performance at scale
 model AuditLog {
-  id          String      @id @default(uuid()) @db.Uuid
-  
-  // What happened
-  action      AuditAction
-  
-  // Who did it
-  userId      String?     @db.Uuid // Nullable for system-initiated events
-  
-  // Where did it happen
-  roomId      String?     @db.Uuid // Room context if applicable
-  
-  // Additional context
-  targetUserId String?    @db.Uuid // For actions affecting another user (kick, role change)
-  metadata     Json?      @db.JsonB // Flexible event-specific data
-  
-  // Network context
-  ipAddress    String?    @db.Inet
-  userAgent    String?    @db.VarChar(500)
-  
-  // Timestamp (immutable)
-  timestamp    DateTime   @default(now()) @db.Timestamptz(3)
-  
-  // Relations (SET NULL to preserve audit trail if entities deleted)
-  user         User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
-  room         Room?      @relation(fields: [roomId], references: [id], onDelete: SetNull)
-  
-  // Indexes for audit queries
-  @@index([userId])
-  @@index([roomId])
-  @@index([action])
-  @@index([timestamp(sort: Desc)])        // Most recent first
-  @@index([userId, timestamp(sort: Desc)]) // User activity timeline
-  @@index([roomId, timestamp(sort: Desc)]) // Room event log
-  @@index([action, timestamp(sort: Desc)]) // Security monitoring
+  id        String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  action    audit_logs_action_enum
+  userId    String?                @db.Uuid
+  roomId    String?                @db.Uuid
+  metadata  Json?
+  ipAddress String?                @db.Inet
+  createdAt DateTime               @default(now()) @db.Timestamptz(6)
+  user      User?                  @relation(fields: [userId], references: [id], onUpdate: NoAction, map: "FK_cfa83f61e4d27a87fcae1e025ab")
+
+  @@index([roomId], map: "IDX_3c868775b83bc1eaa72de9251a")
+  @@index([action], map: "IDX_cee5459245f652b75eb2759b4c")
+  @@index([userId], map: "IDX_cfa83f61e4d27a87fcae1e025a")
   @@map("audit_logs")
 }
 
-// ═══════════════════════════════════════════════════════════════
-// INDEXING STRATEGY NOTES
-// ═══════════════════════════════════════════════════════════════
-// 
-// Performance-critical queries:
-// 1. Active rooms lookup:       rooms[status, startedAt]
-// 2. User's active rooms:       room_participants[userId, leftAt]
-// 3. Room participants:         room_participants[roomId, leftAt]
-// 4. Ban enforcement:           room_participants[isBanned, roomId]
-// 5. Audit trail search:        audit_logs[userId|roomId, timestamp DESC]
-// 6. Recording cleanup:         recordings[expiresAt]
-// 7. Auth provider lookup:      auth_providers[providerType, providerId]
-// 
-// Composite indexes chosen for:
-// - Covering index optimization (Postgres index-only scans)
-// - Avoiding full table scans on time-series queries
-// - Supporting pagination with consistent sort order
-// 
-// ═══════════════════════════════════════════════════════════════
+model meetings {
+  id               String               @id(map: "PK_aa73be861afa77eb4ed31f3ed57") @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  title            String               @db.VarChar(255)
+  roomCode         String               @unique(map: "UQ_bad0d82fe56792d4a051f63a79b") @db.VarChar(20)
+  hostId           String               @db.Uuid
+  status           meetings_status_enum @default(waiting)
+  maxParticipants  Int                  @default(100)
+  startedAt        DateTime?            @db.Timestamptz(6)
+  endedAt          DateTime?            @db.Timestamptz(6)
+  peakParticipants Int                  @default(0)
+  createdAt        DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime             @default(now()) @db.Timestamptz(6)
+  users            User                 @relation(fields: [hostId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_f4c16c40d16a9eb2003c5dd1ff2")
+
+  @@index([roomCode], map: "IDX_bad0d82fe56792d4a051f63a79")
+  @@index([hostId], map: "IDX_f4c16c40d16a9eb2003c5dd1ff")
+}
+
+/// User authentication provider type
+enum AuthProviderType {
+  LOCAL
+  GOOGLE
+  GITHUB
+  MICROSOFT
+  APPLE
+  SAML
+
+  @@map("auth_provider_type")
+}
+
+/// Room lifecycle status
+enum RoomStatus {
+  CREATED
+  LIVE
+  ENDED
+  CANCELLED
+
+  @@map("room_status")
+}
+
+/// Participant role within a specific room
+enum ParticipantRole {
+  HOST
+  CO_HOST
+  PARTICIPANT
+
+  @@map("participant_role")
+}
+
+/// Recording lifecycle status
+enum RecordingStatus {
+  STARTED
+  IN_PROGRESS
+  STOPPED
+  FAILED
+  PROCESSING
+  READY
+
+  @@map("recording_status")
+}
+
+enum audit_logs_action_enum {
+  room_created
+  room_closed
+  user_joined
+  user_left
+  user_kicked
+  user_muted
+  all_muted
+  role_changed
+  producer_created
+  producer_closed
+  consumer_created
+  hand_raise_toggled
+}
+
+enum meetings_status_enum {
+  waiting
+  active
+  closed
+}
+
+enum users_role_enum {
+  STUDENT
+  TEACHER
+  ADMIN
+}
