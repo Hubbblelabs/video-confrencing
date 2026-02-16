@@ -288,10 +288,15 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
       </div>
 
       {/* Floating Panels */}
-      <div className={`fixed top-24 right-4 bottom-32 w-96 transform transition-transform duration-300 ease-in-out z-30 ${panelOpen !== 'none' || showWhiteboard ? 'translate-x-0' : 'translate-x-[120%]'
-        }`}>
+      <div className={`fixed transform transition-all duration-300 ease-in-out z-30 
+        ${showWhiteboard
+          ? 'inset-0 z-40'
+          : 'top-24 right-4 bottom-32 w-96'
+        } 
+        ${(panelOpen !== 'none' || showWhiteboard) ? 'translate-x-0' : 'translate-x-[120%]'}`
+      }>
         {showWhiteboard && (
-          <div className="absolute inset-0 z-50 rounded-3xl overflow-hidden bg-background/95 backdrop-blur-xl border border-border shadow-2xl">
+          <div className={`absolute inset-0 z-50 overflow-hidden bg-background/95 backdrop-blur-xl border border-border shadow-2xl ${showWhiteboard ? '' : 'rounded-3xl'}`}>
             <Suspense fallback={
               <div className="h-full w-full flex items-center justify-center bg-background/50">
                 <div className="flex flex-col items-center gap-3">
@@ -314,6 +319,7 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
                 }}
                 onCursorUpdate={whiteboard.onCursorUpdate}
                 remoteObjects={whiteboard.remoteObjects}
+                fullScreen={true}
               />
             </Suspense>
             <button

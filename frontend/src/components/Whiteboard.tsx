@@ -11,6 +11,7 @@ interface WhiteboardProps {
   onSave: (dataUrl: string) => void;
   onCursorUpdate: (callback: (data: WhiteboardCursor) => void) => () => void;
   remoteObjects?: any[];
+  fullScreen?: boolean;
 }
 
 const COLORS = [
@@ -28,6 +29,7 @@ export function Whiteboard({
   onSave,
   onCursorUpdate,
   remoteObjects,
+  fullScreen = false,
 }: WhiteboardProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -319,7 +321,7 @@ export function Whiteboard({
         </div>
       </div>
 
-      <div className="absolute bottom-4 left-24 right-4 h-14 bg-background/80 backdrop-blur-xl rounded-2xl flex items-center px-6 gap-6 z-20 shadow-xl border border-border/50">
+      <div className={`absolute left-24 right-4 h-14 bg-background/80 backdrop-blur-xl rounded-2xl flex items-center px-6 gap-6 z-20 shadow-xl border border-border/50 transition-all duration-300 ${fullScreen ? 'bottom-32 left-1/2 -translate-x-1/2 w-auto min-w-[600px] justify-center' : 'bottom-4 left-24 right-4'}`}>
         <div className="flex items-center gap-1.5">
           {COLORS.slice(0, 10).map(c => (
             <button
