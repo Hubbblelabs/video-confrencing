@@ -56,7 +56,7 @@ export const attendanceApi = {
     },
   ): Promise<{ records: AttendanceRecord[]; total: number }> => {
     const url = new URL(`${API_BASE}/attendance`);
-    
+
     if (filters) {
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
@@ -88,7 +88,7 @@ export const attendanceApi = {
     },
   ): Promise<AttendanceStatistics> => {
     const url = new URL(`${API_BASE}/attendance/statistics`);
-    
+
     if (filters) {
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
@@ -120,7 +120,7 @@ export const attendanceApi = {
     },
   ): Promise<{ users: UserAttendanceSummary[]; total: number }> => {
     const url = new URL(`${API_BASE}/attendance/summary`);
-    
+
     if (filters) {
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
