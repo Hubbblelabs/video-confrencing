@@ -25,6 +25,7 @@ export function AdminLayout({ children, currentView, onViewChange }: AdminLayout
         switch (view) {
             case "overview": return "Overview";
             case "users": return "User Management";
+            case "credits": return "Credit Management";
             case "attendance": return "Attendance Tracking";
             default: return "Admin Dashboard";
         }

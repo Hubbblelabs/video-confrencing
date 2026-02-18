@@ -25,6 +25,17 @@ export function useWebRTC(signaling: Signaling) {
     addConsumer,
   } = useParticipantsStore.getState();
 
+  // Queue for consume requests that come in before recvTransport is ready
+  const pendingConsumerQueue = useRef<Array<{
+    roomId: string;
+    producerId: string;
+    userId: string;
+    resolve: (value: mediasoupTypes.Consumer | null) => void;
+  }>>([]);
+
+  // Ref to hold the process function so it can be called from createRecvTransport
+  const processPendingConsumersRef = useRef<() => Promise<void>>(() => Promise.resolve());
+
   // ─── Initialize Device ────────────────────────────────────────
 
   const loadDevice = useCallback(async (rtpCapabilities: mediasoupTypes.RtpCapabilities): Promise<Device> => {
@@ -93,6 +104,8 @@ export function useWebRTC(signaling: Signaling) {
 
   const createRecvTransport = useCallback(async (roomId: string): Promise<mediasoupTypes.Transport> => {
     if (recvTransportRef.current && !recvTransportRef.current.closed) {
+      // If transport exists, try processing queue just in case
+      processPendingConsumersRef.current();
       return recvTransportRef.current;
     }
 
@@ -126,6 +139,10 @@ export function useWebRTC(signaling: Signaling) {
     });
 
     recvTransportRef.current = transport;
+
+    // Transport is ready, process any queued consumers
+    processPendingConsumersRef.current();
+
     return transport;
   }, [signaling]);
 
@@ -171,12 +188,27 @@ export function useWebRTC(signaling: Signaling) {
     roomId: string,
     producerId: string,
     userId: string,
+    isRetry = false
   ): Promise<mediasoupTypes.Consumer | null> => {
     const device = deviceRef.current;
-    if (!device) return null;
+    if (!device) {
+      console.warn("Device not loaded yet, queuing consumer request", { producerId });
+      return new Promise((resolve) => {
+        pendingConsumerQueue.current.push({ roomId, producerId, userId, resolve });
+      });
+    }
 
     const recvTransport = recvTransportRef.current;
-    if (!recvTransport || recvTransport.closed) return null;
+    if (!recvTransport || recvTransport.closed) {
+      if (!isRetry) {
+        console.warn("Recv transport not ready, queuing consumer request", { producerId });
+        return new Promise((resolve) => {
+          pendingConsumerQueue.current.push({ roomId, producerId, userId, resolve });
+        });
+      }
+      console.error("Recv transport missing during retry", { producerId });
+      return null;
+    }
 
     try {
       const data = await signaling.consume({
@@ -212,6 +244,31 @@ export function useWebRTC(signaling: Signaling) {
       return null;
     }
   }, [signaling, setParticipantAudioTrack, setParticipantVideoTrack, addConsumer]);
+
+  const processPendingConsumers = useCallback(async () => {
+    const queue = pendingConsumerQueue.current;
+    if (queue.length === 0) return;
+
+    console.log(`Processing ${queue.length} pending consumer requests...`);
+
+    // Process all pending requests
+    const currentQueue = [...queue];
+    pendingConsumerQueue.current = [];
+
+    for (const item of currentQueue) {
+      // call consumeProducer again now that transport might be ready
+      try {
+        const consumer = await consumeProducer(item.roomId, item.producerId, item.userId, true);
+        item.resolve(consumer);
+      } catch (e) {
+        console.error("Failed to process pending consumer:", e);
+        item.resolve(null);
+      }
+    }
+  }, [consumeProducer]);
+
+  // Update the ref whenever the function changes
+  processPendingConsumersRef.current = processPendingConsumers;
 
   // ─── Close a specific producer ────────────────────────────────
 
@@ -289,6 +346,7 @@ export function useWebRTC(signaling: Signaling) {
     pauseProducer,
     resumeProducer,
     replaceProducerTrack,
+    hasProducer: (label: string) => producersRef.current.has(label),
     cleanup,
   };
 }

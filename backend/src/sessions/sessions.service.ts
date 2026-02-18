@@ -67,7 +67,7 @@ export class SessionsService {
         const order = filters.order || 'DESC';
 
         if (sort === 'date') {
-            qb.orderBy('COALESCE(session.scheduledStart, session.createdAt)', order);
+            qb.orderBy('session.createdAt', order);
         } else if (sort === 'price') {
             qb.orderBy('session.price', order);
         } else if (sort === 'popularity') {

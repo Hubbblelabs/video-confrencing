@@ -36,8 +36,10 @@ async function bootstrap(): Promise<void> {
 
   // CORS
   app.enableCors({
-    origin: nodeEnv === 'production' ? false : '*',
+    origin: true,
     credentials: true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    allowedHeaders: 'Content-Type, Accept, Authorization',
   });
 
   // WebSocket adapter

@@ -25,7 +25,7 @@ import {
     DialogTrigger
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Calendar, Clock, Plus, User, Video } from "lucide-react";
+import { Calendar, Clock, Plus, User, Video, Play } from "lucide-react";
 import { toast } from "sonner";
 
 export function MeetingSchedule() {
@@ -66,6 +66,17 @@ export function MeetingSchedule() {
             toast.success('Instant meeting started');
         } catch (err) {
             toast.error('Failed to start instant meeting');
+        }
+    };
+
+    const handleStartMeeting = async (meetingId: string) => {
+        if (!token) return;
+        try {
+            const { roomId } = await adminMeetingsApi.startMeeting(token, meetingId);
+            navigate(`/room/${roomId}`);
+            toast.success('Meeting started — you are now the host');
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Failed to start meeting');
         }
     };
 
@@ -197,18 +208,19 @@ export function MeetingSchedule() {
                                     <TableHead>Host</TableHead>
                                     <TableHead>Scheduled Period</TableHead>
                                     <TableHead className="text-right">Max Users</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {loading ? (
                                     <TableRow>
-                                        <TableCell colSpan={4} className="h-24 text-center">
+                                        <TableCell colSpan={5} className="h-24 text-center">
                                             Loading schedule...
                                         </TableCell>
                                     </TableRow>
                                 ) : meetings.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={4} className="h-24 text-center">
+                                        <TableCell colSpan={5} className="h-24 text-center">
                                             No upcoming meetings scheduled.
                                         </TableCell>
                                     </TableRow>
@@ -246,6 +258,16 @@ export function MeetingSchedule() {
                                                 <Badge variant="outline">
                                                     {meeting.maxParticipants}
                                                 </Badge>
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <Button
+                                                    size="sm"
+                                                    className="gap-1"
+                                                    onClick={() => handleStartMeeting(meeting.id)}
+                                                >
+                                                    <Play className="h-3.5 w-3.5" />
+                                                    Start
+                                                </Button>
                                             </TableCell>
                                         </TableRow>
                                     ))

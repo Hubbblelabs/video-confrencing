@@ -111,6 +111,7 @@ function App() {
       useParticipantsStore.getState().removeConsumer(data.userId, data.producerId);
     },
     onProducerPaused: (data) => {
+      console.log('App: onProducerPaused', data);
       // Update participant state when their producer is paused
       const store = useParticipantsStore.getState();
       if (data.kind === 'audio') {
@@ -120,6 +121,7 @@ function App() {
       }
     },
     onProducerResumed: (data) => {
+      console.log('App: onProducerResumed', data);
       // Update participant state when their producer is resumed
       const store = useParticipantsStore.getState();
       if (data.kind === 'audio') {
@@ -133,6 +135,12 @@ function App() {
     },
     onReactionReceived: (data) => {
       useParticipantsStore.getState().setParticipantReaction(data.userId, data.reaction);
+    },
+    onPeerMediaUpdate: (data) => {
+      console.log('CLIENT RECEIVE peer-media-update', data);
+      const store = useParticipantsStore.getState();
+      store.setParticipantMuted(data.userId, !data.audioEnabled);
+      store.setParticipantVideoOff(data.userId, !data.videoEnabled);
     },
     onError: (data) => {
       useRoomStore.getState().setError(data.message);

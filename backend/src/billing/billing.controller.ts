@@ -41,4 +41,21 @@ export class BillingController {
     async getAdminStats() {
         return this.billingService.getAdminStats();
     }
+
+    @Get('admin/wallets')
+    @Roles(UserRole.ADMIN)
+    async getStudentWallets(@Query('search') search?: string) {
+        return this.billingService.getAllStudentWallets(search);
+    }
+
+    @Post('admin/add-credits')
+    @Roles(UserRole.ADMIN)
+    async adminAddCredits(@Body() body: { userId: string; amount: number }) {
+        await this.billingService.getOrCreateWallet(body.userId);
+        return this.billingService.addCredits({
+            userId: body.userId,
+            amount: body.amount,
+            metadata: { method: 'admin_topup' },
+        });
+    }
 }

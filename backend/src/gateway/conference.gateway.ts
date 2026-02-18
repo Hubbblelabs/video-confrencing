@@ -578,6 +578,14 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
 
     const { kind } = await this.webrtc.pauseProducer(payload.producerId);
 
+    // Update Redis state so new joiners see correct status
+    try {
+      await this.rooms.updateParticipantMedia(roomId, userId, kind as 'audio' | 'video', true);
+    } catch (error) {
+      const logger = new Logger('ConferenceGateway');
+      logger.error(`Failed to update participant media state: ${(error as Error).message}`);
+    }
+
     // Broadcast to other users in the room
     socket.to(roomId).emit(WsEvents.PRODUCER_PAUSED, {
       userId,
@@ -604,6 +612,14 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
 
     const { kind } = await this.webrtc.resumeProducer(payload.producerId);
 
+    // Update Redis state so new joiners see correct status
+    try {
+      await this.rooms.updateParticipantMedia(roomId, userId, kind as 'audio' | 'video', false);
+    } catch (error) {
+      const logger = new Logger('ConferenceGateway');
+      logger.error(`Failed to update participant media state: ${(error as Error).message}`);
+    }
+
     // Broadcast to other users in the room
     socket.to(roomId).emit(WsEvents.PRODUCER_RESUMED, {
       userId,
@@ -613,6 +629,41 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
 
     return { resumed: true };
   }
+
+  @SubscribeMessage(WsEvents.MEDIA_STATE_CHANGE)
+  async handleMediaStateChange(
+    @ConnectedSocket() socket: AppSocket,
+    @MessageBody() payload: { roomId: string; audioEnabled: boolean; videoEnabled: boolean },
+  ) {
+    this.assertAuthenticated(socket);
+
+    const userId = socket.data.userId!;
+    const roomId = payload.roomId || socket.data.roomId;
+
+    if (!roomId) {
+      throw new Error('User not in any room');
+    }
+
+    this.logger.log(`SERVER RECEIVE media-state-change: user=${userId} audio=${payload.audioEnabled} video=${payload.videoEnabled}`);
+
+    // Update Redis state so new joiners see correct status
+    try {
+      await this.rooms.updateParticipantMedia(roomId, userId, 'audio', !payload.audioEnabled);
+      await this.rooms.updateParticipantMedia(roomId, userId, 'video', !payload.videoEnabled);
+    } catch (error) {
+      this.logger.error(`Failed to update participant media state: ${(error as Error).message}`);
+    }
+
+    // Broadcast to all other users in the room
+    socket.to(roomId).emit(WsEvents.PEER_MEDIA_UPDATE, {
+      userId,
+      audioEnabled: payload.audioEnabled,
+      videoEnabled: payload.videoEnabled,
+    });
+
+    return { success: true };
+  }
+
   // ─── Whiteboard Events ────────────────────────────────────────
 
   @SubscribeMessage(WsEvents.WHITEBOARD_DRAW)

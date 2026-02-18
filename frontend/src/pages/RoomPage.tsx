@@ -187,26 +187,48 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
     bootstrap();
   }, [roomId, media, signaling, webrtc, produceLocalTracks, userId, existingProducers, connectionState]);
 
-  const handleToggleMic = useCallback(async () => {
+  const handleToggleMic = useCallback(() => {
     const nowOn = media.toggleMic();
-    if (nowOn) await webrtc.resumeProducer('audio');
-    else await webrtc.pauseProducer('audio');
-  }, [media, webrtc]);
+    console.log('CLIENT EMIT media-state-change (mic)', { nowOn });
+    // Fire signaling in background — local UI is already updated
+    if (nowOn) webrtc.resumeProducer('audio').catch(console.error);
+    else webrtc.pauseProducer('audio').catch(console.error);
+
+    // Always emit dedicated media state event for reliable UI sync
+    if (roomId) {
+      const videoOn = useMediaStore.getState().isCameraOn;
+      signaling.emitMediaState(roomId, nowOn, videoOn).catch(console.error);
+    }
+  }, [media, webrtc, roomId, signaling]);
 
   const handleToggleCamera = useCallback(async () => {
     const nowOn = await media.toggleCamera();
+    console.log('CLIENT EMIT media-state-change (camera)', { nowOn });
     if (nowOn) {
-      // Camera turned ON — replace the dead track on the producer with the fresh one
       const stream = useMediaStore.getState().localStream;
       const newTrack = stream?.getVideoTracks()[0];
+
       if (newTrack) {
-        await webrtc.replaceProducerTrack('video', newTrack);
+        // If we don't have a producer yet (user joined with video OFF), create one
+        if (!webrtc.hasProducer('video')) {
+          await webrtc.produceTrack(newTrack, { label: 'video' });
+        } else {
+          // Camera turned ON — replace dead track and resume in parallel
+          webrtc.replaceProducerTrack('video', newTrack)
+            .then(() => webrtc.resumeProducer('video'))
+            .catch(console.error);
+        }
       }
-      await webrtc.resumeProducer('video');
     } else {
-      await webrtc.pauseProducer('video');
+      webrtc.pauseProducer('video').catch(console.error);
     }
-  }, [media, webrtc]);
+
+    // Always emit dedicated media state event for reliable UI sync
+    if (roomId) {
+      const audioOn = useMediaStore.getState().isMicOn;
+      signaling.emitMediaState(roomId, audioOn, nowOn).catch(console.error);
+    }
+  }, [media, webrtc, roomId, signaling]);
 
   const handleToggleScreen = useCallback(async () => {
     if (!roomId) return;
@@ -367,7 +389,7 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
             {panelOpen === 'chat' && (
               <Chat
                 messages={chat.messages}
-                typingUsers={chat.typingUsers}
+                typingUsers={chat.typingUsers.map(u => u.displayName)}
                 currentUserId={userId!}
                 participants={participants}
                 onSendMessage={chat.sendMessage}

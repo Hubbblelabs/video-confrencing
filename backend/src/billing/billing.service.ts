@@ -5,13 +5,13 @@ import {
     BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, ILike } from 'typeorm';
 import {
     WalletEntity,
     TransactionEntity,
     UserEntity,
 } from '../database/entities';
-import { TransactionType, TransactionStatus } from '../shared/enums';
+import { TransactionType, TransactionStatus, UserRole } from '../shared/enums';
 
 @Injectable()
 export class BillingService {
@@ -165,5 +165,43 @@ export class BillingService {
             transactionCount,
             recentTransactions,
         };
+    }
+
+    /**
+     * Get all student wallets with user info (for admin)
+     */
+    async getAllStudentWallets(search?: string): Promise<{
+        userId: string;
+        displayName: string;
+        email: string;
+        balance: number;
+    }[]> {
+        const whereConditions: any = { role: UserRole.STUDENT };
+        if (search) {
+            whereConditions.displayName = ILike(`%${search}%`);
+        }
+
+        const students = await this.userRepo.find({
+            where: search
+                ? [
+                    { role: UserRole.STUDENT, displayName: ILike(`%${search}%`) },
+                    { role: UserRole.STUDENT, email: ILike(`%${search}%`) },
+                ]
+                : { role: UserRole.STUDENT },
+            order: { displayName: 'ASC' },
+        });
+
+        const results = [];
+        for (const student of students) {
+            const wallet = await this.getOrCreateWallet(student.id);
+            results.push({
+                userId: student.id,
+                displayName: student.displayName,
+                email: student.email,
+                balance: wallet.balance,
+            });
+        }
+
+        return results;
     }
 }

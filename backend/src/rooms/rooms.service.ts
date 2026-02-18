@@ -186,23 +186,12 @@ export class RoomsService {
     const user = await this.userRepo.findOne({ where: { id: params.userId } });
     const displayName = user?.displayName || 'Unknown User';
 
-    // Credit logic for students
+    // Check if student has at least 1 credit to join
     if (user && user.role === UserRole.STUDENT && !isHost) {
-      const sessionCost = 10; // Default cost per session
-
       const wallet = await this.billing.getOrCreateWallet(params.userId);
-      if (wallet.balance < sessionCost) {
+      if (wallet.balance < 1) {
         throw new WsRoomException('Insufficient credits to join this session');
       }
-
-      await this.billing.debitCredits({
-        userId: params.userId,
-        amount: sessionCost,
-        meetingId: actualRoomId,
-        metadata: { action: 'join_room', roomCode: roomData['roomCode'] }
-      });
-
-      this.logger.log(`Debited ${sessionCost} credits from student ${params.userId} for session ${actualRoomId}`);
     }
 
     const participant: RoomParticipant = {
@@ -310,6 +299,26 @@ export class RoomsService {
         this.logger.log(
           `Attendance record updated for user ${params.userId} in room ${params.roomId}. Duration: ${durationSeconds}s`,
         );
+
+        // Deduct credits: 1 credit per minute (rounded up)
+        const creditsToDeduct = Math.ceil(durationSeconds / 60);
+        if (creditsToDeduct > 0) {
+          try {
+            await this.billing.debitCredits({
+              userId: params.userId,
+              amount: creditsToDeduct,
+              meetingId: params.roomId,
+              metadata: { durationSeconds, reason: 'meeting_usage' },
+            });
+            this.logger.log(
+              `Debited ${creditsToDeduct} credits from user ${params.userId} for ${durationSeconds}s in room ${params.roomId}`,
+            );
+          } catch (e) {
+            this.logger.warn(
+              `Credit deduction failed for user ${params.userId}: ${(e as Error).message}`,
+            );
+          }
+        }
       } else {
         this.logger.warn(
           `No active attendance record found for user ${params.userId} in room ${params.roomId}`,
@@ -472,6 +481,39 @@ export class RoomsService {
     });
 
     return !!participant.handRaised;
+  }
+
+  /**
+   * Updates a participant's media state (muted or video off).
+   */
+  async updateParticipantMedia(
+    roomId: string,
+    userId: string,
+    kind: 'audio' | 'video',
+    isPaused: boolean,
+  ): Promise<void> {
+    const participantData = await this.redis.hget(
+      RedisKeys.roomParticipants(roomId),
+      userId,
+    );
+
+    if (!participantData) return;
+
+    const participant: RoomParticipant = JSON.parse(participantData);
+
+    if (kind === 'audio') {
+      participant.isMuted = isPaused;
+    } else if (kind === 'video') {
+      participant.isVideoOff = isPaused;
+    }
+
+    await this.redis.hset(
+      RedisKeys.roomParticipants(roomId),
+      userId,
+      JSON.stringify(participant),
+    );
+
+    this.logger.log(`Updated media state for user ${userId} in room ${roomId}: ${kind}=${isPaused ? 'paused' : 'resumed'}`);
   }
 
   /**
@@ -749,6 +791,58 @@ export class RoomsService {
     });
 
     return this.meetingRepo.save(meeting);
+  }
+
+  /**
+   * Starts a scheduled meeting by initializing it in Redis so participants can join.
+   */
+  async startScheduledMeeting(meetingId: string, hostUserId: string): Promise<{ roomId: string; roomCode: string }> {
+    const meeting = await this.meetingRepo.findOne({ where: { id: meetingId } });
+    if (!meeting) {
+      throw new WsRoomException('Meeting not found');
+    }
+
+    if (meeting.status !== RoomStatus.SCHEDULED) {
+      throw new WsRoomException(`Meeting cannot be started — current status is "${meeting.status}"`);
+    }
+
+    if (meeting.hostId !== hostUserId) {
+      throw new WsRoomException('Only the host can start this meeting');
+    }
+
+    // Initialize Redis state (same pattern as createRoom)
+    const roomState: Record<string, string> = {
+      roomId: meeting.id,
+      roomCode: meeting.roomCode,
+      hostUserId: meeting.hostId,
+      status: RoomStatus.WAITING,
+      createdAt: String(Date.now()),
+      maxParticipants: String(meeting.maxParticipants),
+      routerId: '',
+    };
+
+    const pipeline = this.redis.pipeline();
+    pipeline.hmset(RedisKeys.room(meeting.id), roomState);
+    pipeline.expire(RedisKeys.room(meeting.id), RedisKeys.ROOM_TTL);
+    pipeline.sadd(RedisKeys.activeRooms, meeting.id);
+    pipeline.set(RedisKeys.roomCodeToId(meeting.roomCode), meeting.id, 'EX', RedisKeys.ROOM_TTL);
+    await pipeline.exec();
+
+    // Update status in PostgreSQL
+    await this.meetingRepo.update(meeting.id, {
+      status: RoomStatus.WAITING,
+      startedAt: new Date(),
+    });
+
+    await this.audit.log({
+      action: AuditAction.ROOM_CREATED,
+      userId: hostUserId,
+      roomId: meeting.id,
+      metadata: { title: meeting.title, roomCode: meeting.roomCode, scheduledStart: true },
+    });
+
+    this.logger.log(`Scheduled meeting started: ${meeting.id} (code: ${meeting.roomCode})`);
+    return { roomId: meeting.id, roomCode: meeting.roomCode };
   }
 
   private generateRoomCode(): string {

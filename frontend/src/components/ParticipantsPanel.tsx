@@ -10,7 +10,6 @@ interface ParticipantsPanelProps {
 }
 
 export function ParticipantsPanel({
-  localUserId,
   localDisplayName,
   isHost,
   onKick,

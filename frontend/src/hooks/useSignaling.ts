@@ -38,6 +38,7 @@ interface SignalingListeners {
   onProducerResumed?: (data: ProducerResumedEvent) => void;
   onHandRaised?: (data: HandRaisedEvent) => void;
   onReactionReceived?: (data: ReactionEvent) => void;
+  onPeerMediaUpdate?: (data: { userId: string; audioEnabled: boolean; videoEnabled: boolean }) => void;
   onError?: (data: { message: string }) => void;
 }
 
@@ -173,6 +174,11 @@ export function useSignaling(listeners: SignalingListeners = {}) {
 
     socket.on(WS_EVENTS.REACTION_RECEIVED, (data: ReactionEvent) => {
       listenersRef.current.onReactionReceived?.(data);
+    });
+
+    socket.on(WS_EVENTS.PEER_MEDIA_UPDATE, (data: { userId: string; audioEnabled: boolean; videoEnabled: boolean }) => {
+      console.log('CLIENT RECEIVE peer-media-update', data);
+      listenersRef.current.onPeerMediaUpdate?.(data);
     });
 
     socket.on(WS_EVENTS.ERROR, (data: { message: string }) => {
@@ -315,6 +321,13 @@ export function useSignaling(listeners: SignalingListeners = {}) {
     await emitWithAck<{ resumed: boolean }>(socket, WS_EVENTS.RESUME_PRODUCER, { producerId });
   }, []);
 
+  const emitMediaState = useCallback(async (roomId: string, audioEnabled: boolean, videoEnabled: boolean): Promise<void> => {
+    const socket = socketRef.current;
+    if (!socket?.connected) return;
+    console.log('CLIENT EMIT media-state-change', { roomId, audioEnabled, videoEnabled });
+    await emitWithAck<{ success: boolean }>(socket, WS_EVENTS.MEDIA_STATE_CHANGE, { roomId, audioEnabled, videoEnabled });
+  }, []);
+
   // ─── Cleanup on unmount ───────────────────────────────────────
 
   useEffect(() => {
@@ -346,5 +359,6 @@ export function useSignaling(listeners: SignalingListeners = {}) {
     closeProducer,
     pauseProducer,
     resumeProducer,
+    emitMediaState,
   };
 }

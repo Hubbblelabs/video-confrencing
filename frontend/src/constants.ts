@@ -19,6 +19,7 @@ export const WS_EVENTS = {
   CLOSE_PRODUCER: 'media:closeProducer',
   PAUSE_PRODUCER: 'media:pauseProducer',
   RESUME_PRODUCER: 'media:resumeProducer',
+  MEDIA_STATE_CHANGE: 'media:stateChange',
 
   // Whiteboard
   WHITEBOARD_DRAW: 'whiteboard:draw',
@@ -79,9 +80,10 @@ export const WS_EVENTS = {
   PRODUCER_CLOSED: 'media:producerClosed',
   PRODUCER_PAUSED: 'media:producerPaused',
   PRODUCER_RESUMED: 'media:producerResumed',
+  PEER_MEDIA_UPDATE: 'media:peerUpdate',
 
   ERROR: 'error',
 } as const;
 
-export const API_BASE_URL = import.meta.env['VITE_API_URL'] ?? 'http://localhost:3000';
-export const WS_URL = import.meta.env['VITE_WS_URL'] ?? 'http://localhost:3000';
+export const API_BASE_URL = import.meta.env['VITE_API_URL'];// ?? 'http://localhost:3000';
+export const WS_URL = import.meta.env['VITE_WS_URL'];// ?? 'http://localhost:3000';

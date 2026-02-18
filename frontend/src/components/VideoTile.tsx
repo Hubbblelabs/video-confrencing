@@ -62,13 +62,31 @@ function VideoTileInner({
     if (audioTrack) {
       const stream = new MediaStream([audioTrack]);
       el.srcObject = stream;
-      el.play().catch(() => { });
+
+      // Ensure we only try to play when enough data is available
+      const playAudio = async () => {
+        try {
+          if (el.readyState >= 2) { // HAVE_CURRENT_DATA
+            await el.play();
+          } else {
+            el.oncanplay = async () => {
+              await el.play();
+              el.oncanplay = null;
+            };
+          }
+        } catch (err) {
+          console.error('Failed to play audio:', err);
+        }
+      };
+
+      playAudio();
     } else {
       el.srcObject = null;
     }
 
     return () => {
       el.srcObject = null;
+      el.oncanplay = null;
     };
   }, [audioTrack, isLocal]);
 

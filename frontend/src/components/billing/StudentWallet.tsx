@@ -5,7 +5,7 @@ import type { Wallet, Transaction } from '@/services/billing.service';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
+
 import {
     Dialog,
     DialogContent,
@@ -23,14 +23,13 @@ import {
     ArrowDownLeft,
     Plus,
     History,
-    CreditCard,
     Loader2,
     CheckCircle2,
     Sparkles
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 
 interface StudentWalletProps {
     trigger?: React.ReactNode;

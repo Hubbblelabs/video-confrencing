@@ -82,7 +82,11 @@ export const useParticipantsStore = create<ParticipantsState & ParticipantsActio
     if (!participant) return;
 
     const next = new Map(current);
-    next.set(userId, { ...participant, videoTrack: track });
+    next.set(userId, {
+      ...participant,
+      videoTrack: track,
+      isVideoOff: track ? false : participant.isVideoOff
+    });
     set({ participants: next });
   },
 

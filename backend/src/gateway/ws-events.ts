@@ -23,6 +23,7 @@ export const WsEvents = {
   CLOSE_PRODUCER: 'media:closeProducer',
   PAUSE_PRODUCER: 'media:pauseProducer',
   RESUME_PRODUCER: 'media:resumeProducer',
+  MEDIA_STATE_CHANGE: 'media:stateChange',
 
   // ─── Server → Client ───────────────────────────────────────────
   AUTHENTICATED: 'authenticated',
@@ -40,6 +41,7 @@ export const WsEvents = {
   PRODUCER_CLOSED: 'media:producerClosed',
   PRODUCER_PAUSED: 'media:producerPaused',
   PRODUCER_RESUMED: 'media:producerResumed',
+  PEER_MEDIA_UPDATE: 'media:peerUpdate',
 
   // Whiteboard
   WHITEBOARD_DRAW: 'whiteboard:draw',

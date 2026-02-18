@@ -6,6 +6,7 @@ import { UserManagement } from './admin/UserManagement';
 import { AttendanceManagement } from './admin/AttendanceManagement';
 import { MeetingHistory } from './admin/MeetingHistory';
 import { MeetingSchedule } from './admin/MeetingSchedule';
+import { CreditManagement } from './admin/CreditManagement';
 
 export function AdminDashboard() {
   const currentUserRole = useAuthStore((s) => s.role);
@@ -29,6 +30,8 @@ export function AdminDashboard() {
         return <AdminOverview />;
       case 'users':
         return <UserManagement />;
+      case 'credits':
+        return <CreditManagement />;
       case 'attendance':
         return <AttendanceManagement />;
       case 'meeting-history':

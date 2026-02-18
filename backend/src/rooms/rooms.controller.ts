@@ -4,6 +4,7 @@ import {
     Post,
     Body,
     Query,
+    Param,
     UseGuards,
     ParseIntPipe,
     Req,
@@ -70,6 +71,12 @@ export class RoomsController {
             title: 'Instant Meeting',
             maxParticipants: 100,
         });
+    }
+
+    @Post(':id/start')
+    @Roles(UserRole.ADMIN, UserRole.TEACHER)
+    async startMeeting(@Req() req: any, @Param('id') id: string) {
+        return this.roomsService.startScheduledMeeting(id, req.user.id);
     }
 
     @Get('upcoming')

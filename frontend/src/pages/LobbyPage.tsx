@@ -41,7 +41,7 @@ function BalanceIndicator() {
   return <span className="text-sm font-bold">{balance} credits</span>;
 }
 
-export function LobbyPage({ onCreateRoom, onJoinRoom, onShowAdmin, onShowAttendance, onShowBrowser }: LobbyPageProps) {
+export function LobbyPage({ onJoinRoom, onShowBrowser }: LobbyPageProps) {
   const [roomId, setRoomId] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -60,7 +60,7 @@ export function LobbyPage({ onCreateRoom, onJoinRoom, onShowAdmin, onShowAttenda
   const role = useAuthStore((s) => s.role);
   const clearAuth = useAuthStore((s) => s.clearAuth);
 
-  const canCreateRoom = role === 'TEACHER' || role === 'ADMIN';
+
 
   useEffect(() => {
     const updateTime = () => {
@@ -73,17 +73,7 @@ export function LobbyPage({ onCreateRoom, onJoinRoom, onShowAdmin, onShowAttenda
     return () => clearInterval(interval);
   }, []);
 
-  const handleCreate = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      await onCreateRoom('New Meeting');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create room');
-    } finally {
-      setLoading(false);
-    }
-  };
+
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -388,7 +378,7 @@ export function LobbyPage({ onCreateRoom, onJoinRoom, onShowAdmin, onShowAttenda
                     <SessionCard
                       key={session.id}
                       session={session}
-                      onClick={(id) => {
+                      onClick={() => {
                         setShowCatalog(false);
                         if (onShowBrowser) onShowBrowser();
                       }}

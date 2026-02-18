@@ -116,4 +116,19 @@ export const adminMeetingsApi = {
 
         return response.json();
     },
+
+    // Start a scheduled meeting (activate it in Redis)
+    startMeeting: async (token: string, meetingId: string): Promise<{ roomId: string; roomCode: string }> => {
+        const response = await fetch(`${API_BASE}/admin/meetings/${meetingId}/start`, {
+            method: 'POST',
+            headers: getAuthHeaders(token),
+        });
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ message: 'Failed to start meeting' }));
+            throw new Error(error.message || 'Failed to start meeting');
+        }
+
+        return response.json();
+    },
 };

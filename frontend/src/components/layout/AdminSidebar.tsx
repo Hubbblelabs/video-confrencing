@@ -6,7 +6,8 @@ import {
     LogOut,
     Monitor,
     History,
-    Calendar
+    Calendar,
+    Wallet
 } from "lucide-react";
 import {
     Sidebar,
@@ -47,6 +48,12 @@ export function AdminSidebar({ currentView, onViewChange }: AdminSidebarProps) {
             title: "User Management",
             icon: Users,
             id: "users",
+            adminOnly: true,
+        },
+        {
+            title: "Credit Management",
+            icon: Wallet,
+            id: "credits",
             adminOnly: true,
         },
         {
