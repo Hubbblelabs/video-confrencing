@@ -20,6 +20,7 @@ import type {
   WebRtcTransportOptions,
 } from 'mediasoup/node/lib/types';
 import { WsMediaException } from '../shared/exceptions';
+import { getLocalLanIp } from '../shared/network.utils';
 
 interface TransportContext {
   transport: WebRtcTransport;
@@ -71,6 +72,16 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
   async onModuleInit(): Promise<void> {
     this.listenIp = this.config.get<string>('mediasoup.listenIp', '0.0.0.0');
     this.announcedIp = this.config.get<string>('mediasoup.announcedIp', '127.0.0.1');
+
+    // Auto-detect LAN IP if localhost is configured (common in dev)
+    if (this.announcedIp === '127.0.0.1' || this.announcedIp === '0.0.0.0') {
+      const lanIp = getLocalLanIp();
+      if (lanIp && lanIp !== '127.0.0.1') {
+        this.logger.warn(`Auto-detected LAN IP: ${lanIp}. Using this as announced IP instead of ${this.announcedIp} for cross-device access.`);
+        this.announcedIp = lanIp;
+      }
+    }
+
     this.minPort = this.config.get<number>('mediasoup.minPort', 40000);
     this.maxPort = this.config.get<number>('mediasoup.maxPort', 49999);
     this.mediaCodecs = this.config.get<RtpCodecCapability[]>('mediasoup.mediaCodecs', []);

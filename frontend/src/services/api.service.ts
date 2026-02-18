@@ -5,12 +5,12 @@
  * All API calls should go through this service
  */
 
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosError } from 'axios';
 import { API_BASE_URL } from '../constants';
 import type {
   LoginRequest,
   RegisterRequest,
   AuthResponse,
-  ApiError,
   CreateRoomRequest,
   JoinRoomRequest,
   Room,
@@ -21,102 +21,97 @@ import type {
 // Base API Client
 // ─────────────────────────────────────────────────────────────
 
-class ApiClient {
-  private baseUrl: string;
+// Create axios instance with default config
+export const api = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+    'ngrok-skip-browser-warning': 'true',
+  },
+});
 
-  constructor(baseUrl: string) {
-    this.baseUrl = baseUrl;
+class ApiClient {
+  private client: AxiosInstance;
+
+  constructor(client: AxiosInstance) {
+    this.client = client;
   }
 
   /**
    * Make authenticated request with token
    */
   private async request<T>(
-    endpoint: string,
-    options: RequestInit = {},
+    method: string,
+    url: string,
+    data?: unknown,
+    config: AxiosRequestConfig = {},
     token?: string,
   ): Promise<T> {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...(options.headers as Record<string, string>),
-    };
+    const headers: Record<string, string> = {};
 
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
-      ...options,
-      headers,
-    });
-
-    if (!response.ok) {
-      const error: ApiError | null = await response.json().catch(() => null);
-      const errorMessage = error?.message
-        ? Array.isArray(error.message)
-          ? error.message.join(', ')
-          : error.message
-        : `Request failed (${response.status})`;
-      throw new Error(errorMessage);
+    try {
+      const response = await this.client.request<T>({
+        method,
+        url,
+        data,
+        ...config,
+        headers: {
+          ...config.headers,
+          ...headers,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const apiError = error.response?.data;
+        const errorMessage = apiError?.message
+          ? Array.isArray(apiError.message)
+            ? apiError.message.join(', ')
+            : apiError.message
+          : error.message || `Request failed (${error.response?.status})`;
+        throw new Error(errorMessage);
+      }
+      throw error;
     }
-
-    return response.json();
   }
 
   /**
    * GET request
    */
   async get<T>(endpoint: string, token?: string): Promise<T> {
-    return this.request<T>(endpoint, { method: 'GET' }, token);
+    return this.request<T>('GET', endpoint, undefined, {}, token);
   }
 
   /**
    * POST request
    */
   async post<T>(endpoint: string, body: unknown, token?: string): Promise<T> {
-    return this.request<T>(
-      endpoint,
-      {
-        method: 'POST',
-        body: JSON.stringify(body),
-      },
-      token,
-    );
+    return this.request<T>('POST', endpoint, body, {}, token);
   }
 
   /**
    * PUT request
    */
   async put<T>(endpoint: string, body: unknown, token?: string): Promise<T> {
-    return this.request<T>(
-      endpoint,
-      {
-        method: 'PUT',
-        body: JSON.stringify(body),
-      },
-      token,
-    );
+    return this.request<T>('PUT', endpoint, body, {}, token);
   }
 
   /**
    * PATCH request
    */
   async patch<T>(endpoint: string, body: unknown, token?: string): Promise<T> {
-    return this.request<T>(
-      endpoint,
-      {
-        method: 'PATCH',
-        body: JSON.stringify(body),
-      },
-      token,
-    );
+    return this.request<T>('PATCH', endpoint, body, {}, token);
   }
 
   /**
    * DELETE request
    */
   async delete<T>(endpoint: string, token?: string): Promise<T> {
-    return this.request<T>(endpoint, { method: 'DELETE' }, token);
+    return this.request<T>('DELETE', endpoint, undefined, {}, token);
   }
 }
 
@@ -124,7 +119,7 @@ class ApiClient {
 // API Endpoints
 // ─────────────────────────────────────────────────────────────
 
-const client = new ApiClient(API_BASE_URL);
+const client = new ApiClient(api);
 
 // ─────────────────────────────────────────────────────────────
 // Auth API
