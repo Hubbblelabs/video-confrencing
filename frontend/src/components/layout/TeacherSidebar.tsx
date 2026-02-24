@@ -1,14 +1,11 @@
-
 import {
-    BarChart3,
-    Users,
-    Clock,
-    LogOut,
-    Monitor,
-    History,
+    GraduationCap,
+    LayoutDashboard,
     Calendar,
-    Wallet,
-    BookOpen
+    Clock,
+    History,
+    LogOut,
+    BookOpen,
 } from "lucide-react";
 import {
     Sidebar,
@@ -26,12 +23,12 @@ import {
 } from "@/components/ui/sidebar";
 import { useAuthStore } from "@/store/auth.store";
 
-interface AdminSidebarProps {
+interface TeacherSidebarProps {
     currentView: string;
     onViewChange: (view: string) => void;
 }
 
-export function AdminSidebar({ currentView, onViewChange }: AdminSidebarProps) {
+export function TeacherSidebar({ currentView, onViewChange }: TeacherSidebarProps) {
     const { state } = useSidebar();
     const displayName = useAuthStore((s) => s.displayName);
     const role = useAuthStore((s) => s.role);
@@ -41,27 +38,19 @@ export function AdminSidebar({ currentView, onViewChange }: AdminSidebarProps) {
 
     const items = [
         {
-            title: "Overview",
-            icon: BarChart3,
-            id: "overview",
+            title: "My Classes",
+            icon: LayoutDashboard,
+            id: "my-classes",
         },
         {
-            title: "User Management",
-            icon: Users,
-            id: "users",
-            adminOnly: true,
-        },
-        {
-            title: "Credit Management",
-            icon: Wallet,
-            id: "credits",
-            adminOnly: true,
-        },
-        {
-            title: "Subjects",
+            title: "My Subjects",
             icon: BookOpen,
-            id: "subjects",
-            adminOnly: true,
+            id: "my-subjects",
+        },
+        {
+            title: "Schedule",
+            icon: Calendar,
+            id: "schedule",
         },
         {
             title: "Attendance",
@@ -69,16 +58,11 @@ export function AdminSidebar({ currentView, onViewChange }: AdminSidebarProps) {
             id: "attendance",
         },
         {
-            title: "Meeting History",
+            title: "Class History",
             icon: History,
-            id: "meeting-history",
+            id: "class-history",
         },
-        {
-            title: "Meeting Schedule",
-            icon: Calendar,
-            id: "meeting-schedule",
-        },
-    ].filter(item => !item.adminOnly || role === 'ADMIN');
+    ];
 
     const handleLogout = () => {
         clearAuth();
@@ -90,7 +74,7 @@ export function AdminSidebar({ currentView, onViewChange }: AdminSidebarProps) {
             <SidebarHeader className="border-b px-2 py-4">
                 <div className="flex items-center gap-2 font-bold text-xl tracking-tight px-2">
                     <div className="bg-primary text-primary-foreground p-1 rounded-md shrink-0">
-                        <Monitor size={20} />
+                        <GraduationCap size={20} />
                     </div>
                     {!isCollapsed && <span className="truncate">VideoConf</span>}
                 </div>
@@ -98,9 +82,7 @@ export function AdminSidebar({ currentView, onViewChange }: AdminSidebarProps) {
             <SidebarContent>
                 <SidebarGroup>
                     {!isCollapsed && (
-                        <SidebarGroupLabel>
-                            {role === 'ADMIN' ? 'Administrative' : 'Management'}
-                        </SidebarGroupLabel>
+                        <SidebarGroupLabel>Teaching</SidebarGroupLabel>
                     )}
                     <SidebarGroupContent>
                         <SidebarMenu>
@@ -123,11 +105,11 @@ export function AdminSidebar({ currentView, onViewChange }: AdminSidebarProps) {
             <SidebarFooter className="border-t p-2">
                 <div className="flex items-center gap-3 px-2 py-2">
                     <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold border border-primary/20 shrink-0">
-                        {(displayName || 'A').charAt(0).toUpperCase()}
+                        {(displayName || 'T').charAt(0).toUpperCase()}
                     </div>
                     {!isCollapsed && (
                         <div className="flex flex-col min-w-0 overflow-hidden">
-                            <span className="text-sm font-medium truncate">{displayName || 'Admin'}</span>
+                            <span className="text-sm font-medium truncate">{displayName || 'Teacher'}</span>
                             <span className="text-xs text-muted-foreground uppercase tracking-wider truncate">{role}</span>
                         </div>
                     )}

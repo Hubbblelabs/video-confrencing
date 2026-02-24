@@ -7,6 +7,7 @@ import { AttendanceManagement } from './admin/AttendanceManagement';
 import { MeetingHistory } from './admin/MeetingHistory';
 import { MeetingSchedule } from './admin/MeetingSchedule';
 import { CreditManagement } from './admin/CreditManagement';
+import { SubjectManagement } from './admin/SubjectManagement';
 
 export function AdminDashboard() {
   const currentUserRole = useAuthStore((s) => s.role);
@@ -38,6 +39,8 @@ export function AdminDashboard() {
         return <MeetingHistory />;
       case 'meeting-schedule':
         return <MeetingSchedule />;
+      case 'subjects':
+        return <SubjectManagement />;
       default:
         return <AdminOverview />;
     }

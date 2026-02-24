@@ -11,33 +11,35 @@ datasource db {
 /// Users - Central identity model
 /// Soft deletes supported for GDPR compliance and audit trail integrity
 model User {
-  id              String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  email           String            @unique(map: "UQ_97672ac88f789774dd47f7c8be3") @db.VarChar(255)
-  passwordHash    String            @db.VarChar(255)
-  isActive        Boolean           @default(true)
-  createdAt       DateTime          @default(now()) @db.Timestamptz(6)
-  updatedAt       DateTime          @default(now()) @updatedAt @db.Timestamptz(6)
-  role            users_role_enum   @default(STUDENT)
-  displayName     String            @db.VarChar(100)
-  bio             String?           @db.Text
-  profilePictureUrl String?         @db.VarChar(500)
-  specialties     String[]
-  emailVerified    Boolean           @default(false)
-  verificationToken String?          @db.VarChar(255)
-  verificationTokenExpires DateTime? @db.Timestamptz(6)
-  resetToken       String?           @db.VarChar(255)
-  resetTokenExpires DateTime?       @db.Timestamptz(6)
-  auditLogs       AuditLog[]
-  authProviders   AuthProvider[]
-  meetings        meetings[]
-  recordingsOwned Recording[]       @relation("RecordingOwner")
-  participations  RoomParticipant[]
-  ownedRooms      Room[]
-  transactions    Transaction[]
-  wallet          Wallet?
-  chatMessages    ChatMessage[]
-  questions       Question[]
-  upvotes         QuestionUpvote[]
+  id                       String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  email                    String                 @unique(map: "UQ_97672ac88f789774dd47f7c8be3") @db.VarChar(255)
+  passwordHash             String                 @db.VarChar(255)
+  isActive                 Boolean                @default(true)
+  createdAt                DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt                DateTime               @default(now()) @updatedAt @db.Timestamptz(6)
+  role                     users_role_enum        @default(STUDENT)
+  displayName              String                 @db.VarChar(100)
+  bio                      String?                @db.Text
+  profilePictureUrl        String?                @db.VarChar(500)
+  specialties              String[]
+  emailVerified            Boolean                @default(false)
+  verificationToken        String?                @db.VarChar(255)
+  verificationTokenExpires DateTime?              @db.Timestamptz(6)
+  resetToken               String?                @db.VarChar(255)
+  resetTokenExpires        DateTime?              @db.Timestamptz(6)
+  auditLogs                AuditLog[]
+  authProviders            AuthProvider[]
+  meetings                 meetings[]
+  recordingsOwned          Recording[]            @relation("RecordingOwner")
+  participations           RoomParticipant[]
+  ownedRooms               Room[]
+  transactions             Transaction[]
+  wallet                   Wallet?
+  chatMessages             ChatMessage[]
+  questions                Question[]
+  upvotes                  QuestionUpvote[]
+  teacherSubjects          TeacherSubject[]
+  studentSubjects          StudentSubjectAccess[]
 
   @@index([email], map: "IDX_97672ac88f789774dd47f7c8be")
   @@map("users")
@@ -335,22 +337,22 @@ enum transactions_type_enum {
 
 /// ChatMessage - Persistent storage for room chats
 model ChatMessage {
-  id           String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  roomId       String    @db.Uuid
-  userId       String    @db.Uuid
-  content      String?   @db.Text
-  type         String    @default("text") @db.VarChar(20) // text, file, private
-  targetUserId String?   @db.Uuid
-  fileUrl      String?   @db.VarChar(500)
-  fileName     String?   @db.VarChar(255)
+  id           String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  roomId       String   @db.Uuid
+  userId       String   @db.Uuid
+  content      String?  @db.Text
+  type         String   @default("text") @db.VarChar(20) // text, file, private
+  targetUserId String?  @db.Uuid
+  fileUrl      String?  @db.VarChar(500)
+  fileName     String?  @db.VarChar(255)
   fileSize     Int?
-  fileType     String?   @db.VarChar(100)
-  isDeleted    Boolean   @default(false)
-  createdAt    DateTime  @default(now()) @db.Timestamptz(6)
-  
+  fileType     String?  @db.VarChar(100)
+  isDeleted    Boolean  @default(false)
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+
   // ...
-  meeting      meetings  @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  meeting meetings @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([roomId])
   @@index([createdAt])
@@ -359,17 +361,17 @@ model ChatMessage {
 
 /// Question - Q&A module for sessions
 model Question {
-  id           String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  roomId       String           @db.Uuid
-  userId       String           @db.Uuid
-  content      String           @db.Text
-  isAnswered   Boolean          @default(false)
-  isApproved   Boolean          @default(true) // For moderated Q&A
-  createdAt    DateTime         @default(now()) @db.Timestamptz(6)
-  
-  meeting      meetings         @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  upvotes      QuestionUpvote[]
+  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  roomId     String   @db.Uuid
+  userId     String   @db.Uuid
+  content    String   @db.Text
+  isAnswered Boolean  @default(false)
+  isApproved Boolean  @default(true) // For moderated Q&A
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+
+  meeting meetings         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  upvotes QuestionUpvote[]
 
   @@index([roomId])
   @@index([isAnswered])
@@ -383,9 +385,58 @@ model QuestionUpvote {
   userId     String   @db.Uuid
   createdAt  DateTime @default(now()) @db.Timestamptz(6)
 
-  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([questionId, userId])
   @@map("question_upvotes")
+}
+
+/// Subject - Represents an academic subject
+model Subject {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name        String   @unique @db.VarChar(100)
+  description String?  @db.Text
+  icon        String?  @db.VarChar(50)
+  color       String?  @db.VarChar(20)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  teachers TeacherSubject[]
+  students StudentSubjectAccess[]
+
+  @@map("subjects")
+}
+
+/// TeacherSubject - Maps teachers to subjects they teach
+model TeacherSubject {
+  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  teacherId  String   @db.Uuid
+  subjectId  String   @db.Uuid
+  assignedAt DateTime @default(now()) @db.Timestamptz(6)
+
+  teacher User    @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherId, subjectId])
+  @@index([teacherId])
+  @@index([subjectId])
+  @@map("teacher_subjects")
+}
+
+/// StudentSubjectAccess - Controls which subjects a student can see
+model StudentSubjectAccess {
+  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  studentId String   @db.Uuid
+  subjectId String   @db.Uuid
+  grantedAt DateTime @default(now()) @db.Timestamptz(6)
+
+  student User    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, subjectId])
+  @@index([studentId])
+  @@index([subjectId])
+  @@map("student_subject_access")
 }

@@ -18,13 +18,14 @@ const AuthPage = lazy(() => import('./pages/AuthPage').then(module => ({ default
 const LobbyPage = lazy(() => import('./pages/LobbyPage').then(module => ({ default: module.LobbyPage })));
 const RoomPage = lazy(() => import('./pages/RoomPage').then(module => ({ default: module.RoomPage })));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then(module => ({ default: module.AdminDashboard })));
+const TeacherDashboard = lazy(() => import('./pages/TeacherDashboard').then(module => ({ default: module.TeacherDashboard })));
 const AttendancePage = lazy(() => import('./pages/AttendancePage').then(module => ({ default: module.AttendancePage })));
 const SessionBrowser = lazy(() => import('./pages/SessionBrowser').then(module => ({ default: module.SessionBrowser })));
 const SessionDetailsPage = lazy(() => import('./pages/SessionDetailsPage'));
 const VerifyEmailPage = lazy(() => import('./pages/VerifyEmailPage'));
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
 
-type AppView = 'auth' | 'lobby' | 'waiting' | 'room' | 'admin' | 'attendance' | 'browser' | 'session-details' | 'verify-email' | 'reset-password';
+type AppView = 'auth' | 'lobby' | 'waiting' | 'room' | 'admin' | 'teacher' | 'attendance' | 'browser' | 'session-details' | 'verify-email' | 'reset-password';
 
 function App() {
   const token = useAuthStore((s) => s.token);
@@ -401,7 +402,8 @@ function App() {
   let view: AppView = 'auth';
   if (urlView) view = urlView;
   else if (token) view = 'lobby';
-  if (token && !urlView && showAdminView && (role === 'ADMIN' || role === 'TEACHER')) view = 'admin';
+  if (token && !urlView && showAdminView && role === 'ADMIN') view = 'admin';
+  if (token && !urlView && showAdminView && role === 'TEACHER') view = 'teacher';
   if (token && !urlView && showAttendanceView && (role === 'ADMIN' || role === 'TEACHER')) view = 'attendance';
   if (token && !urlView && showBrowserView) view = 'browser';
   if (token && !urlView && showBrowserView && selectedSessionId) view = 'session-details';
@@ -424,6 +426,8 @@ function App() {
         );
       case 'admin':
         return <AdminDashboard />;
+      case 'teacher':
+        return <TeacherDashboard />;
       case 'attendance':
         return <AttendancePage />;
       case 'browser':

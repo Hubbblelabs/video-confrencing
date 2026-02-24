@@ -25,6 +25,7 @@ import { SessionsModule } from './sessions/sessions.module';
 import { HealthController } from './health.controller';
 import { ChatModule } from './chat/chat.module';
 import { QnaModule } from './qna/qna.module';
+import { SubjectsModule } from './subjects/subjects.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { QnaModule } from './qna/qna.module';
     SessionsModule,
     ChatModule,
     QnaModule,
+    SubjectsModule,
   ],
   controllers: [HealthController],
 })
