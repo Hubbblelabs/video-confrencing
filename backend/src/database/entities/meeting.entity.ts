@@ -58,6 +58,12 @@ export class MeetingEntity {
   @Column({ type: 'timestamptz', nullable: true })
   endedAt!: Date | null;
 
+  @Column({ type: 'boolean', default: true })
+  allowScreenShare!: boolean;
+
+  @Column({ type: 'boolean', default: true })
+  allowWhiteboard!: boolean;
+
   @Column({ type: 'timestamptz', nullable: true })
   scheduledStart!: Date | null;
 

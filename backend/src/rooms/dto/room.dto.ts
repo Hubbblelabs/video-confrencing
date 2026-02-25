@@ -1,18 +1,29 @@
 import { IsString, IsOptional, IsInt, Min, Max, MaxLength } from 'class-validator';
 
 export class CreateRoomDto {
+  @IsOptional()
   @IsString()
   @MaxLength(255)
-  title!: string;
+  title?: string;
 
   @IsOptional()
   @IsInt()
   @Min(2)
   @Max(500)
   maxParticipants?: number;
+
+  @IsOptional()
+  allowScreenShare?: boolean;
+
+  @IsOptional()
+  allowWhiteboard?: boolean;
 }
 
 export class ScheduleMeetingDto extends CreateRoomDto {
+  @IsString()
+  @MaxLength(255)
+  title!: string;
+
   @IsString()
   scheduledStart!: string;
 

@@ -12,7 +12,7 @@ import {
 import { RoomsService } from './rooms.service';
 import { JwtAuthGuard, RolesGuard, Roles } from '../auth/guards';
 import { UserRole } from '../shared/enums';
-import { ScheduleMeetingDto } from './dto/room.dto';
+import { CreateRoomDto, ScheduleMeetingDto } from './dto/room.dto';
 
 @Controller('admin/meetings')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -60,16 +60,20 @@ export class RoomsController {
             scheduledStart: new Date(dto.scheduledStart),
             scheduledEnd: new Date(dto.scheduledEnd),
             maxParticipants: dto.maxParticipants,
+            allowScreenShare: dto.allowScreenShare,
+            allowWhiteboard: dto.allowWhiteboard,
         });
     }
 
     @Post('create')
     @Roles(UserRole.ADMIN, UserRole.TEACHER)
-    async createInstantMeeting(@Req() req: any) {
+    async createInstantMeeting(@Req() req: any, @Body() dto: CreateRoomDto) {
         return this.roomsService.createRoom({
             hostUserId: req.user.id,
-            title: 'Instant Meeting',
-            maxParticipants: 100,
+            title: dto.title || 'Instant Meeting',
+            maxParticipants: dto.maxParticipants || 100,
+            allowScreenShare: dto.allowScreenShare,
+            allowWhiteboard: dto.allowWhiteboard,
         });
     }
 

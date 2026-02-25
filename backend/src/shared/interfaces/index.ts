@@ -39,6 +39,8 @@ export interface RedisRoomState {
   createdAt: number;
   maxParticipants: number;
   routerId: string;
+  allowScreenShare?: boolean;
+  allowWhiteboard?: boolean;
   participants: Record<string, RoomParticipant>;
 }
 

@@ -9,6 +9,7 @@ export const WS_EVENTS = {
   CHANGE_ROLE: 'room:changeRole',
   HAND_RAISE: 'room:handRaise',
   REACTION: 'room:reaction',
+  UPDATE_ROOM_SETTINGS: 'room:updateSettings',
 
   GET_ROUTER_CAPABILITIES: 'media:getRouterCapabilities',
   CREATE_TRANSPORT: 'media:createTransport',
@@ -75,6 +76,7 @@ export const WS_EVENTS = {
   ROLE_CHANGED: 'room:roleChanged',
   HAND_RAISED: 'room:handRaised',
   REACTION_RECEIVED: 'room:reactionReceived',
+  ROOM_SETTINGS_UPDATED: 'room:settingsUpdated',
 
   NEW_PRODUCER: 'media:newProducer',
   PRODUCER_CLOSED: 'media:producerClosed',

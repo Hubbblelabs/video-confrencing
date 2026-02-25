@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect } from 'react';
+import { use, useEffect, useRef } from 'react';
 import { RoomPage } from '@/views/RoomPage';
 import { useSignalingContext } from '@/providers/SignalingProvider';
 
@@ -17,11 +17,18 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
         rejectionMessage
     } = useSignalingContext();
 
+    // Use a ref so the effect below only fires when `id` changes, not every
+    // time SignalingProvider re-renders (which would recreate handleJoinRoom).
+    const handleJoinRoomRef = useRef(handleJoinRoom);
+    useEffect(() => { handleJoinRoomRef.current = handleJoinRoom; });
+
     useEffect(() => {
         if (id) {
-            handleJoinRoom(id).catch(err => console.error("Failed to join room automatically:", err));
+            handleJoinRoomRef.current(id).catch(err =>
+                console.error("Failed to join room automatically:", err)
+            );
         }
-    }, [id, handleJoinRoom]);
+    }, [id]); // ← only re-run when the room ID changes, NOT when handleJoinRoom changes
 
     if (wasRejected) {
         return (

@@ -30,6 +30,8 @@ export interface ScheduleMeetingRequest {
     scheduledStart: string;
     scheduledEnd: string;
     maxParticipants?: number;
+    allowScreenShare?: boolean;
+    allowWhiteboard?: boolean;
 }
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -103,10 +105,11 @@ export const adminMeetingsApi = {
     },
 
     // Create instant meeting
-    createInstantMeeting: async (token: string): Promise<{ roomId: string; roomCode: string }> => {
+    createInstantMeeting: async (token: string, options?: { allowScreenShare?: boolean; allowWhiteboard?: boolean }): Promise<{ roomId: string; roomCode: string }> => {
         const response = await fetch(`${API_BASE}/admin/meetings/create`, {
             method: 'POST',
             headers: getAuthHeaders(token),
+            body: options ? JSON.stringify(options) : undefined,
         });
 
         if (!response.ok) {

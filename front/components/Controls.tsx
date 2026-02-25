@@ -156,6 +156,12 @@ const EmojiIcon = (
   </svg>
 );
 
+const ShieldIcon = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+  </svg>
+);
+
 // ─── Controls bar ───────────────────────────────────────────────
 
 interface ControlsProps {
@@ -180,6 +186,11 @@ interface ControlsProps {
   handRaised: boolean;
   onToggleHandRaise: () => void;
   onReaction: (emoji: string) => void;
+
+  // Permissions (New)
+  allowScreenShare: boolean;
+  allowWhiteboard: boolean;
+  onUpdateRoomSettings?: (settings: { allowScreenShare?: boolean; allowWhiteboard?: boolean }) => void;
 }
 
 
@@ -202,11 +213,19 @@ export function Controls({
   handRaised,
   onToggleHandRaise,
   onReaction,
+  allowScreenShare,
+  allowWhiteboard,
+  onUpdateRoomSettings,
 }: ControlsProps) {
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [showReactionMenu, setShowReactionMenu] = useState(false);
+  const [showSecurityMenu, setShowSecurityMenu] = useState(false);
 
   const reactions = ['👍', '👏', '💖', '😂', '😮', '🎉'];
+
+  const canShareScreen = isHost || allowScreenShare;
+  const canUseWhiteboard = isHost || allowWhiteboard;
+  const showPresentMenu = canShareScreen || canUseWhiteboard;
 
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center justify-center h-16 px-6 bg-card/60 backdrop-blur-xl rounded-full border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
@@ -230,54 +249,60 @@ export function Controls({
         <div className="w-px h-8 bg-white/10" />
 
         {/* Share Controls */}
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <ControlButton
-              label={isScreenSharing ? 'Stop Share' : showWhiteboard ? 'Stop Board' : 'Present'}
-              variant={isScreenSharing || showWhiteboard ? 'primary' : 'default'}
-              onClick={() => setShowShareMenu(!showShareMenu)}
-              icon={isScreenSharing ? ScreenShareIcon : showWhiteboard ? WhiteboardIcon : ScreenShareIcon}
-            />
+        {showPresentMenu && (
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <ControlButton
+                label={isScreenSharing ? 'Stop Share' : showWhiteboard ? 'Stop Board' : 'Present'}
+                variant={isScreenSharing || showWhiteboard ? 'primary' : 'default'}
+                onClick={() => setShowShareMenu(!showShareMenu)}
+                icon={isScreenSharing ? ScreenShareIcon : showWhiteboard ? WhiteboardIcon : ScreenShareIcon}
+              />
 
-            {showShareMenu && (
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setShowShareMenu(false)}
-                />
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 p-1.5 bg-[#2d2d2d] border border-white/10 rounded-xl shadow-xl flex flex-col gap-0.5 min-w-[190px] z-50 animate-slide-up">
-                  <button
-                    onClick={() => {
-                      onToggleScreen();
-                      setShowShareMenu(false);
-                    }}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all w-full text-left text-sm ${isScreenSharing
-                      ? 'bg-red-500/15 text-red-400 hover:bg-red-500/25'
-                      : 'text-white/90 hover:bg-white/10'
-                      }`}
-                  >
-                    <div className="w-5 h-5">{ScreenShareIcon}</div>
-                    {isScreenSharing ? 'Stop Sharing' : 'Share Screen'}
-                  </button>
+              {showShareMenu && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setShowShareMenu(false)}
+                  />
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 p-1.5 bg-[#2d2d2d] border border-white/10 rounded-xl shadow-xl flex flex-col gap-0.5 min-w-[190px] z-50 animate-slide-up">
+                    {canShareScreen && (
+                      <button
+                        onClick={() => {
+                          onToggleScreen();
+                          setShowShareMenu(false);
+                        }}
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all w-full text-left text-sm ${isScreenSharing
+                          ? 'bg-red-500/15 text-red-400 hover:bg-red-500/25'
+                          : 'text-white/90 hover:bg-white/10'
+                          }`}
+                      >
+                        <div className="w-5 h-5">{ScreenShareIcon}</div>
+                        {isScreenSharing ? 'Stop Sharing' : 'Share Screen'}
+                      </button>
+                    )}
 
-                  <button
-                    onClick={() => {
-                      onToggleWhiteboard();
-                      setShowShareMenu(false);
-                    }}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all w-full text-left text-sm ${showWhiteboard
-                      ? 'bg-red-500/15 text-red-400 hover:bg-red-500/25'
-                      : 'text-white/90 hover:bg-white/10'
-                      }`}
-                  >
-                    <div className="w-5 h-5">{WhiteboardIcon}</div>
-                    {showWhiteboard ? 'Stop Whiteboard' : 'Whiteboard'}
-                  </button>
-                </div>
-              </>
-            )}
+                    {canUseWhiteboard && (
+                      <button
+                        onClick={() => {
+                          onToggleWhiteboard();
+                          setShowShareMenu(false);
+                        }}
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all w-full text-left text-sm ${showWhiteboard
+                          ? 'bg-red-500/15 text-red-400 hover:bg-red-500/25'
+                          : 'text-white/90 hover:bg-white/10'
+                          }`}
+                      >
+                        <div className="w-5 h-5">{WhiteboardIcon}</div>
+                        {showWhiteboard ? 'Stop Whiteboard' : 'Whiteboard'}
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="w-px h-8 bg-white/10" />
 
@@ -300,6 +325,46 @@ export function Controls({
               icon={WaitingRoomIcon}
               badge={waitingRoomCount}
             />
+          )}
+
+          {isHost && (
+            <div className="relative">
+              <ControlButton
+                label="Security"
+                variant={showSecurityMenu ? 'primary' : 'default'}
+                onClick={() => setShowSecurityMenu(!showSecurityMenu)}
+                icon={ShieldIcon}
+              />
+
+              {showSecurityMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowSecurityMenu(false)} />
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 p-2 bg-[#2d2d2d] border border-white/10 rounded-xl shadow-xl flex flex-col gap-1 min-w-[220px] z-50 animate-slide-up text-sm">
+                    <div className="px-3 py-2 text-white/50 text-xs font-semibold uppercase tracking-wider">
+                      Allow Participants To:
+                    </div>
+                    <label className="flex items-center justify-between px-3 py-2 hover:bg-white/10 rounded-lg cursor-pointer transition-colors">
+                      <span className="text-white/90">Share Screen</span>
+                      <input
+                        type="checkbox"
+                        checked={allowScreenShare}
+                        onChange={(e) => onUpdateRoomSettings?.({ allowScreenShare: e.target.checked })}
+                        className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-800"
+                      />
+                    </label>
+                    <label className="flex items-center justify-between px-3 py-2 hover:bg-white/10 rounded-lg cursor-pointer transition-colors">
+                      <span className="text-white/90">Use Whiteboard</span>
+                      <input
+                        type="checkbox"
+                        checked={allowWhiteboard}
+                        onChange={(e) => onUpdateRoomSettings?.({ allowWhiteboard: e.target.checked })}
+                        className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-800"
+                      />
+                    </label>
+                  </div>
+                </>
+              )}
+            </div>
           )}
 
           <ControlButton

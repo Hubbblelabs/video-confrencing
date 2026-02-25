@@ -48,6 +48,8 @@ export interface JoinRoomResponse {
     userId: string;
     kind: mediasoupTypes.MediaKind;
   }>;
+  allowScreenShare?: boolean;
+  allowWhiteboard?: boolean;
 }
 
 export interface CreateRoomResponse {

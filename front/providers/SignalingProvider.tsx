@@ -54,6 +54,8 @@ export function SignalingProvider({ children }: { children: React.ReactNode }) {
     const [rejectionMessage, setRejectionMessage] = useState('');
 
     const newProducerHandlerRef = useRef<CustomNewProducerHandler>(null);
+    // Guard against concurrent room:join calls (prevents the retry storm)
+    const joiningRef = useRef(false);
 
     const signaling = useSignaling({
         onUserJoined: (data: UserJoinedEvent) => {
@@ -122,6 +124,9 @@ export function SignalingProvider({ children }: { children: React.ReactNode }) {
             store.setParticipantMuted(data.userId, !data.audioEnabled);
             store.setParticipantVideoOff(data.userId, !data.videoEnabled);
         },
+        onRoomSettingsUpdated: (data: { roomId: string; settings: { allowScreenShare?: boolean; allowWhiteboard?: boolean } }) => {
+            useRoomStore.getState().setRoomSettings(data.settings);
+        },
         onError: (data: { message: string }) => {
             useRoomStore.getState().setError(data.message);
         },
@@ -187,6 +192,11 @@ export function SignalingProvider({ children }: { children: React.ReactNode }) {
             } else if (response.isHost) {
                 // If the user is the host, bypass the waiting room and join immediately
                 console.log('User is host, joining directly');
+                if (joiningRef.current) {
+                    console.warn('Join already in progress, skipping duplicate host join');
+                    return;
+                }
+                joiningRef.current = true;
                 try {
                     const joined = await signaling.joinRoom(id);
                     const localId = useAuthStore.getState().userId ?? '';
@@ -206,7 +216,13 @@ export function SignalingProvider({ children }: { children: React.ReactNode }) {
                         joined.existingProducers.map((p) => ({ ...p, kind: p.kind })),
                     );
 
-                    useRoomStore.getState().setRoom(joined.roomId, joined.roomCode, joined.role);
+                    useRoomStore.getState().setRoom(
+                        joined.roomId,
+                        joined.roomCode,
+                        joined.role,
+                        joined.allowScreenShare,
+                        joined.allowWhiteboard
+                    );
 
                     setIsInWaitingRoom(false);
                     setWaitingRoomId(null);
@@ -215,6 +231,8 @@ export function SignalingProvider({ children }: { children: React.ReactNode }) {
                     setIsInWaitingRoom(false);
                     setWaitingRoomId(null);
                     useRoomStore.getState().setError('Failed to join room');
+                } finally {
+                    joiningRef.current = false;
                 }
             } else if (response.roomId) {
                 setWaitingRoomId(response.roomId);
@@ -275,7 +293,13 @@ export function SignalingProvider({ children }: { children: React.ReactNode }) {
             joined.existingProducers.map((p) => ({ ...p, kind: p.kind })),
         );
 
-        useRoomStore.getState().setRoom(created.roomId, created.roomCode, joined.role);
+        useRoomStore.getState().setRoom(
+            created.roomId,
+            created.roomCode,
+            joined.role,
+            joined.allowScreenShare,
+            joined.allowWhiteboard
+        );
     }, [signaling]);
 
     useEffect(() => {
@@ -284,7 +308,11 @@ export function SignalingProvider({ children }: { children: React.ReactNode }) {
 
         const handleAdmitted = async (data: { roomId: string; message: string }) => {
             if (!isInWaitingRoom || data.roomId !== waitingRoomId) return;
-
+            if (joiningRef.current) {
+                console.warn('Join already in progress, skipping duplicate admitted join');
+                return;
+            }
+            joiningRef.current = true;
             try {
                 const joined = await signaling.joinRoom(data.roomId);
                 const localId = useAuthStore.getState().userId ?? '';
@@ -304,7 +332,13 @@ export function SignalingProvider({ children }: { children: React.ReactNode }) {
                     joined.existingProducers.map((p) => ({ ...p, kind: p.kind })),
                 );
 
-                useRoomStore.getState().setRoom(joined.roomId, joined.roomCode, joined.role);
+                useRoomStore.getState().setRoom(
+                    joined.roomId,
+                    joined.roomCode,
+                    joined.role,
+                    joined.allowScreenShare,
+                    joined.allowWhiteboard
+                );
 
                 setIsInWaitingRoom(false);
                 setWaitingRoomId(null);
@@ -313,6 +347,8 @@ export function SignalingProvider({ children }: { children: React.ReactNode }) {
                 setIsInWaitingRoom(false);
                 setWaitingRoomId(null);
                 useRoomStore.getState().setError('Failed to join room');
+            } finally {
+                joiningRef.current = false;
             }
         };
 

@@ -38,14 +38,17 @@ interface RoomState {
   error: string | null;
   isKicked: boolean;
   kickReason: string | null;
+  allowScreenShare: boolean;
+  allowWhiteboard: boolean;
 }
 
 interface RoomActions {
-  setRoom: (roomId: string, roomCode: string | null, role: RoomRole) => void;
+  setRoom: (roomId: string, roomCode: string | null, role: RoomRole, allowScreenShare?: boolean, allowWhiteboard?: boolean) => void;
   setConnectionState: (state: ConnectionState) => void;
   setError: (error: string | null) => void;
   setKicked: (reason: string) => void;
   setRole: (role: RoomRole) => void;
+  setRoomSettings: (settings: { allowScreenShare?: boolean; allowWhiteboard?: boolean }) => void;
   reset: () => void;
 }
 
@@ -57,12 +60,14 @@ const initialState: RoomState = {
   error: null,
   isKicked: false,
   kickReason: null,
+  allowScreenShare: true,
+  allowWhiteboard: true,
 };
 
 export const useRoomStore = create<RoomState & RoomActions>((set) => ({
   ...initialState,
 
-  setRoom: (roomId, roomCode, role) => {
+  setRoom: (roomId, roomCode, role, allowScreenShare = true, allowWhiteboard = true) => {
     try {
       sessionStorage.setItem(ROOM_ID_KEY, roomId);
       if (roomCode) sessionStorage.setItem(ROOM_CODE_KEY, roomCode);
@@ -70,7 +75,7 @@ export const useRoomStore = create<RoomState & RoomActions>((set) => ({
     } catch {
       // Private browsing — continue in-memory only
     }
-    set({ roomId, roomCode, role, error: null, isKicked: false, kickReason: null });
+    set({ roomId, roomCode, role, error: null, isKicked: false, kickReason: null, allowScreenShare, allowWhiteboard });
   },
 
   setConnectionState: (connectionState) => set({ connectionState }),
@@ -87,6 +92,8 @@ export const useRoomStore = create<RoomState & RoomActions>((set) => ({
     }
     set({ role });
   },
+
+  setRoomSettings: (settings) => set((state) => ({ ...state, ...settings })),
 
   reset: () => {
     try {

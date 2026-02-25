@@ -40,6 +40,8 @@ export class RoomsService {
     hostUserId: string;
     title: string;
     maxParticipants?: number;
+    allowScreenShare?: boolean;
+    allowWhiteboard?: boolean;
   }): Promise<{ roomId: string; roomCode: string }> {
     const roomCode = this.generateRoomCode();
     const max = Math.min(params.maxParticipants ?? this.maxParticipants, 500);
@@ -51,6 +53,8 @@ export class RoomsService {
       hostId: params.hostUserId,
       status: RoomStatus.WAITING,
       maxParticipants: max,
+      allowScreenShare: params.allowScreenShare ?? true,
+      allowWhiteboard: params.allowWhiteboard ?? true,
     });
     const saved = await this.meetingRepo.save(meeting);
 
@@ -63,6 +67,8 @@ export class RoomsService {
       createdAt: String(Date.now()),
       maxParticipants: String(max),
       routerId: '',
+      allowScreenShare: String(params.allowScreenShare ?? true),
+      allowWhiteboard: String(params.allowWhiteboard ?? true),
     };
 
     const pipeline = this.redis.pipeline();
@@ -139,6 +145,8 @@ export class RoomsService {
         createdAt: String(Date.now()),
         maxParticipants: String(this.maxParticipants),
         routerId: '',
+        allowScreenShare: 'true',
+        allowWhiteboard: 'true',
       };
 
       const pipeline = this.redis.pipeline();
@@ -205,7 +213,11 @@ export class RoomsService {
       isVideoOff: false,
     };
 
-    // Store in Redis with pipeline
+    // Store in Redis with pipeline (idempotent — safe to re-run on retry)
+    // hget returns null if not set, non-null if the user is already a participant
+    const existingParticipantData = await this.redis.hget(RedisKeys.roomParticipants(actualRoomId), params.userId);
+    const alreadyJoined = existingParticipantData !== null;
+
     const pipeline = this.redis.pipeline();
     pipeline.hset(
       RedisKeys.roomParticipants(actualRoomId),
@@ -221,20 +233,27 @@ export class RoomsService {
     }
     await pipeline.exec();
 
-    // Create attendance record in PostgreSQL for tracking
-    try {
-      const participantRole = isHost ? ParticipantRole.HOST : ParticipantRole.PARTICIPANT;
-      const attendanceRecord = this.roomParticipantRepo.create({
-        userId: params.userId,
-        roomId: actualRoomId,
-        role: participantRole,
-        joinedAt: new Date(),
-      });
-      await this.roomParticipantRepo.save(attendanceRecord);
-      this.logger.log(`Attendance record created for user ${params.userId} in room ${actualRoomId}`);
-    } catch (error) {
-      this.logger.error(`Failed to create attendance record: ${(error as Error).message}`);
-      // Don't fail the join if attendance tracking fails
+    // Create attendance record in PostgreSQL — use upsert to handle concurrent retries gracefully
+    if (!alreadyJoined) {
+      try {
+        const participantRole = isHost ? ParticipantRole.HOST : ParticipantRole.PARTICIPANT;
+        const attendanceRecord = this.roomParticipantRepo.create({
+          userId: params.userId,
+          roomId: actualRoomId,
+          role: participantRole,
+          joinedAt: new Date(),
+        });
+        await this.roomParticipantRepo.save(attendanceRecord);
+        this.logger.log(`Attendance record created for user ${params.userId} in room ${actualRoomId}`);
+      } catch (error) {
+        const errorMsg = (error as Error).message;
+        if (!errorMsg.includes('duplicate key')) {
+          this.logger.error(`Failed to create attendance record: ${errorMsg}`);
+        }
+        // Duplicate key = already recorded from a previous join attempt, safe to ignore
+      }
+    } else {
+      this.logger.debug(`User ${params.userId} re-joined room ${actualRoomId} (socket updated, skipping duplicate attendance record)`);
     }
 
     // Update peak participants
@@ -623,7 +642,50 @@ export class RoomsService {
       maxParticipants: parseInt(data['maxParticipants'] || '100', 10),
       routerId: data['routerId'],
       participants,
-    } as RedisRoomState;
+      allowScreenShare: data['allowScreenShare'] === 'true',
+      allowWhiteboard: data['allowWhiteboard'] === 'true',
+    } as RedisRoomState & { allowScreenShare: boolean; allowWhiteboard: boolean };
+  }
+
+  /**
+   * Updates screen sharing and whiteboard room permissions.
+   */
+  async updateRoomSettings(params: {
+    roomId: string;
+    requestingUserId: string;
+    settings: {
+      allowScreenShare?: boolean;
+      allowWhiteboard?: boolean;
+    };
+  }): Promise<void> {
+    const roomState = await this.redis.hgetall(RedisKeys.room(params.roomId));
+
+    if (!roomState || !roomState['roomId']) {
+      throw new WsRoomException('Room not found');
+    }
+
+    if (roomState['hostUserId'] !== params.requestingUserId) {
+      // Allow co-hosts to update settings if supported. Currently simple check:
+      throw new WsRoomException('Only the host can modify room settings');
+    }
+
+    const updates: Record<string, string> = {};
+    const postgresUpdates: Record<string, boolean> = {};
+
+    if (params.settings.allowScreenShare !== undefined) {
+      updates['allowScreenShare'] = String(params.settings.allowScreenShare);
+      postgresUpdates['allowScreenShare'] = params.settings.allowScreenShare;
+    }
+
+    if (params.settings.allowWhiteboard !== undefined) {
+      updates['allowWhiteboard'] = String(params.settings.allowWhiteboard);
+      postgresUpdates['allowWhiteboard'] = params.settings.allowWhiteboard;
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await this.redis.hmset(RedisKeys.room(params.roomId), updates);
+      await this.meetingRepo.update(params.roomId, postgresUpdates);
+    }
   }
 
   /**
@@ -776,6 +838,8 @@ export class RoomsService {
     scheduledStart: Date;
     scheduledEnd: Date;
     maxParticipants?: number;
+    allowScreenShare?: boolean;
+    allowWhiteboard?: boolean;
   }): Promise<MeetingEntity> {
     const roomCode = this.generateRoomCode();
     const max = Math.min(params.maxParticipants ?? this.maxParticipants, 500);
@@ -788,6 +852,8 @@ export class RoomsService {
       maxParticipants: max,
       scheduledStart: params.scheduledStart,
       scheduledEnd: params.scheduledEnd,
+      allowScreenShare: params.allowScreenShare ?? true,
+      allowWhiteboard: params.allowWhiteboard ?? true,
     });
 
     return this.meetingRepo.save(meeting);
@@ -819,6 +885,8 @@ export class RoomsService {
       createdAt: String(Date.now()),
       maxParticipants: String(meeting.maxParticipants),
       routerId: '',
+      allowScreenShare: String(meeting.allowScreenShare),
+      allowWhiteboard: String(meeting.allowWhiteboard),
     };
 
     const pipeline = this.redis.pipeline();

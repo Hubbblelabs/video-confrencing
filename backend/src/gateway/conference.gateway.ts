@@ -54,6 +54,14 @@ interface ChangeRolePayload {
   newRole: 'co_host' | 'participant';
 }
 
+interface UpdateRoomSettingsPayload {
+  roomId: string;
+  settings: {
+    allowScreenShare?: boolean;
+    allowWhiteboard?: boolean;
+  };
+}
+
 interface GetRouterCapabilitiesPayload {
   roomId: string;
 }
@@ -241,7 +249,7 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
     @MessageBody() payload: JoinRoomPayload,
   ) {
     this.assertAuthenticated(socket);
-    this.assertRateLimit(socket);
+    // room:join is intentionally NOT rate-limited — it is idempotent and retries legitimately
 
     const result = await this.rooms.joinRoom({
       roomId: payload.roomId,
@@ -272,6 +280,8 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
     const rtpCapabilities = await this.webrtc.getRouterCapabilities(actualRoomId);
     const existingProducers = this.webrtc.getExistingProducers(actualRoomId, socket.data.userId);
 
+    const roomState = await this.rooms.getRoomState(actualRoomId);
+
     const response = {
       roomId: actualRoomId, // Return the actual room ID to the client
       roomCode: result.roomCode,
@@ -279,6 +289,8 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
       participants: result.participants,
       rtpCapabilities,
       existingProducers,
+      allowScreenShare: roomState?.allowScreenShare,
+      allowWhiteboard: roomState?.allowWhiteboard,
     };
 
     // If host/co-host, send waiting room list
@@ -432,6 +444,28 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
     this.server.to(payload.roomId).emit(WsEvents.ROLE_CHANGED, {
       userId: payload.targetUserId,
       newRole: payload.newRole,
+    });
+
+    return { success: true };
+  }
+
+  @SubscribeMessage(WsEvents.UPDATE_ROOM_SETTINGS)
+  async handleUpdateRoomSettings(
+    @ConnectedSocket() socket: AppSocket,
+    @MessageBody() payload: UpdateRoomSettingsPayload,
+  ) {
+    this.assertAuthenticated(socket);
+
+    await this.rooms.updateRoomSettings({
+      roomId: payload.roomId,
+      requestingUserId: socket.data.userId,
+      settings: payload.settings,
+    });
+
+    // Broadcast to all participants that settings have been updated
+    this.server.to(payload.roomId).emit(WsEvents.ROOM_SETTINGS_UPDATED, {
+      roomId: payload.roomId,
+      settings: payload.settings,
     });
 
     return { success: true };
@@ -1265,8 +1299,8 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
     }
   }
 
-  private assertRateLimit(socket: AppSocket): void {
-    if (this.rateLimiter.isRateLimited(socket.id, 60, 60_000)) {
+  private assertRateLimit(socket: AppSocket, maxHits = 120): void {
+    if (this.rateLimiter.isRateLimited(socket.id, maxHits, 60_000)) {
       throw new Error('Rate limit exceeded');
     }
   }

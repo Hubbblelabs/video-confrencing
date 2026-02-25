@@ -61,6 +61,9 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
   const [showSummary, setShowSummary] = useState(false);
   const router = useRouter();
 
+  const allowScreenShare = useRoomStore((s) => s.allowScreenShare);
+  const allowWhiteboard = useRoomStore((s) => s.allowWhiteboard);
+
   const isHost = role === 'host' || role === 'co_host';
 
   // Meeting timer
@@ -481,6 +484,9 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
         handRaised={localHandRaised}
         onToggleHandRaise={handleToggleHandRaise}
         onReaction={handleReaction}
+        allowScreenShare={allowScreenShare}
+        allowWhiteboard={allowWhiteboard}
+        onUpdateRoomSettings={(settings) => signaling.updateRoomSettings(roomId!, settings)}
       />
 
       {showSummary && isHost && (

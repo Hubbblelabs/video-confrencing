@@ -239,6 +239,8 @@ model meetings {
   category         String?              @db.VarChar(100)
   thumbnailUrl     String?              @db.VarChar(500)
   tags             String[]
+  allowScreenShare Boolean              @default(true)
+  allowWhiteboard  Boolean              @default(true)
   users            User                 @relation(fields: [hostId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_f4c16c40d16a9eb2003c5dd1ff2")
   transactions     Transaction[]
   chatMessages     ChatMessage[]

@@ -40,6 +40,8 @@ export function MeetingSchedule() {
         scheduledStart: '',
         scheduledEnd: '',
         maxParticipants: 100,
+        allowScreenShare: true,
+        allowWhiteboard: true,
     });
 
     const loadSchedule = async () => {
@@ -97,6 +99,8 @@ export function MeetingSchedule() {
                 scheduledStart: new Date(formData.scheduledStart).toISOString(),
                 scheduledEnd: new Date(formData.scheduledEnd).toISOString(),
                 maxParticipants: formData.maxParticipants,
+                allowScreenShare: formData.allowScreenShare,
+                allowWhiteboard: formData.allowWhiteboard,
             });
 
             toast.success('Meeting scheduled successfully');
@@ -106,6 +110,8 @@ export function MeetingSchedule() {
                 scheduledStart: '',
                 scheduledEnd: '',
                 maxParticipants: 100,
+                allowScreenShare: true,
+                allowWhiteboard: true,
             });
             loadSchedule();
         } catch (err) {
@@ -182,6 +188,26 @@ export function MeetingSchedule() {
                                         value={formData.maxParticipants}
                                         onChange={(e) => setFormData({ ...formData, maxParticipants: parseInt(e.target.value) })}
                                     />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <Label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.allowScreenShare}
+                                            onChange={(e) => setFormData({ ...formData, allowScreenShare: e.target.checked })}
+                                            className="w-4 h-4 rounded border-gray-600 focus:ring-blue-500"
+                                        />
+                                        Allow Participant Screen Share
+                                    </Label>
+                                    <Label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.allowWhiteboard}
+                                            onChange={(e) => setFormData({ ...formData, allowWhiteboard: e.target.checked })}
+                                            className="w-4 h-4 rounded border-gray-600 focus:ring-blue-500"
+                                        />
+                                        Allow Participant Whiteboard
+                                    </Label>
                                 </div>
                                 <DialogFooter>
                                     <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>

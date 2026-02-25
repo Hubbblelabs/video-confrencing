@@ -38,6 +38,7 @@ interface SignalingListeners {
   onProducerResumed?: (data: ProducerResumedEvent) => void;
   onHandRaised?: (data: HandRaisedEvent) => void;
   onReactionReceived?: (data: ReactionEvent) => void;
+  onRoomSettingsUpdated?: (data: { roomId: string; settings: { allowScreenShare?: boolean; allowWhiteboard?: boolean } }) => void;
   onPeerMediaUpdate?: (data: { userId: string; audioEnabled: boolean; videoEnabled: boolean }) => void;
   onError?: (data: { message: string }) => void;
 }
@@ -176,6 +177,10 @@ export function useSignaling(listeners: SignalingListeners = {}) {
       listenersRef.current.onReactionReceived?.(data);
     });
 
+    socket.on(WS_EVENTS.ROOM_SETTINGS_UPDATED, (data: { roomId: string; settings: { allowScreenShare?: boolean; allowWhiteboard?: boolean } }) => {
+      listenersRef.current.onRoomSettingsUpdated?.(data);
+    });
+
     socket.on(WS_EVENTS.PEER_MEDIA_UPDATE, (data: { userId: string; audioEnabled: boolean; videoEnabled: boolean }) => {
       console.log('CLIENT RECEIVE peer-media-update', data);
       listenersRef.current.onPeerMediaUpdate?.(data);
@@ -249,6 +254,12 @@ export function useSignaling(listeners: SignalingListeners = {}) {
     const socket = socketRef.current;
     if (!socket?.connected) return;
     await emitWithAck<{ success: boolean }>(socket, WS_EVENTS.REACTION, { roomId, reaction });
+  }, []);
+
+  const updateRoomSettings = useCallback(async (roomId: string, settings: { allowScreenShare?: boolean; allowWhiteboard?: boolean }): Promise<void> => {
+    const socket = socketRef.current;
+    if (!socket?.connected) return;
+    await emitWithAck<{ success: boolean }>(socket, WS_EVENTS.UPDATE_ROOM_SETTINGS, { roomId, settings });
   }, []);
 
   // ─── Media signaling operations ───────────────────────────────
@@ -349,6 +360,7 @@ export function useSignaling(listeners: SignalingListeners = {}) {
     muteAll,
     sendHandRaise,
     sendReaction,
+    updateRoomSettings,
     // Media signaling
     getRouterCapabilities,
     createTransport,
