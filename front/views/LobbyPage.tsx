@@ -97,11 +97,20 @@ export function LobbyPage() {
         q: query || undefined,
         sortBy: 'date',
         order: 'DESC',
-        limit: 20,
+        limit: 50, // Increased limit due to client-side filtering
         offset: 0,
       }, token || undefined);
-      setCatalogSessions(data.sessions);
-      setCatalogTotal(data.total);
+
+      // Filter out past sessions (older than 4 hours) or ended/cancelled sessions
+      const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000);
+      const activeSessions = data.sessions.filter((session: any) => {
+        if (session.status === 'ENDED' || session.status === 'CANCELLED') return false;
+        if (!session.scheduledStart) return true; // Keep instant sessions
+        return new Date(session.scheduledStart) > fourHoursAgo;
+      });
+
+      setCatalogSessions(activeSessions);
+      setCatalogTotal(activeSessions.length);
     } catch (err) {
       console.error('Failed to load catalog', err);
     } finally {

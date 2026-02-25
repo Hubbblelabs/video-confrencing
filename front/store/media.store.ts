@@ -30,8 +30,8 @@ interface MediaActions {
 const initialState: MediaState = {
   localStream: null,
   screenStream: null,
-  isMicOn: true,
-  isCameraOn: true,
+  isMicOn: false,
+  isCameraOn: false,
   isScreenSharing: false,
   selectedAudioDeviceId: null,
   selectedVideoDeviceId: null,

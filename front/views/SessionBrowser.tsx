@@ -17,7 +17,7 @@ export function SessionBrowser() {
     const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
     const [offset, setOffset] = useState(0);
-    const limit = 12;
+    const limit = 24; // Increased limit for client-side filtering
 
     const [filters, setFilters] = useState({
         query: '',
@@ -43,13 +43,21 @@ export function SessionBrowser() {
                 offset: currentOffset,
             }, token || undefined);
 
+            const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000);
+            const activeSessions = data.sessions.filter((session: any) => {
+                if (session.status === 'ENDED' || session.status === 'CANCELLED') return false;
+                if (!session.scheduledStart) return true;
+                return new Date(session.scheduledStart) > fourHoursAgo;
+            });
+
             if (isLoadMore) {
-                setSessions(prev => [...prev, ...data.sessions]);
+                setSessions(prev => [...prev, ...activeSessions]);
                 setOffset(currentOffset);
             } else {
-                setSessions(data.sessions);
+                setSessions(activeSessions);
                 setOffset(0);
             }
+            // Ideally total would be filtered too, but we use backend total to know if there's more data
             setTotal(data.total);
         } catch (err) {
             console.error('Failed to load sessions', err);

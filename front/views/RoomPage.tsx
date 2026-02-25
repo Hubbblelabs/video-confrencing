@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useCallback, useRef, useState, lazy, Suspense } from 'react';
+import { useRouter } from 'next/navigation';
 import { VideoGrid } from '../components/VideoGrid';
 import { Controls } from '../components/Controls';
 import { StatusBanner } from '../components/StatusBanner';
@@ -45,6 +46,7 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
   const role = useRoomStore((s) => s.role);
   const connectionState = useRoomStore((s) => s.connectionState);
   const userId = useAuthStore((s) => s.userId);
+  const userRole = useAuthStore((s) => s.role);
   const displayName = useAuthStore((s) => s.displayName);
 
   const isMicOn = useMediaStore((s) => s.isMicOn);
@@ -56,6 +58,8 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
   const [showWhiteboard, setShowWhiteboard] = useState(false);
   const [privateMessageTarget, setPrivateMessageTarget] = useState<string | null>(null);
   const [meetingTime, setMeetingTime] = useState(0);
+  const [showSummary, setShowSummary] = useState(false);
+  const router = useRouter();
 
   const isHost = role === 'host' || role === 'co_host';
 
@@ -128,13 +132,20 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
 
     try {
       const audioTrack = stream.getAudioTracks()[0];
-      if (audioTrack) {
-        await webrtc.produceTrack(audioTrack, { label: 'audio' });
+      if (audioTrack && audioTrack.readyState === 'live') {
+        const producer = await webrtc.produceTrack(audioTrack, { label: 'audio' });
+        // Since default is isMicOn=false, immediately pause the original producer
+        if (!useMediaStore.getState().isMicOn) {
+          webrtc.pauseProducer('audio').catch(console.error);
+        }
       }
 
       const videoTrack = stream.getVideoTracks()[0];
-      if (videoTrack) {
-        await webrtc.produceTrack(videoTrack, { label: 'video' });
+      if (videoTrack && videoTrack.readyState === 'live') {
+        const producer = await webrtc.produceTrack(videoTrack, { label: 'video' });
+        if (!useMediaStore.getState().isCameraOn) {
+          webrtc.pauseProducer('video').catch(console.error);
+        }
       }
     } catch (err) {
       console.error('Failed to produce local tracks:', err);
@@ -250,7 +261,7 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
     }
   }, [roomId, isScreenSharing, media, webrtc]);
 
-  const handleLeave = useCallback(async () => {
+  const confirmLeave = useCallback(async () => {
     if (roomId) {
       try {
         await signaling.leaveRoom(roomId);
@@ -262,7 +273,18 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
     media.stopScreenShare();
     webrtc.cleanup();
     onLeave();
-  }, [roomId, signaling, media, webrtc, onLeave]);
+
+    const roleDashboard = userRole === 'ADMIN' ? '/admin' : userRole === 'TEACHER' ? '/teacher' : '/dashboard';
+    router.push(roleDashboard);
+  }, [roomId, signaling, media, webrtc, onLeave, userRole, router]);
+
+  const handleLeave = useCallback(() => {
+    if (isHost) {
+      setShowSummary(true);
+    } else {
+      confirmLeave();
+    }
+  }, [isHost, confirmLeave]);
 
   const handleKick = useCallback(async (targetUserId: string) => {
     if (!roomId) return;
@@ -460,6 +482,44 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
         onToggleHandRaise={handleToggleHandRaise}
         onReaction={handleReaction}
       />
+
+      {showSummary && isHost && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 text-foreground">
+          <div className="bg-card border border-border rounded-3xl p-8 max-w-md w-full shadow-2xl flex flex-col items-center text-center animate-slide-up">
+            <div className="w-16 h-16 rounded-full bg-primary/20 text-primary flex items-center justify-center mb-6">
+              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold mb-2">Meeting Summary</h2>
+            <p className="text-muted-foreground mb-8">Thank you for hosting this session.</p>
+
+            <div className="w-full bg-muted/50 rounded-2xl p-4 mb-8 space-y-4 text-left">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium text-muted-foreground">Duration</span>
+                <span className="text-lg font-bold">{formatMeetingTime(meetingTime)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium text-muted-foreground">Participants</span>
+                <span className="text-lg font-bold">{participantsData.size + 1}</span>
+              </div>
+            </div>
+
+            <button
+              onClick={confirmLeave}
+              className="w-full py-4 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-xl transition-colors"
+            >
+              End Session & Return
+            </button>
+            <button
+              onClick={() => setShowSummary(false)}
+              className="mt-4 px-4 py-2 text-sm text-muted-foreground border-transparent border hover:border-border rounded-lg bg-transparent hover:bg-muted/50 transition-colors"
+            >
+              Return to Meeting
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -154,16 +154,17 @@ export function SignalingProvider({ children }: { children: React.ReactNode }) {
                 return false;
             };
 
-            if (checkReady()) return;
+            function onConnect() { checkReady(); }
+            function onAuthenticated() { checkReady(); }
+            function onError(err: Error) { cleanup(); reject(err); }
+            function cleanup() {
+                // Socket is captured from outer scope
+                socket?.off('connect', onConnect);
+                socket?.off('authenticated', onAuthenticated);
+                socket?.off('connect_error', onError);
+            }
 
-            const onConnect = () => checkReady();
-            const onAuthenticated = () => checkReady();
-            const onError = (err: Error) => { cleanup(); reject(err); };
-            const cleanup = () => {
-                socket.off('connect', onConnect);
-                socket.off('authenticated', onAuthenticated);
-                socket.off('connect_error', onError);
-            };
+            if (checkReady()) return;
 
             socket.on('connect', onConnect);
             socket.on('authenticated', onAuthenticated);
@@ -177,12 +178,44 @@ export function SignalingProvider({ children }: { children: React.ReactNode }) {
         setWasRejected(false);
         setRejectionMessage('');
 
-        socket.emit('waitingRoom:join', { roomId: id }, (response: any) => {
+        socket.emit('waitingRoom:join', { roomId: id }, async (response: any) => {
             console.log('JOIN_WAITING_ROOM response:', response);
             if (!response.success) {
                 setIsInWaitingRoom(false);
                 setWaitingRoomId(null);
                 useRoomStore.getState().setError(response.error || 'Failed to join waiting room');
+            } else if (response.isHost) {
+                // If the user is the host, bypass the waiting room and join immediately
+                console.log('User is host, joining directly');
+                try {
+                    const joined = await signaling.joinRoom(id);
+                    const localId = useAuthStore.getState().userId ?? '';
+
+                    useParticipantsStore.getState().syncParticipants(
+                        joined.participants.map((p) => ({
+                            userId: p.userId,
+                            displayName: p.displayName,
+                            role: p.role,
+                            isMuted: p.isMuted,
+                            isVideoOff: p.isVideoOff,
+                        })),
+                        localId,
+                    );
+
+                    setExistingProducers(
+                        joined.existingProducers.map((p) => ({ ...p, kind: p.kind })),
+                    );
+
+                    useRoomStore.getState().setRoom(joined.roomId, joined.roomCode, joined.role);
+
+                    setIsInWaitingRoom(false);
+                    setWaitingRoomId(null);
+                } catch (error) {
+                    console.error('Failed to join room directly as host:', error);
+                    setIsInWaitingRoom(false);
+                    setWaitingRoomId(null);
+                    useRoomStore.getState().setError('Failed to join room');
+                }
             } else if (response.roomId) {
                 setWaitingRoomId(response.roomId);
             }
@@ -203,16 +236,18 @@ export function SignalingProvider({ children }: { children: React.ReactNode }) {
                 return false;
             };
 
-            if (checkReady()) return;
+            function onConnect() { checkReady(); }
+            function onAuthenticated() { checkReady(); }
+            function onError(err: Error) { cleanup(); reject(err); }
+            function cleanup() {
+                // Socket is captured from outer scope
+                // Socket is captured from outer scope
+                socket?.off('connect', onConnect);
+                socket?.off('authenticated', onAuthenticated);
+                socket?.off('connect_error', onError);
+            }
 
-            const onConnect = () => checkReady();
-            const onAuthenticated = () => checkReady();
-            const onError = (err: Error) => { cleanup(); reject(err); };
-            const cleanup = () => {
-                socket.off('connect', onConnect);
-                socket.off('authenticated', onAuthenticated);
-                socket.off('connect_error', onError);
-            };
+            if (checkReady()) return;
 
             socket.on('connect', onConnect);
             socket.on('authenticated', onAuthenticated);
