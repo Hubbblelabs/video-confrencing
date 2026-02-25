@@ -8,8 +8,8 @@ async function main() {
   console.log('🌱 Starting database seeding...');
 
   // Admin credentials
-  const adminEmail = 'admin@videoconf.com';
-  const adminPassword = 'Admin@123456';
+  const adminEmail = 'admin@gmail.com';
+  const adminPassword = 'admin123';
   const adminDisplayName = 'System Administrator';
 
   // Check if admin already exists

@@ -11,7 +11,7 @@ datasource db {
 /// Users - Central identity model
 /// Soft deletes supported for GDPR compliance and audit trail integrity
 model User {
-  id                       String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id                       String                 @id @default(uuid()) @db.Uuid
   email                    String                 @unique(map: "UQ_97672ac88f789774dd47f7c8be3") @db.VarChar(255)
   passwordHash             String                 @db.VarChar(255)
   isActive                 Boolean                @default(true)
@@ -46,7 +46,7 @@ model User {
 }
 
 model Wallet {
-  id        String   @id(map: "PK_8402e5df5a30a229380e83e4f7e") @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id        String   @id @default(uuid()) @db.Uuid
   userId    String   @unique(map: "IDX_2ecdb33f23e9a6fc392025c0b9") @db.Uuid
   balance   Int      @default(0)
   createdAt DateTime @default(now()) @db.Timestamptz(6)
@@ -57,7 +57,7 @@ model Wallet {
 }
 
 model Transaction {
-  id                    String                   @id(map: "PK_a219afd8dd77ed80f5a862f1db9") @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id                    String                   @id(map: "PK_a219afd8dd77ed80f5a862f1db9") @default(uuid()) @db.Uuid
   userId                String                   @db.Uuid
   meetingId             String?                  @db.Uuid
   type                  transactions_type_enum
@@ -136,7 +136,7 @@ model Room {
 /// RoomParticipant - Explicit many-to-many relation between User and Room
 /// Tracks full participation lifecycle including kicks, bans, role changes
 model RoomParticipant {
-  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id              String    @id @default(uuid()) @db.Uuid
   userId          String    @db.Uuid
   roomId          String    @db.Uuid
   joinedAt        DateTime  @default(now()) @db.Timestamptz(6)
@@ -205,7 +205,7 @@ model Recording {
 /// Append-only design (never update or delete)
 /// Partitioned by date for performance at scale
 model AuditLog {
-  id        String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id        String                 @id @default(uuid()) @db.Uuid
   action    audit_logs_action_enum
   userId    String?                @db.Uuid
   roomId    String?                @db.Uuid
@@ -221,7 +221,7 @@ model AuditLog {
 }
 
 model meetings {
-  id               String               @id(map: "PK_aa73be861afa77eb4ed31f3ed57") @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id               String               @id(map: "PK_aa73be861afa77eb4ed31f3ed57") @default(uuid()) @db.Uuid
   title            String               @db.VarChar(255)
   roomCode         String               @unique(map: "UQ_bad0d82fe56792d4a051f63a79b") @db.VarChar(20)
   hostId           String               @db.Uuid
@@ -337,7 +337,7 @@ enum transactions_type_enum {
 
 /// ChatMessage - Persistent storage for room chats
 model ChatMessage {
-  id           String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id           String   @id @default(uuid()) @db.Uuid
   roomId       String   @db.Uuid
   userId       String   @db.Uuid
   content      String?  @db.Text
@@ -361,7 +361,7 @@ model ChatMessage {
 
 /// Question - Q&A module for sessions
 model Question {
-  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id         String   @id @default(uuid()) @db.Uuid
   roomId     String   @db.Uuid
   userId     String   @db.Uuid
   content    String   @db.Text
@@ -380,7 +380,7 @@ model Question {
 
 /// QuestionUpvote - Tracking user upvotes on questions
 model QuestionUpvote {
-  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id         String   @id @default(uuid()) @db.Uuid
   questionId String   @db.Uuid
   userId     String   @db.Uuid
   createdAt  DateTime @default(now()) @db.Timestamptz(6)
@@ -394,7 +394,7 @@ model QuestionUpvote {
 
 /// Subject - Represents an academic subject
 model Subject {
-  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id          String   @id @default(uuid()) @db.Uuid
   name        String   @unique @db.VarChar(100)
   description String?  @db.Text
   icon        String?  @db.VarChar(50)
@@ -411,7 +411,7 @@ model Subject {
 
 /// TeacherSubject - Maps teachers to subjects they teach
 model TeacherSubject {
-  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id         String   @id @default(uuid()) @db.Uuid
   teacherId  String   @db.Uuid
   subjectId  String   @db.Uuid
   assignedAt DateTime @default(now()) @db.Timestamptz(6)
@@ -427,7 +427,7 @@ model TeacherSubject {
 
 /// StudentSubjectAccess - Controls which subjects a student can see
 model StudentSubjectAccess {
-  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id        String   @id @default(uuid()) @db.Uuid
   studentId String   @db.Uuid
   subjectId String   @db.Uuid
   grantedAt DateTime @default(now()) @db.Timestamptz(6)

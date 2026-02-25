@@ -11,11 +11,7 @@ export const jwtConfig = registerAs('jwt', () => ({
 }));
 
 export const postgresConfig = registerAs('postgres', () => ({
-  host: process.env['POSTGRES_HOST'] || 'localhost',
-  port: parseInt(process.env['POSTGRES_PORT'] || '5432', 10),
-  username: process.env['POSTGRES_USER'] || 'videoconf',
-  password: process.env['POSTGRES_PASSWORD'] || 'videoconf_secret',
-  database: process.env['POSTGRES_DB'] || 'videoconf',
+  url: process.env['DATABASE_URL'],
 }));
 
 export const redisConfig = registerAs('redis', () => ({
