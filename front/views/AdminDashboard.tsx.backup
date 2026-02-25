@@ -1,0 +1,558 @@
+import { useState, useEffect, useCallback } from 'react';
+import { useAuthStore } from '../store/auth.store';
+import { adminUsersApi } from '../services/admin-users.service';
+import type { AdminUser, CreateAdminUserRequest, UpdateAdminUserRequest, UserStatistics } from '../services/admin-users.service';
+import type { UserRole } from '../types/api.types';
+
+interface UserFormData {
+  email: string;
+  password: string;
+  displayName: string;
+  role: UserRole;
+  isActive: boolean;
+}
+
+type ViewMode = 'grid' | 'table';
+type SortField = 'displayName' | 'email' | 'role' | 'createdAt' | 'isActive';
+type SortOrder = 'asc' | 'desc';
+
+export function AdminDashboard() {
+  const token = useAuthStore((s) => s.token);
+  const currentUserRole = useAuthStore((s) => s.role);
+  const currentUserId = useAuthStore((s) => s.userId);
+  const displayName = useAuthStore((s) => s.displayName);
+
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [statistics, setStatistics] = useState<UserStatistics | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [filterRole, setFilterRole] = useState<UserRole | 'ALL'>('ALL');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
+  const [formData, setFormData] = useState<UserFormData>({
+    email: '',
+    password: '',
+    displayName: '',
+    role: 'STUDENT',
+    isActive: true,
+  });
+  const [formError, setFormError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState<ViewMode>('table');
+  const [sortField, setSortField] = useState<SortField>('createdAt');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+
+  const loadUsers = useCallback(async () => {
+    if (!token) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+      const role = filterRole === 'ALL' ? undefined : filterRole;
+      const [usersData, stats] = await Promise.all([
+        adminUsersApi.getAll(token, role),
+        adminUsersApi.getStatistics(token),
+      ]);
+      setUsers(usersData);
+      setStatistics(stats);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load users');
+    } finally {
+      setLoading(false);
+    }
+  }, [token, filterRole]);
+
+  useEffect(() => {
+    loadUsers();
+  }, [loadUsers]);
+
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token) return;
+
+    setFormError(null);
+    setSubmitting(true);
+
+    try {
+      const data: CreateAdminUserRequest = {
+        email: formData.email,
+        password: formData.password,
+        displayName: formData.displayName,
+        role: formData.role,
+        isActive: formData.isActive,
+      };
+
+      await adminUsersApi.create(token, data);
+      setShowCreateModal(false);
+      setFormData({
+        email: '',
+        password: '',
+        displayName: '',
+        role: 'STUDENT',
+        isActive: true,
+      });
+      await loadUsers();
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'Failed to create user');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleUpdateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token || !editingUser) return;
+
+    setFormError(null);
+    setSubmitting(true);
+
+    try {
+      const data: UpdateAdminUserRequest = {
+        displayName: formData.displayName,
+        isActive: formData.isActive,
+      };
+
+      if (formData.email !== editingUser.email) {
+        data.email = formData.email;
+      }
+
+      if (formData.password) {
+        data.password = formData.password;
+      }
+
+      await adminUsersApi.update(token, editingUser.id, data);
+
+      if (formData.role !== editingUser.role) {
+        await adminUsersApi.updateRole(token, editingUser.id, { role: formData.role });
+      }
+
+      setEditingUser(null);
+      setFormData({
+        email: '',
+        password: '',
+        displayName: '',
+        role: 'STUDENT',
+        isActive: true,
+      });
+      await loadUsers();
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'Failed to update user');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!token) return;
+    if (userId === currentUserId) {
+      alert('You cannot delete your own account');
+      return;
+    }
+
+    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      await adminUsersApi.delete(token, userId);
+      await loadUsers();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to delete user');
+    }
+  };
+
+  const openEditModal = (user: AdminUser) => {
+    setEditingUser(user);
+    setFormData({
+      email: user.email,
+      password: '',
+      displayName: user.displayName,
+      role: user.role,
+      isActive: user.isActive,
+    });
+    setFormError(null);
+  };
+
+  const closeModal = () => {
+    setShowCreateModal(false);
+    setEditingUser(null);
+    setFormData({
+      email: '',
+      password: '',
+      displayName: '',
+      role: 'STUDENT',
+      isActive: true,
+    });
+    setFormError(null);
+  };
+
+  const getRoleBadgeColor = (role: UserRole) => {
+    switch (role) {
+      case 'ADMIN': return 'bg-red-500/10 text-red-500 border-red-500/20';
+      case 'TEACHER': return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
+      case 'STUDENT': return 'bg-green-500/10 text-green-500 border-green-500/20';
+      default: return 'bg-gray-500/10 text-gray-500 border-gray-500/20';
+    }
+  };
+
+  // Filtered and sorted users
+  const filteredUsers = users
+    .filter(user => {
+      const matchesRole = filterRole === 'ALL' || user.role === filterRole;
+      const matchesSearch = searchQuery === '' || 
+        user.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesRole && matchesSearch;
+    })
+    .sort((a, b) => {
+      const aValue = a[sortField];
+      const bValue = b[sortField];
+      
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortOrder === 'asc' 
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue);
+      }
+      
+      if (typeof aValue === 'boolean' && typeof bValue === 'boolean') {
+        return sortOrder === 'asc'
+          ? (aValue === bValue ? 0 : aValue ? -1 : 1)
+          : (aValue === bValue ? 0 : aValue ? 1 : -1);
+      }
+      
+      return 0;
+    });
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
+
+  // Check if user is admin - must be after all hooks
+  if (currentUserRole !== 'ADMIN') {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-foreground mb-2">Access Denied</h1>
+          <p className="text-muted-foreground">You don't have permission to access this page.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      {/* Header */}
+      <div className="bg-card border-b border-border">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">User Management</h1>
+            <p className="text-sm text-muted-foreground mt-1">Manage teachers and students</p>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-red-500/10 text-red-500 flex items-center justify-center text-sm font-bold border border-red-500/20">
+                {(displayName || 'A').charAt(0).toUpperCase()}
+              </div>
+              <span className="text-sm font-medium hidden sm:inline">{displayName || 'Admin'}</span>
+            </div>
+            <div className="h-8 w-[1px] bg-border"></div>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 border border-border rounded-lg hover:bg-muted transition-colors text-sm font-medium"
+            >
+              Back to Lobby
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Statistics Cards */}
+        {statistics && (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+            <div className="bg-card border border-border rounded-lg p-4">
+              <p className="text-sm text-muted-foreground">Total Users</p>
+              <p className="text-2xl font-bold mt-1">{statistics.total}</p>
+            </div>
+            <div className="bg-card border border-border rounded-lg p-4">
+              <p className="text-sm text-muted-foreground">Students</p>
+              <p className="text-2xl font-bold mt-1 text-green-500">{statistics.students}</p>
+            </div>
+            <div className="bg-card border border-border rounded-lg p-4">
+              <p className="text-sm text-muted-foreground">Teachers</p>
+              <p className="text-2xl font-bold mt-1 text-blue-500">{statistics.teachers}</p>
+            </div>
+            <div className="bg-card border border-border rounded-lg p-4">
+              <p className="text-sm text-muted-foreground">Admins</p>
+              <p className="text-2xl font-bold mt-1 text-red-500">{statistics.admins}</p>
+            </div>
+            <div className="bg-card border border-border rounded-lg p-4">
+              <p className="text-sm text-muted-foreground">Active</p>
+              <p className="text-2xl font-bold mt-1">{statistics.active}</p>
+            </div>
+            <div className="bg-card border border-border rounded-lg p-4">
+              <p className="text-sm text-muted-foreground">Inactive</p>
+              <p className="text-2xl font-bold mt-1">{statistics.inactive}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Controls */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+          <div className="flex gap-2">
+            <button
+              onClick={() => setFilterRole('ALL')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                filterRole === 'ALL'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-card border border-border hover:bg-muted'
+              }`}
+            >
+              All
+            </button>
+            <button
+              onClick={() => setFilterRole('STUDENT')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                filterRole === 'STUDENT'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-card border border-border hover:bg-muted'
+              }`}
+            >
+              Students
+            </button>
+            <button
+              onClick={() => setFilterRole('TEACHER')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                filterRole === 'TEACHER'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-card border border-border hover:bg-muted'
+              }`}
+            >
+              Teachers
+            </button>
+            <button
+              onClick={() => setFilterRole('ADMIN')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                filterRole === 'ADMIN'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-card border border-border hover:bg-muted'
+              }`}
+            >
+              Admins
+            </button>
+          </div>
+
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 font-medium"
+          >
+            + Create User
+          </button>
+        </div>
+
+        {/* Users Table */}
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <p className="mt-2 text-muted-foreground">Loading users...</p>
+          </div>
+        ) : error ? (
+          <div className="text-center py-12">
+            <p className="text-destructive">{error}</p>
+            <button
+              onClick={loadUsers}
+              className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90"
+            >
+              Try Again
+            </button>
+          </div>
+        ) : users.length === 0 ? (
+          <div className="text-center py-12 bg-card border border-border rounded-lg">
+            <p className="text-muted-foreground">No users found</p>
+          </div>
+        ) : (
+          <div className="bg-card border border-border rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-muted/50 border-b border-border">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      User
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Email
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Role
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Created
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {users.map((user) => (
+                    <tr key={user.id} className="hover:bg-muted/30">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold">
+                            {user.displayName.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="font-medium">{user.displayName}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground">{user.email}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getRoleBadgeColor(user.role)}`}>
+                          {user.role}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          user.isActive
+                            ? 'bg-green-500/10 text-green-500'
+                            : 'bg-gray-500/10 text-gray-500'
+                        }`}>
+                          {user.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground">
+                        {new Date(user.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-4 py-3 text-right space-x-2">
+                        <button
+                          onClick={() => openEditModal(user)}
+                          className="text-primary hover:text-primary/80 text-sm font-medium"
+                        >
+                          Edit
+                        </button>
+                        {user.id !== currentUserId && (
+                          <button
+                            onClick={() => handleDeleteUser(user.id)}
+                            className="text-destructive hover:text-destructive/80 text-sm font-medium"
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Create/Edit Modal */}
+      {(showCreateModal || editingUser) && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-card border border-border rounded-lg max-w-md w-full p-6">
+            <h2 className="text-xl font-bold mb-4">
+              {editingUser ? 'Edit User' : 'Create New User'}
+            </h2>
+
+            <form onSubmit={editingUser ? handleUpdateUser : handleCreateUser} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Email</label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Password {editingUser && '(leave blank to keep current)'}
+                </label>
+                <input
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  className="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  required={!editingUser}
+                  minLength={8}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Display Name</label>
+                <input
+                  type="text"
+                  value={formData.displayName}
+                  onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
+                  className="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Role</label>
+                <select
+                  value={formData.role}
+                  onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
+                  className="w-full px-3 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
+                >
+                  <option value="STUDENT">Student</option>
+                  <option value="TEACHER">Teacher</option>
+                  <option value="ADMIN">Admin</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="isActive"
+                  checked={formData.isActive}
+                  onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                  className="w-4 h-4"
+                />
+                <label htmlFor="isActive" className="text-sm font-medium">Active</label>
+              </div>
+
+              {formError && (
+                <div className="p-3 bg-destructive/10 border border-destructive/20 text-destructive rounded-lg text-sm">
+                  {formError}
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  className="flex-1 px-4 py-2 border border-border rounded-lg hover:bg-muted"
+                  disabled={submitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50"
+                  disabled={submitting}
+                >
+                  {submitting ? 'Saving...' : editingUser ? 'Update' : 'Create'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
