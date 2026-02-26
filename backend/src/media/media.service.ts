@@ -296,14 +296,30 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
   async pauseProducer(producerId: string): Promise<{ kind: string }> {
     const ctx = this.producers.get(producerId);
     if (!ctx) throw new WsMediaException('Producer not found');
-    await ctx.producer.pause();
+    try {
+      if (!ctx.producer.closed) await ctx.producer.pause();
+    } catch (e: any) {
+      if (e.message?.includes('not found')) {
+        this.logger.warn(`Producer ${producerId} dropped by worker during pause`);
+      } else {
+        throw e;
+      }
+    }
     return { kind: ctx.producer.kind };
   }
 
   async resumeProducer(producerId: string): Promise<{ kind: string }> {
     const ctx = this.producers.get(producerId);
     if (!ctx) throw new WsMediaException('Producer not found');
-    await ctx.producer.resume();
+    try {
+      if (!ctx.producer.closed) await ctx.producer.resume();
+    } catch (e: any) {
+      if (e.message?.includes('not found')) {
+        this.logger.warn(`Producer ${producerId} dropped by worker during resume`);
+      } else {
+        throw e;
+      }
+    }
     return { kind: ctx.producer.kind };
   }
 

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Outfit, Geist_Mono } from "next/font/google";
 import "./globals.css";
+// Required for Excalidraw components (toolbar, shapes, etc)
+import "@excalidraw/excalidraw/index.css";
 
 const outfit = Outfit({
   variable: "--font-sans",

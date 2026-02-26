@@ -96,6 +96,7 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
     socket: whiteboardSocket,
     roomId: roomId || '',
     userId: userId || '',
+    displayName: displayName || 'User',
     onStateChange: (active) => setShowWhiteboard(active),
   });
 
@@ -135,20 +136,13 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
 
     try {
       const audioTrack = stream.getAudioTracks()[0];
-      if (audioTrack && audioTrack.readyState === 'live') {
-        const producer = await webrtc.produceTrack(audioTrack, { label: 'audio' });
-        // Since default is isMicOn=false, immediately pause the original producer
-        if (!useMediaStore.getState().isMicOn) {
-          webrtc.pauseProducer('audio').catch(console.error);
-        }
+      if (audioTrack && audioTrack.readyState === 'live' && useMediaStore.getState().isMicOn) {
+        await webrtc.produceTrack(audioTrack, { label: 'audio' });
       }
 
       const videoTrack = stream.getVideoTracks()[0];
-      if (videoTrack && videoTrack.readyState === 'live') {
-        const producer = await webrtc.produceTrack(videoTrack, { label: 'video' });
-        if (!useMediaStore.getState().isCameraOn) {
-          webrtc.pauseProducer('video').catch(console.error);
-        }
+      if (videoTrack && videoTrack.readyState === 'live' && useMediaStore.getState().isCameraOn) {
+        await webrtc.produceTrack(videoTrack, { label: 'video' });
       }
     } catch (err) {
       console.error('Failed to produce local tracks:', err);
@@ -205,9 +199,19 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
   const handleToggleMic = useCallback(() => {
     const nowOn = media.toggleMic();
     console.log('CLIENT EMIT media-state-change (mic)', { nowOn });
-    // Fire signaling in background — local UI is already updated
-    if (nowOn) webrtc.resumeProducer('audio').catch(console.error);
-    else webrtc.pauseProducer('audio').catch(console.error);
+    if (nowOn) {
+      const stream = useMediaStore.getState().localStream;
+      const newTrack = stream?.getAudioTracks()[0];
+      if (newTrack) {
+        if (!webrtc.hasProducer('audio')) {
+          webrtc.produceTrack(newTrack, { label: 'audio' }).catch(console.error);
+        } else {
+          webrtc.resumeProducer('audio').catch(console.error);
+        }
+      }
+    } else {
+      webrtc.pauseProducer('audio').catch(console.error);
+    }
 
     // Always emit dedicated media state event for reliable UI sync
     if (roomId) {
@@ -385,9 +389,7 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
               </div>
             }>
               <Whiteboard
-                onObjectAdded={whiteboard.sendObjectAdded}
-                onObjectModified={whiteboard.sendObjectModified}
-                onObjectRemoved={whiteboard.sendObjectRemoved}
+                onElementsChange={whiteboard.sendElements}
                 onCursorMove={whiteboard.sendCursorPosition}
                 onClear={whiteboard.sendClear}
                 onSave={(dataUrl) => {
@@ -397,8 +399,9 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
                   a.click();
                 }}
                 onCursorUpdate={whiteboard.onCursorUpdate}
-                remoteObjects={whiteboard.remoteObjects}
-                fullScreen={true}
+                remoteElements={whiteboard.remoteElements}
+                localUserId={userId ?? 'me'}
+                localDisplayName={displayName ?? 'You'}
               />
             </Suspense>
             <button

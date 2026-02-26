@@ -1,27 +1,5 @@
-export type DrawingTool = 'pen' | 'line' | 'rect' | 'circle' | 'text' | 'eraser' | 'select';
-
-export interface WhiteboardObject {
-  type: string;
-  left: number;
-  top: number;
-  fill?: string;
-  stroke?: string;
-  strokeWidth?: number;
-  width?: number;
-  height?: number;
-  radius?: number;
-  x1?: number;
-  y1?: number;
-  x2?: number;
-  y2?: number;
-  text?: string;
-  fontFamily?: string;
-  fontSize?: number;
-  path?: any;
-  scaleX?: number;
-  scaleY?: number;
-  angle?: number;
-}
+export type ExcalidrawElement = any;
+export type AppState = any;
 
 export interface WhiteboardCursor {
   userId: string;
@@ -31,28 +9,31 @@ export interface WhiteboardCursor {
   color: string;
 }
 
+export interface WhiteboardSyncPayload {
+  elements: readonly ExcalidrawElement[];
+}
+
 export interface WhiteboardDrawEvent {
   roomId: string;
-  object: WhiteboardObject;
   userId: string;
+  elements: readonly ExcalidrawElement[];
 }
 
 export interface WhiteboardCursorEvent {
   roomId: string;
   userId: string;
+  displayName: string;
   x: number;
   y: number;
 }
 
 export interface WhiteboardClearEvent {
   roomId: string;
-}
-
-export interface WhiteboardUndoEvent {
-  roomId: string;
+  userId: string;
 }
 
 export interface WhiteboardStateEvent {
   roomId: string;
-  state: string; // JSON serialized canvas state
+  userId: string;
+  active: boolean;
 }
