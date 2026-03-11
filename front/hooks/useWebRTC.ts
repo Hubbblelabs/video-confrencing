@@ -292,14 +292,16 @@ export function useWebRTC(signaling: Signaling) {
     const producer = producersRef.current.get(label);
     if (!producer || producer.paused) return;
     producer.pause();
-    await signaling.pauseProducer(producer.id);
+    // Local state is already updated; signal the server best-effort
+    signaling.pauseProducer(producer.id).catch(() => { /* server will reconcile on next join */ });
   }, [signaling]);
 
   const resumeProducer = useCallback(async (label: string): Promise<void> => {
     const producer = producersRef.current.get(label);
     if (!producer || !producer.paused) return;
     producer.resume();
-    await signaling.resumeProducer(producer.id);
+    // Local state is already updated; signal the server best-effort
+    signaling.resumeProducer(producer.id).catch(() => { /* server will reconcile on next join */ });
   }, [signaling]);
 
   // ─── Replace track on a producer (device switch) ──────────────

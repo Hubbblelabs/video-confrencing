@@ -1,14 +1,12 @@
 "use client";
-import { useState, useEffect, useCallback } from 'react';
-import { Compass, X, Loader2, SearchX } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Compass } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '../store/auth.store';
 import { StudentWallet } from "@/components/billing/StudentWallet";
 import { ProfileSettings } from "@/components/profile/ProfileSettings";
 import { UpcomingEvents } from '../components/lobby/UpcomingEvents';
 import { billingApi } from '../services/billing.service';
-import { sessionsApi } from '../services/api.service';
-import { SessionCard } from '../components/sessions/SessionCard';
 import { Input } from "@/components/ui/input";
 
 interface LobbyPageProps {
@@ -51,12 +49,7 @@ export function LobbyPage() {
   const [currentTime, setCurrentTime] = useState<string>('');
   const [currentDate, setCurrentDate] = useState<string>('');
 
-  // Catalog popup state
-  const [showCatalog, setShowCatalog] = useState(false);
-  const [catalogSessions, setCatalogSessions] = useState<any[]>([]);
-  const [catalogLoading, setCatalogLoading] = useState(false);
-  const [catalogTotal, setCatalogTotal] = useState(0);
-  const [catalogQuery, setCatalogQuery] = useState('');
+
 
   const userId = useAuthStore((s) => s.userId);
   const displayName = useAuthStore((s) => s.displayName);
@@ -88,35 +81,7 @@ export function LobbyPage() {
     setIsMounted(true);
   }, []);
 
-  // Catalog popup loader
-  const loadCatalog = useCallback(async (query = '') => {
-    const token = useAuthStore.getState().token;
-    setCatalogLoading(true);
-    try {
-      const data = await sessionsApi.getSessions({
-        q: query || undefined,
-        sortBy: 'date',
-        order: 'DESC',
-        limit: 50, // Increased limit due to client-side filtering
-        offset: 0,
-      }, token || undefined);
 
-      // Filter out past sessions (older than 4 hours) or ended/cancelled sessions
-      const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000);
-      const activeSessions = data.sessions.filter((session: any) => {
-        if (session.status === 'ENDED' || session.status === 'CANCELLED') return false;
-        if (!session.scheduledStart) return true; // Keep instant sessions
-        return new Date(session.scheduledStart) > fourHoursAgo;
-      });
-
-      setCatalogSessions(activeSessions);
-      setCatalogTotal(activeSessions.length);
-    } catch (err) {
-      console.error('Failed to load catalog', err);
-    } finally {
-      setCatalogLoading(false);
-    }
-  }, []);
 
   if (!isMounted) {
     return <div className="min-h-screen bg-background" />;
@@ -143,9 +108,7 @@ export function LobbyPage() {
   };
 
   const handleOpenCatalog = () => {
-    setShowCatalog(true);
-    setCatalogQuery('');
-    loadCatalog();
+    router.push('/sessions');
   };
 
   return (
@@ -346,102 +309,5 @@ export function LobbyPage() {
         </div>
       </main>
 
-      {/* Catalog Popup Modal */}
-      {showCatalog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop */}
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowCatalog(false)} />
-
-          {/* Modal */}
-          <div className="relative w-full max-w-4xl max-h-[85vh] bg-background border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-slide-up">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-600">
-                  <Compass className="w-5 h-5" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold">Session Catalog</h2>
-                  <p className="text-xs text-muted-foreground">{catalogTotal} sessions available</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowCatalog(false)}
-                className="p-2 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Search */}
-            <div className="px-6 py-3 border-b border-border shrink-0">
-              <div className="relative">
-                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <circle cx="11" cy="11" r="8" />
-                  <path d="m21 21-4.35-4.35" />
-                </svg>
-                <Input
-                  type="text"
-                  placeholder="Search sessions..."
-                  value={catalogQuery}
-                  onChange={(e) => {
-                    setCatalogQuery(e.target.value);
-                    loadCatalog(e.target.value);
-                  }}
-                  className="w-full pl-10 pr-4 py-5 bg-muted/50 border-border rounded-xl text-sm placeholder:text-muted-foreground shadow-sm"
-                />
-              </div>
-            </div>
-
-            {/* Sessions Grid */}
-            <div className="flex-1 overflow-y-auto p-6">
-              {catalogLoading ? (
-                <div className="flex flex-col items-center justify-center py-16 space-y-3">
-                  <Loader2 className="w-8 h-8 text-primary animate-spin" />
-                  <p className="text-muted-foreground text-sm font-medium">Loading sessions...</p>
-                </div>
-              ) : catalogSessions.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {catalogSessions.map((session) => (
-                    <SessionCard
-                      key={session.id}
-                      session={session}
-                      onClick={() => {
-                        setShowCatalog(false);
-                        router.push('/sessions');
-                      }}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-16 text-center">
-                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                    <SearchX className="w-8 h-8 text-muted-foreground" />
-                  </div>
-                  <h3 className="text-lg font-bold mb-1">No sessions found</h3>
-                  <p className="text-muted-foreground text-sm max-w-xs">
-                    {catalogQuery ? 'Try a different search term.' : 'No sessions are available right now.'}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Footer */}
-            {catalogSessions.length > 0 && (
-              <div className="px-6 py-3 border-t border-border text-center shrink-0">
-                <button
-                  onClick={() => {
-                    setShowCatalog(false);
-                    router.push('/sessions');
-                  }}
-                  className="text-sm text-primary hover:text-primary/80 font-medium transition-colors"
-                >
-                  View all in full page →
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>);
 }

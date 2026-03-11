@@ -4,11 +4,22 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import dynamic from 'next/dynamic';
 import type { WhiteboardCursor } from '../types/whiteboard.types';
 
-// Dynamically import Excalidraw to avoid SSR issues in Next.js
-const Excalidraw = dynamic(
+// Dynamically import Excalidraw and wrap it with a custom top menu to hide promotional links
+const ExcalidrawWrapper = dynamic(
   async () => {
-    const { Excalidraw } = await import('@excalidraw/excalidraw');
-    return Excalidraw;
+    const { Excalidraw, MainMenu } = await import('@excalidraw/excalidraw');
+    return function CustomExcalidraw(props: any) {
+      return (
+        <Excalidraw {...props}>
+          <MainMenu>
+            <MainMenu.DefaultItems.ClearCanvas />
+            <MainMenu.Separator />
+            <MainMenu.DefaultItems.ToggleTheme />
+            <MainMenu.DefaultItems.ChangeCanvasBackground />
+          </MainMenu>
+        </Excalidraw>
+      );
+    };
   },
   {
     ssr: false,
@@ -170,7 +181,7 @@ export function Whiteboard({
   return (
     <div ref={containerRef} className="relative h-full w-full overflow-hidden bg-white">
       {/* Excalidraw Canvas */}
-      <Excalidraw
+      <ExcalidrawWrapper
         excalidrawAPI={(api: any) => setExcalidrawAPI(api)}
         onChange={handleChange}
         onPointerUpdate={handlePointerUpdate}

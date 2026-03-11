@@ -43,11 +43,15 @@ export function SessionBrowser() {
                 offset: currentOffset,
             }, token || undefined);
 
-            const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000);
+            const now = new Date();
             const activeSessions = data.sessions.filter((session: any) => {
-                if (session.status === 'ENDED' || session.status === 'CANCELLED') return false;
-                if (!session.scheduledStart) return true;
-                return new Date(session.scheduledStart) > fourHoursAgo;
+                const s = session.status?.toLowerCase();
+                if (s === 'active' || s === 'waiting') return true;
+                if (s === 'scheduled') {
+                    if (!session.scheduledStart) return true;
+                    return new Date(session.scheduledStart) >= now;
+                }
+                return false;
             });
 
             if (isLoadMore) {

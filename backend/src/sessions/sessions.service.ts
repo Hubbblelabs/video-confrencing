@@ -26,11 +26,37 @@ export class SessionsService {
         limit?: number;
         offset?: number;
     }) {
+        const now = new Date();
+        // Instant meetings older than 24 h that are still WAITING are stale
+        // (Redis TTL expired without a proper disconnect cleanup).
+        const staleThreshold = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
         const qb = this.meetingRepo.createQueryBuilder('session')
             .leftJoinAndSelect('session.host', 'host')
-            .where('session.status IN (:...statuses)', {
-                statuses: [RoomStatus.WAITING, RoomStatus.ACTIVE, RoomStatus.SCHEDULED]
-            });
+            .where(
+                `(
+                    (
+                        session.status IN (:...liveStatuses)
+                        AND session.endedAt IS NULL
+                        AND (
+                            session.scheduledStart IS NOT NULL
+                            OR session.createdAt >= :staleThreshold
+                        )
+                    )
+                    OR
+                    (
+                        session.status = :scheduled
+                        AND session.endedAt IS NULL
+                        AND (session.scheduledStart IS NULL OR session.scheduledStart >= :now)
+                    )
+                )`,
+                {
+                    liveStatuses: [RoomStatus.WAITING, RoomStatus.ACTIVE],
+                    scheduled: RoomStatus.SCHEDULED,
+                    now,
+                    staleThreshold,
+                }
+            );
 
         if (filters.query) {
             qb.andWhere('(session.title ILIKE :query OR session.description ILIKE :query OR session.tags ILIKE :query)', {

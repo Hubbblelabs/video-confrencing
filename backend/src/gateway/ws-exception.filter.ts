@@ -9,6 +9,13 @@ export class WsExceptionFilter extends BaseWsExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
     const client = host.switchToWs().getClient<Socket>();
 
+            // The ACK callback is the last function in the raw args array.
+    // If present, we MUST call it so emitWithAck on the client resolves
+    // immediately instead of waiting 10 s to time out.
+    const args = host.getArgs<unknown[]>();
+    const ackFn = [...args].reverse().find(a => typeof a === 'function') as
+      ((...a: unknown[]) => void) | undefined;
+
     let message = 'Internal server error';
     let status = 'error';
 
@@ -29,6 +36,11 @@ export class WsExceptionFilter extends BaseWsExceptionFilter {
       );
     }
 
-    client.emit('error', { status, message });
+    if (ackFn) {
+      // Respond through the ACK so the client's emitWithAck rejects cleanly
+      ackFn({ status, message });
+    } else {
+      client.emit('error', { status, message });
+    }
   }
 }
