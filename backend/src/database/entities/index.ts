@@ -4,3 +4,4 @@ export { AuditLogEntity } from './audit-log.entity';
 export { RoomParticipantEntity, ParticipantRole } from './room-participant.entity';
 export { WalletEntity } from './wallet.entity';
 export { TransactionEntity } from './transaction.entity';
+export { WhiteboardSessionEntity } from './whiteboard-session.entity';

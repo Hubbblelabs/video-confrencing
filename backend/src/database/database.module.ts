@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { UserEntity, MeetingEntity, AuditLogEntity, WalletEntity, TransactionEntity, RoomParticipantEntity } from './entities';
+import { UserEntity, MeetingEntity, AuditLogEntity, WalletEntity, TransactionEntity, RoomParticipantEntity, WhiteboardSessionEntity } from './entities';
 
 @Module({
   imports: [
@@ -11,7 +11,7 @@ import { UserEntity, MeetingEntity, AuditLogEntity, WalletEntity, TransactionEnt
       useFactory: (config: ConfigService) => ({
         type: 'postgres' as const,
         url: config.get<string>('postgres.url'),
-        entities: [UserEntity, MeetingEntity, AuditLogEntity, WalletEntity, TransactionEntity, RoomParticipantEntity],
+        entities: [UserEntity, MeetingEntity, AuditLogEntity, WalletEntity, TransactionEntity, RoomParticipantEntity, WhiteboardSessionEntity],
         autoLoadEntities: true,
         synchronize: config.get<string>('app.nodeEnv') === 'development',
         logging: config.get<string>('app.nodeEnv') === 'development',
@@ -22,7 +22,7 @@ import { UserEntity, MeetingEntity, AuditLogEntity, WalletEntity, TransactionEnt
         },
       }),
     }),
-    TypeOrmModule.forFeature([UserEntity, MeetingEntity, AuditLogEntity, WalletEntity, TransactionEntity, RoomParticipantEntity]),
+    TypeOrmModule.forFeature([UserEntity, MeetingEntity, AuditLogEntity, WalletEntity, TransactionEntity, RoomParticipantEntity, WhiteboardSessionEntity]),
   ],
   exports: [TypeOrmModule],
 })

@@ -8,7 +8,8 @@ import {
     History,
     Calendar,
     Wallet,
-    BookOpen
+    BookOpen,
+    FileText,
 } from "lucide-react";
 import {
     Sidebar,
@@ -77,6 +78,11 @@ export function AdminSidebar({ currentView, onViewChange }: AdminSidebarProps) {
             title: "Meeting Schedule",
             icon: Calendar,
             id: "meeting-schedule",
+        },
+        {
+            title: "Whiteboard Notes",
+            icon: FileText,
+            id: "whiteboard-notes",
         },
     ].filter(item => !item.adminOnly || role === 'ADMIN');
 

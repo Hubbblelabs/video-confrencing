@@ -6,6 +6,7 @@ import {
     History,
     LogOut,
     BookOpen,
+    FileText,
 } from "lucide-react";
 import {
     Sidebar,
@@ -61,6 +62,11 @@ export function TeacherSidebar({ currentView, onViewChange }: TeacherSidebarProp
             title: "Class History",
             icon: History,
             id: "class-history",
+        },
+        {
+            title: "Whiteboard Notes",
+            icon: FileText,
+            id: "whiteboard-notes",
         },
     ];
 

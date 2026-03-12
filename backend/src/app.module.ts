@@ -26,6 +26,7 @@ import { HealthController } from './health.controller';
 import { ChatModule } from './chat/chat.module';
 import { QnaModule } from './qna/qna.module';
 import { SubjectsModule } from './subjects/subjects.module';
+import { WhiteboardModule } from './whiteboard/whiteboard.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { SubjectsModule } from './subjects/subjects.module';
     ChatModule,
     QnaModule,
     SubjectsModule,
+    WhiteboardModule,
   ],
   controllers: [HealthController],
 })

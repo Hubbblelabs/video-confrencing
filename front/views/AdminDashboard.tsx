@@ -10,6 +10,7 @@ import { MeetingHistory } from './admin/MeetingHistory';
 import { MeetingSchedule } from './admin/MeetingSchedule';
 import { CreditManagement } from './admin/CreditManagement';
 import { SubjectManagement } from './admin/SubjectManagement';
+import { WhiteboardNotes } from './admin/WhiteboardNotes';
 
 export function AdminDashboard() {
   const currentUserRole = useAuthStore((s) => s.role);
@@ -59,6 +60,8 @@ export function AdminDashboard() {
         return <MeetingSchedule />;
       case 'subjects':
         return <SubjectManagement />;
+      case 'whiteboard-notes':
+        return <WhiteboardNotes adminMode={true} />;
       default:
         return <AdminOverview />;
     }

@@ -22,6 +22,8 @@ import { useChat } from '../hooks/useChat';
 import { useWaitingRoom } from '../hooks/useWaitingRoom';
 import type { useSignaling } from '../hooks/useSignaling';
 import type { NewProducerEvent } from '../types';
+import { whiteboardService } from '../services/whiteboard.service';
+import type { WhiteboardSlide } from '../components/Whiteboard';
 
 // Lazy load Whiteboard
 const Whiteboard = lazy(() => import('../components/Whiteboard').then(module => ({ default: module.Whiteboard })));
@@ -65,6 +67,7 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
   const allowWhiteboard = useRoomStore((s) => s.allowWhiteboard);
 
   const isHost = role === 'host' || role === 'co_host';
+  const isTeacherOrAdmin = userRole === 'TEACHER' || userRole === 'ADMIN';
 
   // Meeting timer
   useEffect(() => {
@@ -268,6 +271,26 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
     }
   }, [roomId, isScreenSharing, media, webrtc]);
 
+  const handleSaveWhiteboard = useCallback(
+    async (slides: WhiteboardSlide[], pdfBase64: string) => {
+      const token = useAuthStore.getState().token;
+      if (!token || !roomId) return;
+      await whiteboardService.saveWhiteboard(
+        {
+          meetingId: roomId,
+          slidesData: slides.map((s, i) => ({
+            slideIndex: i,
+            elements: s.elements as any[],
+            thumbnailDataUrl: s.thumbnailDataUrl,
+          })),
+          pdfBase64,
+        },
+        token,
+      );
+    },
+    [roomId],
+  );
+
   const confirmLeave = useCallback(async () => {
     if (roomId) {
       try {
@@ -334,7 +357,7 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
             <svg className="w-4 h-4 text-white/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
             </svg>
-            <span className="text-sm font-medium text-white/70 font-mono tracking-wide">
+            <span suppressHydrationWarning className="text-sm font-medium text-white/70 font-mono tracking-wide">
               {useRoomStore.getState().roomCode || roomId}
             </span>
             <button
@@ -361,7 +384,7 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
 
         {/* Right: Display name */}
         <div className="flex items-center gap-2 text-white/50 text-xs">
-          <span>{displayName}</span>
+          <span suppressHydrationWarning>{displayName}</span>
         </div>
       </div>
 
@@ -392,12 +415,8 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
                 onElementsChange={whiteboard.sendElements}
                 onCursorMove={whiteboard.sendCursorPosition}
                 onClear={whiteboard.sendClear}
-                onSave={(dataUrl) => {
-                  const a = document.createElement('a');
-                  a.href = dataUrl;
-                  a.download = `whiteboard-${Date.now()}.png`;
-                  a.click();
-                }}
+                onSaveToServer={isTeacherOrAdmin ? handleSaveWhiteboard : undefined}
+                canSave={isTeacherOrAdmin}
                 onCursorUpdate={whiteboard.onCursorUpdate}
                 remoteElements={whiteboard.remoteElements}
                 localUserId={userId ?? 'me'}

@@ -703,15 +703,15 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
   @SubscribeMessage(WsEvents.WHITEBOARD_DRAW)
   async handleWhiteboardDraw(
     @ConnectedSocket() socket: AppSocket,
-    @MessageBody() payload: { roomId: string; object: any },
+    @MessageBody() payload: { roomId: string; elements: any[] },
   ) {
     this.assertAuthenticated(socket);
 
-    // Broadcast to all other users in the room
-    socket.to(payload.roomId).emit(WsEvents.WHITEBOARD_OBJECT_ADDED, {
+    // Broadcast full Excalidraw elements state to all other users in the room
+    socket.to(payload.roomId).emit(WsEvents.WHITEBOARD_DRAW, {
       userId: socket.data.userId,
       displayName: socket.data.displayName,
-      object: payload.object,
+      elements: payload.elements,
     });
 
     return { success: true };

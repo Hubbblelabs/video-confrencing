@@ -8,6 +8,7 @@ import { TeacherSubjects } from './teacher/TeacherSubjects';
 import { AttendanceManagement } from './admin/AttendanceManagement';
 import { MeetingHistory } from './admin/MeetingHistory';
 import { MeetingSchedule } from './admin/MeetingSchedule';
+import { WhiteboardNotes } from './admin/WhiteboardNotes';
 
 export function TeacherDashboard() {
     const currentUserRole = useAuthStore((s) => s.role);
@@ -52,6 +53,8 @@ export function TeacherDashboard() {
                 return <AttendanceManagement />;
             case 'class-history':
                 return <MeetingHistory />;
+            case 'whiteboard-notes':
+                return <WhiteboardNotes adminMode={false} />;
             default:
                 return <TeacherOverview />;
         }

@@ -40,6 +40,7 @@ model User {
   upvotes                  QuestionUpvote[]
   teacherSubjects          TeacherSubject[]
   studentSubjects          StudentSubjectAccess[]
+  whiteboardSessions       WhiteboardSession[]
 
   @@index([email], map: "IDX_97672ac88f789774dd47f7c8be")
   @@map("users")
@@ -242,9 +243,10 @@ model meetings {
   allowScreenShare Boolean              @default(true)
   allowWhiteboard  Boolean              @default(true)
   users            User                 @relation(fields: [hostId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_f4c16c40d16a9eb2003c5dd1ff2")
-  transactions     Transaction[]
-  chatMessages     ChatMessage[]
-  questions        Question[]
+  transactions       Transaction[]
+  chatMessages       ChatMessage[]
+  questions          Question[]
+  whiteboardSessions WhiteboardSession[]
 
   @@index([roomCode], map: "IDX_bad0d82fe56792d4a051f63a79")
   @@index([hostId], map: "IDX_f4c16c40d16a9eb2003c5dd1ff")
@@ -441,4 +443,25 @@ model StudentSubjectAccess {
   @@index([studentId])
   @@index([subjectId])
   @@map("student_subject_access")
+}
+
+/// WhiteboardSession - Stores saved whiteboard snapshots per meeting
+/// Teachers can save multiple slides as a PDF after a session
+model WhiteboardSession {
+  id         String   @id @default(uuid()) @db.Uuid
+  meetingId  String   @db.Uuid
+  hostId     String   @db.Uuid
+  title      String?  @db.VarChar(255)
+  slideCount Int      @default(1)
+  slidesData Json     @default("[]")
+  pdfBase64  String?  @db.Text
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  meeting meetings @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  host    User     @relation(fields: [hostId], references: [id], onDelete: Cascade)
+
+  @@index([meetingId])
+  @@index([hostId])
+  @@map("whiteboard_sessions")
 }
