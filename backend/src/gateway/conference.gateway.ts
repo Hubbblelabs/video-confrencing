@@ -707,6 +707,19 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
   ) {
     this.assertAuthenticated(socket);
 
+    // Check whether this user is allowed to draw
+    const isHostOrCoHost =
+      socket.data.role === RoomRole.HOST || socket.data.role === RoomRole.CO_HOST;
+    const isTeacherOrAdmin =
+      socket.data.userRole === UserRole.TEACHER || socket.data.userRole === UserRole.ADMIN;
+
+    if (!isHostOrCoHost && !isTeacherOrAdmin) {
+      const room = await this.rooms.getRoomState(payload.roomId);
+      if (!room?.allowWhiteboard) {
+        return { success: false, error: 'Whiteboard drawing not permitted' };
+      }
+    }
+
     // Broadcast full Excalidraw elements state to all other users in the room
     socket.to(payload.roomId).emit(WsEvents.WHITEBOARD_DRAW, {
       userId: socket.data.userId,
@@ -741,6 +754,18 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
     @MessageBody() payload: { roomId: string },
   ) {
     this.assertAuthenticated(socket);
+
+    const isHostOrCoHost =
+      socket.data.role === RoomRole.HOST || socket.data.role === RoomRole.CO_HOST;
+    const isTeacherOrAdmin =
+      socket.data.userRole === UserRole.TEACHER || socket.data.userRole === UserRole.ADMIN;
+
+    if (!isHostOrCoHost && !isTeacherOrAdmin) {
+      const room = await this.rooms.getRoomState(payload.roomId);
+      if (!room?.allowWhiteboard) {
+        return { success: false, error: 'Whiteboard access not permitted' };
+      }
+    }
 
     // Broadcast clear to all users in the room
     this.server.to(payload.roomId).emit(WsEvents.WHITEBOARD_CLEAR, {
@@ -786,6 +811,16 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
     @MessageBody() payload: { roomId: string; active: boolean },
   ) {
     this.assertAuthenticated(socket);
+
+    // Only the host, co-host, teacher, or admin may change the whiteboard visibility for all participants
+    const isHostOrCoHost =
+      socket.data.role === RoomRole.HOST || socket.data.role === RoomRole.CO_HOST;
+    const isTeacherOrAdmin =
+      socket.data.userRole === UserRole.TEACHER || socket.data.userRole === UserRole.ADMIN;
+
+    if (!isHostOrCoHost && !isTeacherOrAdmin) {
+      return { success: false, error: 'Only the host can control the whiteboard state' };
+    }
 
     // Broadcast state change to all other users in the room
     socket.to(payload.roomId).emit(WsEvents.WHITEBOARD_STATE, {

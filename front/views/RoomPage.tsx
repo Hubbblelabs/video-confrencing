@@ -69,6 +69,9 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
   const isHost = role === 'host' || role === 'co_host';
   const isTeacherOrAdmin = userRole === 'TEACHER' || userRole === 'ADMIN';
 
+  // Students may only VIEW the whiteboard (no drawing) when the host has disabled open collaboration
+  const whiteboardReadOnly = !isHost && !isTeacherOrAdmin && !allowWhiteboard;
+
   // Meeting timer
   useEffect(() => {
     const interval = setInterval(() => {
@@ -166,6 +169,13 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
     const cleanup = whiteboard.setupListeners();
     return cleanup;
   }, [whiteboard]);
+
+  // Close the whiteboard panel for students when the host revokes the allowWhiteboard permission
+  useEffect(() => {
+    if (!allowWhiteboard && !isHost && !isTeacherOrAdmin) {
+      setShowWhiteboard(false);
+    }
+  }, [allowWhiteboard, isHost, isTeacherOrAdmin]);
 
   useEffect(() => {
     // Wait for connection to be established before bootstrapping
@@ -421,6 +431,7 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
                 remoteElements={whiteboard.remoteElements}
                 localUserId={userId ?? 'me'}
                 localDisplayName={displayName ?? 'You'}
+                readOnly={whiteboardReadOnly}
               />
             </Suspense>
             <button
@@ -498,7 +509,10 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
         onToggleWhiteboard={() => {
           const newState = !showWhiteboard;
           setShowWhiteboard(newState);
-          whiteboard.sendState(newState);
+          // Only hosts and teachers broadcast the whiteboard state to all participants
+          if (isHost || isTeacherOrAdmin) {
+            whiteboard.sendState(newState);
+          }
         }}
         panelOpen={panelOpen}
         onTogglePanel={togglePanel}

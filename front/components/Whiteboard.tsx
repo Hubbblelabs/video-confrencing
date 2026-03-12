@@ -57,6 +57,8 @@ interface WhiteboardProps {
   localDisplayName?: string;
   /** Whether the save-to-server button is visible (teacher/admin only) */
   canSave?: boolean;
+  /** When true, the whiteboard is view-only — no drawing or broadcasting */
+  readOnly?: boolean;
 }
 
 export function Whiteboard({
@@ -69,9 +71,13 @@ export function Whiteboard({
   localUserId = 'me',
   localDisplayName = 'You',
   canSave = false,
+  readOnly = false,
 }: WhiteboardProps) {
   const [excalidrawAPI, setExcalidrawAPI] = useState<any | null>(null);
-  const isRemoteUpdateRef = useRef(false);
+  // Counter incremented before each programmatic updateScene; decremented in handleChange to skip re-broadcast
+  const pendingRemoteRef = useRef(0);
+  // True until Excalidraw fires its initial onChange on mount — that event must not be broadcast
+  const isFirstOnChangeRef = useRef(true);
   const prevRemoteRef = useRef<readonly any[]>([]);
 
   // ── Multi-slide state ─────────────────────────────────────────
@@ -87,13 +93,13 @@ export function Whiteboard({
     if (remoteElements === prevRemoteRef.current) return;
     prevRemoteRef.current = remoteElements;
 
-    isRemoteUpdateRef.current = true;
+    // Increment before updateScene so the resulting async onChange is suppressed
+    pendingRemoteRef.current++;
     if (remoteElements.length === 0) {
       excalidrawAPI.updateScene({ elements: [] });
     } else {
       excalidrawAPI.updateScene({ elements: remoteElements as any[] });
     }
-    isRemoteUpdateRef.current = false;
   }, [excalidrawAPI, remoteElements]);
 
   // ── Remote cursor overlay ────────────────────────────────────────
@@ -185,9 +191,8 @@ export function Whiteboard({
       if (!excalidrawAPI) return;
       await persistCurrentSlide(currentSlide);
       const target = slidesRef.current[targetIndex];
-      isRemoteUpdateRef.current = true;
+      pendingRemoteRef.current++;
       excalidrawAPI.updateScene({ elements: target.elements as any[] });
-      isRemoteUpdateRef.current = false;
       setCurrentSlide(targetIndex);
       onElementsChange(target.elements);
     },
@@ -200,9 +205,8 @@ export function Whiteboard({
     const newIndex = slidesRef.current.length;
     slidesRef.current.push({ elements: [], thumbnailDataUrl: null });
     setSlideCount(slidesRef.current.length);
-    isRemoteUpdateRef.current = true;
+    pendingRemoteRef.current++;
     excalidrawAPI?.updateScene({ elements: [] });
-    isRemoteUpdateRef.current = false;
     setCurrentSlide(newIndex);
     onElementsChange([]);
   }, [currentSlide, persistCurrentSlide, excalidrawAPI, onElementsChange]);
@@ -214,9 +218,8 @@ export function Whiteboard({
     setSlideCount(slidesRef.current.length);
     const newIndex = Math.min(currentSlide, slidesRef.current.length - 1);
     const target = slidesRef.current[newIndex];
-    isRemoteUpdateRef.current = true;
+    pendingRemoteRef.current++;
     excalidrawAPI?.updateScene({ elements: target.elements as any[] });
-    isRemoteUpdateRef.current = false;
     setCurrentSlide(newIndex);
     onElementsChange(target.elements);
   }, [currentSlide, excalidrawAPI, onElementsChange]);
@@ -269,10 +272,20 @@ export function Whiteboard({
 
   const handleChange = useCallback(
     (elements: readonly any[]) => {
-      if (isRemoteUpdateRef.current) return;
+      // Skip Excalidraw's initial onChange fired on mount — it must not overwrite remote state
+      if (isFirstOnChangeRef.current) {
+        isFirstOnChangeRef.current = false;
+        return;
+      }
+      // Skip onChange that results from a programmatic updateScene call
+      if (pendingRemoteRef.current > 0) {
+        pendingRemoteRef.current--;
+        return;
+      }
+      if (readOnly) return;
       onElementsChange(elements);
     },
-    [onElementsChange],
+    [onElementsChange, readOnly],
   );
 
   const handlePointerUpdate = useCallback(
@@ -323,16 +336,18 @@ export function Whiteboard({
           </button>
         ))}
 
-        {/* Add slide button */}
-        <button
-          onClick={handleAddSlide}
-          className="shrink-0 w-10 h-10 rounded border border-dashed border-gray-300 hover:border-violet-400 text-gray-400 hover:text-violet-500 flex items-center justify-center transition-colors"
-          title="Add slide"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-          </svg>
-        </button>
+        {/* Add slide button – editors only */}
+        {!readOnly && (
+          <button
+            onClick={handleAddSlide}
+            className="shrink-0 w-10 h-10 rounded border border-dashed border-gray-300 hover:border-violet-400 text-gray-400 hover:text-violet-500 flex items-center justify-center transition-colors"
+            title="Add slide"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+        )}
 
         <span className="ml-auto shrink-0 text-xs text-gray-400 pr-1 whitespace-nowrap">
           {currentSlide + 1} / {slideCount}
@@ -344,7 +359,8 @@ export function Whiteboard({
         <ExcalidrawWrapper
           excalidrawAPI={(api: any) => setExcalidrawAPI(api)}
           onChange={handleChange}
-          onPointerUpdate={handlePointerUpdate}
+          onPointerUpdate={readOnly ? undefined : handlePointerUpdate}
+          viewModeEnabled={readOnly}
           initialData={{ elements: [], appState: { viewBackgroundColor: '#ffffff' } }}
           UIOptions={{
             canvasActions: {
@@ -358,8 +374,8 @@ export function Whiteboard({
 
         {/* ── Action buttons overlay ──────────────────────────── */}
         <div className="absolute bottom-4 right-4 flex items-center gap-2 z-50">
-          {/* Delete current slide */}
-          {slideCount > 1 && (
+          {/* Delete current slide – editors only */}
+          {!readOnly && slideCount > 1 && (
             <button
               onClick={handleDeleteSlide}
               title="Delete current slide"
@@ -372,8 +388,8 @@ export function Whiteboard({
             </button>
           )}
 
-          {/* Clear current slide */}
-          <button
+          {/* Clear current slide – editors only */}
+          {!readOnly && <button
             onClick={handleClear}
             title="Clear current slide"
             className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xs font-semibold rounded-lg shadow-lg transition-all duration-150"
@@ -382,7 +398,7 @@ export function Whiteboard({
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
             Clear
-          </button>
+          </button>}
 
           {/* Save to server (teacher/admin only) */}
           {canSave && onSaveToServer && (
