@@ -361,8 +361,9 @@ export function Whiteboard({
           onChange={handleChange}
           onPointerUpdate={readOnly ? undefined : handlePointerUpdate}
           viewModeEnabled={readOnly}
-          initialData={{ elements: [], appState: { viewBackgroundColor: '#ffffff' } }}
+          initialData={{ elements: [], appState: { viewBackgroundColor: '#ffffff', openSidebar: null } }}
           UIOptions={{
+            welcomeScreen: false,
             canvasActions: {
               saveToActiveFile: false,
               loadScene: false,

@@ -3,6 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { IoAdapter } from '@nestjs/platform-socket.io';
+import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 import { HttpLoggingInterceptor } from './common/interceptors';
 import { AllExceptionsFilter } from './common/filters';
@@ -17,6 +18,10 @@ async function bootstrap(): Promise<void> {
   const configService = app.get(ConfigService);
   const port = configService.get<number>('app.port', 3000);
   const nodeEnv = configService.get<string>('app.nodeEnv', 'development');
+
+  // Whiteboard save includes base64 PDF + slide snapshots; raise parser limits accordingly.
+  app.use(json({ limit: '50mb' }));
+  app.use(urlencoded({ extended: true, limit: '50mb' }));
 
   // Global exception filter (handle all errors)
   app.useGlobalFilters(new AllExceptionsFilter());

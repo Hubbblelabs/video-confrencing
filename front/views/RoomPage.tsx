@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useCallback, useRef, useState, lazy, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
+import type { Socket } from 'socket.io-client';
 import { VideoGrid } from '../components/VideoGrid';
 import { Controls } from '../components/Controls';
 import { StatusBanner } from '../components/StatusBanner';
@@ -61,6 +62,7 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
   const [privateMessageTarget, setPrivateMessageTarget] = useState<string | null>(null);
   const [meetingTime, setMeetingTime] = useState(0);
   const [showSummary, setShowSummary] = useState(false);
+  const [whiteboardSocket, setWhiteboardSocket] = useState<Socket | null>(null);
   const router = useRouter();
 
   const allowScreenShare = useRoomStore((s) => s.allowScreenShare);
@@ -96,8 +98,12 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
   const webrtc = useWebRTC(signaling);
   const media = useMedia();
 
+  // Keep an explicit socket state for whiteboard so listeners are attached after connect/reconnect
+  useEffect(() => {
+    setWhiteboardSocket(signaling.socketRef.current);
+  }, [signaling, connectionState]);
+
   // Whiteboard hook
-  const whiteboardSocket = signaling.socketRef.current;
   const whiteboard = useWhiteboard({
     socket: whiteboardSocket,
     roomId: roomId || '',
@@ -168,7 +174,7 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
   useEffect(() => {
     const cleanup = whiteboard.setupListeners();
     return cleanup;
-  }, [whiteboard]);
+  }, [whiteboard.setupListeners]);
 
   // Close the whiteboard panel for students when the host revokes the allowWhiteboard permission
   useEffect(() => {
@@ -406,7 +412,7 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
       {/* Side Panels */}
       <div className={`fixed transform transition-all duration-300 ease-in-out z-30 
         ${showWhiteboard
-          ? 'inset-0 z-40'
+          ? 'inset-0 z-[60]'
           : 'top-12 right-0 bottom-24 w-96'
         } 
         ${(panelOpen !== 'none' || showWhiteboard) ? 'translate-x-0' : 'translate-x-[110%]'}`
@@ -435,10 +441,16 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
               />
             </Suspense>
             <button
-              onClick={() => setShowWhiteboard(false)}
-              className="absolute top-3 right-3 p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-all"
+              onClick={() => {
+                setShowWhiteboard(false);
+                if (isHost || isTeacherOrAdmin) {
+                  whiteboard.sendState(false);
+                }
+              }}
+              className="fixed top-16 right-4 z-[90] px-3 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-semibold shadow-lg transition-colors"
+              title={isHost || isTeacherOrAdmin ? 'Stop sharing whiteboard for everyone' : 'Close whiteboard'}
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+              {isHost || isTeacherOrAdmin ? 'Stop Sharing' : 'Close'}
             </button>
           </div>
         )}

@@ -266,6 +266,11 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
       },
     });
 
+    producer.on('transportclose', () => {
+      this.producers.delete(producer.id);
+      this.logger.log(`Producer transport closed: ${producer.id}`);
+    });
+
     producer.on('@close', () => {
       this.producers.delete(producer.id);
       this.logger.log(`Producer closed: ${producer.id}`);
@@ -370,6 +375,14 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
       this.consumers.delete(consumer.id);
     });
 
+    consumer.on('transportclose', () => {
+      this.consumers.delete(consumer.id);
+    });
+
+    consumer.on('producerclose', () => {
+      this.consumers.delete(consumer.id);
+    });
+
     this.consumers.set(consumer.id, {
       consumer,
       roomId: params.roomId,
@@ -449,7 +462,12 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
   getProducersForRoom(roomId: string, excludeUserId?: string): Array<{ producerId: string; userId: string; kind: MediaKind }> {
     const results: Array<{ producerId: string; userId: string; kind: MediaKind }> = [];
 
-    for (const [, ctx] of this.producers.entries()) {
+    for (const [producerId, ctx] of this.producers.entries()) {
+      if (ctx.producer.closed) {
+        this.producers.delete(producerId);
+        continue;
+      }
+
       if (ctx.roomId === roomId && (!excludeUserId || ctx.userId !== excludeUserId)) {
         results.push({
           producerId: ctx.producer.id,
