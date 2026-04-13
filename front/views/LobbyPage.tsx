@@ -8,6 +8,9 @@ import { ProfileSettings } from "@/components/profile/ProfileSettings";
 import { UpcomingEvents } from '../components/lobby/UpcomingEvents';
 import { billingApi } from '../services/billing.service';
 import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { LogOut, BookOpen, Clock, AlertCircle } from 'lucide-react';
 
 interface LobbyPageProps {
   onShowAdmin?: () => void;
@@ -208,70 +211,54 @@ export function LobbyPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
               {/* Join Room Card */}
-              <div className="bg-background/60 backdrop-blur-xl border border-border/60 rounded-3xl p-6 sm:p-8 shadow-sm hover:shadow-lg transition-all duration-300 group overflow-hidden relative">
+              <Card className="w-full relative overflow-hidden group">
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-50 group-hover:opacity-100 transition-opacity" />
-                <div className="relative z-10 flex flex-col h-full">
+                <CardHeader>
                   <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center mb-6 text-blue-600 group-hover:scale-110 transition-transform duration-300">
                     <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                     </svg>
                   </div>
-                  <h3 className="text-xl font-bold text-foreground mb-2">Join a Room</h3>
-                  <p className="text-muted-foreground mb-6 text-sm leading-relaxed">Have a meeting code? Enter it below to join your class instantly.</p>
-
+                  <CardTitle>Join a Room</CardTitle>
+                  <CardDescription>Have a meeting code? Enter it below to join your class instantly.</CardDescription>
+                </CardHeader>
+                <CardContent>
                   <form onSubmit={handleJoin} className="mt-auto">
-                    <div className="relative flex items-center">
-                      <div className="absolute left-3 text-muted-foreground pointer-events-none">
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
-                        </svg>
+                    <div className="flex gap-2 w-full">
+                      <div className="relative flex-1">
+                        <Input
+                          type="text"
+                          value={roomId}
+                          onChange={(e) => setRoomId(e.target.value)}
+                          placeholder="abc-def-ghi"
+                          className="w-full"
+                        />
                       </div>
-                      <Input
-                        type="text"
-                        value={roomId}
-                        onChange={(e) => setRoomId(e.target.value)}
-                        placeholder="abc-def-ghi"
-                        className="w-full pl-10 pr-20 py-6 bg-background border-border rounded-xl text-foreground placeholder:text-muted-foreground/50 shadow-sm text-base"
-                      />
-                      <button
-                        type="submit"
-                        disabled={loading || !roomId.trim()}
-                        className="absolute right-1 top-1 bottom-1 px-4 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-                      >
+                      <Button type="submit" disabled={loading || !roomId.trim()}>
                         {loading ? '...' : 'Join'}
-                      </button>
+                      </Button>
                     </div>
-                    {error && <p className="text-xs text-red-500 mt-2 font-medium flex items-center gap-1 animate-fade-in">
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                      {error}
-                    </p>}
+                    {error && <p className="text-xs text-destructive mt-2 font-medium flex items-center gap-1 animate-fade-in"><AlertCircle className="w-4 h-4"/> {error}</p>}
                   </form>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
 
               {/* Browse Sessions Card */}
-              <div className="bg-background/60 backdrop-blur-xl border border-border/60 rounded-3xl p-6 sm:p-8 shadow-sm hover:shadow-lg transition-all duration-300 group overflow-hidden relative flex flex-col">
+              <Card className="w-full relative overflow-hidden group">
                 <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent opacity-50 group-hover:opacity-100 transition-opacity" />
-                <div className="relative z-10 flex flex-col h-full">
+                <CardHeader>
                   <div className="w-12 h-12 rounded-2xl bg-orange-500/10 flex items-center justify-center mb-6 text-orange-600 group-hover:scale-110 transition-transform duration-300">
                     <Compass className="w-6 h-6" />
                   </div>
-                  <h3 className="text-xl font-bold text-foreground mb-2">Browse Sessions</h3>
-                  <p className="text-muted-foreground mb-6 text-sm leading-relaxed">Explore open classes, public seminars, and community events happening now.</p>
-
-                  <div className="mt-auto pt-4">
-                    <button
-                      onClick={handleOpenCatalog}
-                      className="w-full py-3 px-4 bg-background border border-border/50 hover:border-orange-500/30 hover:bg-orange-500/5 text-foreground hover:text-orange-600 font-medium rounded-xl transition-all duration-200 flex items-center justify-center gap-2 group-hover:shadow-sm"
-                    >
-                      <span>Explore Catalog</span>
-                      <svg className="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              </div>
+                  <CardTitle>Browse Sessions</CardTitle>
+                  <CardDescription>Explore open classes, public seminars, and community events happening now.</CardDescription>
+                </CardHeader>
+                <CardContent className="h-full flex items-end">
+                  <Button variant="outline" className="w-full group-hover:bg-orange-500/5 group-hover:text-orange-600 group-hover:border-orange-500/30" onClick={handleOpenCatalog}>
+                    Explore Catalog
+                  </Button>
+                </CardContent>
+              </Card>
             </div>
 
             {/* Upcoming Events Section */}

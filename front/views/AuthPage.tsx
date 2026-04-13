@@ -131,7 +131,7 @@ export function AuthPage() {
                   JD
                 </div>
                 <div className="text-left">
-                  <p className="text-xs font-bold text-white">John Doe</p>
+                  <p className="text-xs font-bold text-white">Jam </p>
                   <p className="text-[10px] text-white/60">CTO at TechCorp</p>
                 </div>
               </div>
@@ -139,7 +139,7 @@ export function AuthPage() {
           </div>
 
           {/* Social Proof / Stats */}
-          <div className="grid grid-cols-3 gap-6 mb-12">
+          {/* <div className="grid grid-cols-3 gap-6 mb-12">
             <div className="text-center">
               <p className="text-3xl font-bold text-white mb-1">10k+</p>
               <p className="text-xs text-white/50 uppercase tracking-wider">Active Users</p>
@@ -152,7 +152,8 @@ export function AuthPage() {
               <p className="text-3xl font-bold text-white mb-1">4.9/5</p>
               <p className="text-xs text-white/50 uppercase tracking-wider">Rating</p>
             </div>
-          </div>
+          </div> */}
+
 
           {/* Trusted Companies (Mock) */}
           <div className="space-y-4">
