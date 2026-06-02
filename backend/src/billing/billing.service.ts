@@ -49,7 +49,7 @@ export class BillingService {
         userId: string;
         amount: number;
         providerTransactionId?: string;
-        metadata?: any;
+        metadata?: Record<string, unknown>;
     }): Promise<TransactionEntity> {
         if (params.amount <= 0) {
             throw new BadRequestException('Amount must be positive');
@@ -91,7 +91,7 @@ export class BillingService {
         userId: string;
         amount: number;
         meetingId: string;
-        metadata?: any;
+        metadata?: Record<string, unknown>;
     }): Promise<TransactionEntity> {
         if (params.amount <= 0) {
             throw new BadRequestException('Amount must be positive');
@@ -176,11 +176,6 @@ export class BillingService {
         email: string;
         balance: number;
     }[]> {
-        const whereConditions: any = { role: UserRole.STUDENT };
-        if (search) {
-            whereConditions.displayName = ILike(`%${search}%`);
-        }
-
         const students = await this.userRepo.find({
             where: search
                 ? [

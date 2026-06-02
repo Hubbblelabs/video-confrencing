@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsInt, Min, Max, MaxLength } from 'class-validator';
+import { IsString, IsOptional, IsInt, Min, Max, MaxLength, IsBoolean } from 'class-validator';
 
 export class CreateRoomDto {
   @IsOptional()
@@ -13,9 +13,11 @@ export class CreateRoomDto {
   maxParticipants?: number;
 
   @IsOptional()
+  @IsBoolean()
   allowScreenShare?: boolean;
 
   @IsOptional()
+  @IsBoolean()
   allowWhiteboard?: boolean;
 }
 

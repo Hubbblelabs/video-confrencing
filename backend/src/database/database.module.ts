@@ -15,7 +15,7 @@ import { UserEntity, MeetingEntity, AuditLogEntity, WalletEntity, TransactionEnt
         autoLoadEntities: true,
         synchronize: config.get<string>('app.nodeEnv') === 'development',
         logging: config.get<string>('app.nodeEnv') === 'development',
-        ssl: { rejectUnauthorized: false },
+        ssl: config.get<string>('app.nodeEnv') === 'production' ? { rejectUnauthorized: true } : false,
         extra: {
           max: 20,
           connectionTimeoutMillis: 5000,

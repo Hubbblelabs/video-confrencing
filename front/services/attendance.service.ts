@@ -1,5 +1,7 @@
 // Attendance API service
 
+import { API_BASE_URL as API_BASE } from '../constants';
+
 export interface AttendanceRecord {
   id: string;
   userId: string;
@@ -31,8 +33,6 @@ export interface UserAttendanceSummary {
   totalMinutes: number;
   lastAttended: string | null;
 }
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 function getAuthHeaders(token: string) {
   return {

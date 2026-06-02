@@ -43,7 +43,7 @@ export class UsersController {
   }
 
   @Get('statistics')
-  @Roles(UserRole.ADMIN, UserRole.TEACHER)
+  @Roles(UserRole.ADMIN)
   async getStatistics() {
     return this.usersService.getStatistics();
   }

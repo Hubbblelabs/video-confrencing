@@ -1,5 +1,6 @@
 // Admin API endpoints for user management
 
+import { API_BASE_URL as API_BASE } from '../constants';
 import type { UserRole } from '../types/api.types';
 
 export interface AdminUser {
@@ -39,8 +40,6 @@ export interface UserStatistics {
   active: number;
   inactive: number;
 }
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 function getAuthHeaders(token: string) {
   return {

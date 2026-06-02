@@ -99,6 +99,70 @@ export interface ApiError {
 // Validation Constraints (for frontend validation)
 // ─────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────
+// Auth DTOs (extended)
+// ─────────────────────────────────────────────────────────────
+
+export interface ResetPasswordRequest {
+  token: string;
+  password: string;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Session Types
+// ─────────────────────────────────────────────────────────────
+
+export type SessionStatus = 'scheduled' | 'active' | 'waiting' | 'ended' | 'cancelled';
+
+export interface Session {
+  id: string;
+  title: string;
+  description?: string;
+  thumbnailUrl?: string;
+  category?: string;
+  status: SessionStatus;
+  scheduledStart?: string | null;
+  scheduledEnd?: string | null;
+  hostId: string;
+  host?: {
+    displayName: string;
+    profilePictureUrl?: string;
+  };
+  hostName?: string;
+  roomId?: string;
+  roomCode?: string;
+  maxParticipants?: number;
+  participantCount?: number;
+  peakParticipants?: number;
+  price?: number;
+  isPublic?: boolean;
+  tags?: string[];
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface SessionsParams {
+  q?: string;
+  category?: string;
+  sortBy?: string;
+  order?: 'ASC' | 'DESC';
+  limit?: number;
+  offset?: number;
+}
+
+export interface SessionsResponse {
+  sessions: Session[];
+  total: number;
+}
+
+export interface TeacherProfile {
+  id: string;
+  displayName: string;
+  email: string;
+  bio?: string;
+  sessions?: Session[];
+}
+
 export const ValidationRules = {
   email: {
     required: true,

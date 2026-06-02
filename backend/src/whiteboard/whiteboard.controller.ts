@@ -92,17 +92,8 @@ export class WhiteboardController {
     );
   }
 
-  /** Get a single whiteboard session including PDF data (admin or host) */
-  @Get(':id')
-  @Roles(UserRole.TEACHER, UserRole.ADMIN)
-  async getOne(
-    @Req() req: any,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
-    return this.whiteboardService.findOne(id, req.user.id, req.user.role);
-  }
-
   /** Teacher dashboard: all whiteboards saved by this teacher */
+  // NOTE: specific routes must appear BEFORE the ':id' wildcard route
   @Get('teacher/my')
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   async getMyWhiteboards(@Req() req: any) {
@@ -114,5 +105,15 @@ export class WhiteboardController {
   @Roles(UserRole.ADMIN)
   async getAllWhiteboards() {
     return this.whiteboardService.findAll();
+  }
+
+  /** Get a single whiteboard session including PDF data (admin or host) */
+  @Get(':id')
+  @Roles(UserRole.TEACHER, UserRole.ADMIN)
+  async getOne(
+    @Req() req: any,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.whiteboardService.findOne(id, req.user.id, req.user.role);
   }
 }

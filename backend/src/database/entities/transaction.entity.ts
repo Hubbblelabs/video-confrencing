@@ -37,7 +37,7 @@ export class TransactionEntity {
     providerTransactionId!: string | null;
 
     @Column({ type: 'jsonb', nullable: true })
-    metadata!: any;
+    metadata!: Record<string, unknown> | null;
 
     @CreateDateColumn({ type: 'timestamptz' })
     createdAt!: Date;

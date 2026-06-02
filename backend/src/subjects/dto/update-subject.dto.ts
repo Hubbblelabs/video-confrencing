@@ -8,6 +8,7 @@ export class UpdateSubjectDto {
 
     @IsString()
     @IsOptional()
+    @MaxLength(2000)
     description?: string;
 
     @IsString()

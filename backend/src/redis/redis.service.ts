@@ -63,8 +63,9 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     return this.client.hset(key, field, value);
   }
 
-  async hmset(key: string, data: Record<string, string>): Promise<'OK'> {
-    return this.client.hmset(key, data);
+  async hmset(key: string, data: Record<string, string>): Promise<number> {
+    // hset(key, object) is the ioredis v4+ replacement for deprecated hmset
+    return this.client.hset(key, data);
   }
 
   async hget(key: string, field: string): Promise<string | null> {
@@ -110,8 +111,9 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     return this.client.smembers(key);
   }
 
-  async sismember(key: string, member: string): Promise<number> {
-    return this.client.sismember(key, member);
+  async sismember(key: string, member: string): Promise<boolean> {
+    const result = await this.client.sismember(key, member);
+    return result === 1;
   }
 
   // ─── Key Operations ─────────────────────────────────────────────

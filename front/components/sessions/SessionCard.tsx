@@ -5,13 +5,13 @@ interface SessionCardProps {
     session: {
         id: string;
         title: string;
-        description: string;
+        description?: string;
         thumbnailUrl?: string;
-        price: number;
+        price?: number;
         category?: string;
-        scheduledStart?: string;
-        peakParticipants: number;
-        host: {
+        scheduledStart?: string | null;
+        peakParticipants?: number;
+        host?: {
             displayName: string;
             profilePictureUrl?: string;
         };
@@ -50,10 +50,12 @@ export function SessionCard({ session, onClick }: SessionCardProps) {
                 )}
 
                 {/* Price Badge */}
-                <div className="absolute top-4 left-4 px-3 py-1.5 bg-background/80 backdrop-blur-md rounded-full text-sm font-bold border border-white/10 flex items-center gap-1.5 shadow-lg">
+                {session.price !== undefined && (
+                  <div className="absolute top-4 left-4 px-3 py-1.5 bg-background/80 backdrop-blur-md rounded-full text-sm font-bold border border-white/10 flex items-center gap-1.5 shadow-lg">
                     <span className="text-primary">{session.price}</span>
                     <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Credits</span>
-                </div>
+                  </div>
+                )}
 
                 {/* Category Badge */}
                 {session.category && (
@@ -70,10 +72,12 @@ export function SessionCard({ session, onClick }: SessionCardProps) {
                         {session.title}
                     </h3>
 
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-xl w-fit">
+                    {session.host && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-xl w-fit">
                         <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center overflow-hidden">
                             {session.host.profilePictureUrl ? (
-                                <img src={session.host.profilePictureUrl} className="w-full h-full object-cover" />
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={session.host.profilePictureUrl} alt="" className="w-full h-full object-cover" />
                             ) : (
                                 <span className="text-[10px] font-bold text-primary">
                                     {(session.host.displayName || 'U').charAt(0).toUpperCase()}
@@ -81,7 +85,8 @@ export function SessionCard({ session, onClick }: SessionCardProps) {
                             )}
                         </div>
                         <span className="font-medium">{session.host.displayName}</span>
-                    </div>
+                      </div>
+                    )}
 
                     <p className="text-muted-foreground text-sm line-clamp-2 leading-relaxed">
                         {session.description || 'Join this interactive session and learn more about this topic through live video collaboration.'}
@@ -93,7 +98,7 @@ export function SessionCard({ session, onClick }: SessionCardProps) {
                     <div className="flex items-center gap-4">
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground" title="Scheduled Start">
                             <Calendar className="w-3.5 h-3.5" />
-                            <span>{formatTime(session.scheduledStart)}</span>
+                            <span>{formatTime(session.scheduledStart ?? undefined)}</span>
                         </div>
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground" title="Participants">
                             <Users className="w-3.5 h-3.5" />

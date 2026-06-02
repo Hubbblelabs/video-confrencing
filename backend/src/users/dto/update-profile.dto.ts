@@ -13,6 +13,12 @@ export class UpdateProfileDto {
 
     @IsString()
     @MinLength(1)
+    @MaxLength(128)
+    @IsOptional()
+    currentPassword?: string;
+
+    @IsString()
+    @MinLength(1)
     @MaxLength(100)
     @IsOptional()
     displayName?: string;

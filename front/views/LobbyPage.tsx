@@ -23,6 +23,7 @@ interface LobbyPageProps {
 function BalanceIndicator() {
   const token = useAuthStore((s) => s.token);
   const [balance, setBalance] = useState<number | null>(null);
+  const [balanceError, setBalanceError] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -30,8 +31,9 @@ function BalanceIndicator() {
       try {
         const wallet = await billingApi.getWallet(token);
         setBalance(wallet.balance);
-      } catch (err) {
-        console.error('Failed to fetch balance');
+        setBalanceError(false);
+      } catch {
+        setBalanceError(true);
       }
     };
     fetchBalance();
@@ -39,6 +41,7 @@ function BalanceIndicator() {
     return () => clearInterval(interval);
   }, [token]);
 
+  if (balanceError) return <span className="text-sm text-destructive font-medium">—</span>;
   if (balance === null) return <div className="w-12 h-4 bg-muted animate-pulse rounded" />;
   return <span className="text-sm font-bold">{balance} credits</span>;
 }
@@ -177,6 +180,7 @@ export function LobbyPage() {
             onClick={handleLogout}
             className="p-2 rounded-full hover:bg-muted/50 transition-all text-muted-foreground hover:text-destructive group ml-2"
             title="Sign Out"
+            aria-label="Sign Out"
           >
             <svg
               className="w-5 h-5 transition-transform group-hover:translate-x-1"

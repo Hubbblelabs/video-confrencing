@@ -259,8 +259,7 @@ export function Whiteboard({
       await onSaveToServer(slides, pdfBase64);
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 3000);
-    } catch (err) {
-      console.error('Failed to save whiteboard:', err);
+    } catch {
       setSaveStatus('error');
       setTimeout(() => setSaveStatus('idle'), 3000);
     } finally {

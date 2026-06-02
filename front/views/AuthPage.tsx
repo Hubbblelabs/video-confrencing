@@ -77,11 +77,11 @@ export function AuthPage() {
 
       setAuth(response.accessToken);
 
-      // Determine user role and route to appropriate dashboard
-      const payload = JSON.parse(atob(response.accessToken.split('.')[1]));
-      if (payload.role === 'ADMIN') {
+      // Role is decoded and stored synchronously in setAuth; read it back immediately
+      const { role: parsedRole } = useAuthStore.getState();
+      if (parsedRole === 'ADMIN') {
         router.push('/admin');
-      } else if (payload.role === 'TEACHER') {
+      } else if (parsedRole === 'TEACHER') {
         router.push('/teacher');
       } else {
         router.push('/dashboard');

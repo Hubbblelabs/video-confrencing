@@ -6,7 +6,9 @@ import {
     Request,
     UsePipes,
     ValidationPipe,
+    BadRequestException,
 } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards';
@@ -24,6 +26,19 @@ export class ProfileController {
     @Patch()
     async updateProfile(@Request() req: any, @Body() dto: UpdateProfileDto) {
         const userId = req.user.id;
+
+        // When changing password, require verification of the current password
+        if (dto.password) {
+            if (!dto.currentPassword) {
+                throw new BadRequestException('currentPassword is required when changing your password');
+            }
+            const user = await this.usersService.findOne(userId);
+            const valid = await bcrypt.compare(dto.currentPassword, user.passwordHash);
+            if (!valid) {
+                throw new BadRequestException('Current password is incorrect');
+            }
+        }
+
         // 1. Update user logic
         const user = await this.usersService.update(userId, dto);
 

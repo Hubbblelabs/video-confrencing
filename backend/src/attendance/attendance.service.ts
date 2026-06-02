@@ -60,7 +60,7 @@ export class AttendanceService {
     const query = this.participantRepo
       .createQueryBuilder('rp')
       .leftJoinAndSelect('rp.user', 'user')
-      .leftJoinAndMapOne('rp.room', MeetingEntity, 'room', 'room.id = rp.roomId') // Use mapOne to get room details if needed, or just leftJoin for filtering
+      .leftJoin(MeetingEntity, 'room', 'room.id = rp.roomId') // plain leftJoin — we use getRawMany() so mapOne mapping is ignored
       .select([
         'rp.id as id',
         'rp.userId as "userId"',
@@ -188,7 +188,7 @@ export class AttendanceService {
     const query = this.participantRepo
       .createQueryBuilder('rp')
       .leftJoin('rp.user', 'user')
-      .leftJoin('rooms', 'room', 'rp.roomId = room.id')
+      .leftJoin(MeetingEntity, 'room', 'rp.roomId = room.id')
       .select([
         'rp.userId as "userId"',
         'user.displayName as "userName"',
@@ -215,12 +215,12 @@ export class AttendanceService {
     // Count unique users
     const countQuery = this.participantRepo
       .createQueryBuilder('rp')
-      .leftJoin('rooms', 'room', 'rp.roomId = room.id')
+      .leftJoin(MeetingEntity, 'room', 'rp.roomId = room.id')
       .select('COUNT(DISTINCT rp.userId) as count')
       .where('rp.leftAt IS NOT NULL');
 
     if (filters.hostUserId) {
-      countQuery.andWhere('room.hostId = :hostUserId', { hostUserId: filters.hostUserId });
+      countQuery.andWhere('room."hostId" = :hostUserId', { hostUserId: filters.hostUserId });
     }
 
     if (filters.startDate) {
@@ -242,7 +242,8 @@ export class AttendanceService {
       query.offset(filters.offset);
     }
 
-    query.orderBy('totalSeconds', 'DESC');
+    // Use the full expression instead of alias for cross-DB compatibility
+    query.orderBy('SUM(rp."durationSeconds")', 'DESC');
 
     const results = await query.getRawMany();
 
@@ -265,7 +266,7 @@ export class AttendanceService {
     const query = this.participantRepo
       .createQueryBuilder('rp')
       .leftJoinAndSelect('rp.user', 'user')
-      .leftJoin('rooms', 'room', 'rp.roomId = room.id')
+      .leftJoin(MeetingEntity, 'room', 'rp.roomId = room.id')
       .select([
         'rp.id as id',
         'rp.userId as "userId"',
@@ -298,7 +299,7 @@ export class AttendanceService {
     const query = this.participantRepo
       .createQueryBuilder('rp')
       .leftJoinAndSelect('rp.user', 'user')
-      .leftJoin('rooms', 'room', 'rp.roomId = room.id')
+      .leftJoin(MeetingEntity, 'room', 'rp.roomId = room.id')
       .select([
         'rp.id as id',
         'rp.userId as "userId"',

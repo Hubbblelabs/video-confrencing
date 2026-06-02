@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import { PrismaClient, Prisma } from '@prisma/client';
 
 /**
@@ -16,6 +16,8 @@ import { PrismaClient, Prisma } from '@prisma/client';
  */
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(PrismaService.name);
+
   constructor() {
     super({
       datasources: {
@@ -32,12 +34,12 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   async onModuleInit() {
     await this.$connect();
-    console.log('✅ Prisma connected to PostgreSQL');
+    this.logger.log('Prisma connected to PostgreSQL');
   }
 
   async onModuleDestroy() {
     await this.$disconnect();
-    console.log('✅ Prisma disconnected from PostgreSQL');
+    this.logger.log('Prisma disconnected from PostgreSQL');
   }
 
   /**
@@ -45,7 +47,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
    * Use this instead of prisma.model.delete() for soft delete models
    */
   async softDelete<T extends { id: string }>(
-    model: keyof Pick<PrismaClient, 'user' | 'room' | 'recording'>,
+    model: keyof Pick<PrismaClient, 'user' | 'room' | 'recording' | 'subject' | 'chatMessage'>,
     id: string,
   ): Promise<T> {
     return (this[model] as any).update({
@@ -103,7 +105,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       await this.$queryRaw`SELECT 1`;
       return true;
     } catch (error) {
-      console.error('Database health check failed:', error);
+      this.logger.error(`Database health check failed: ${(error as Error).message}`);
       return false;
     }
   }
@@ -116,7 +118,26 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       throw new Error('Cannot clean database in production');
     }
 
-    const tables = ['audit_logs', 'recordings', 'room_participants', 'rooms', 'auth_providers', 'users'];
+    // Truncate in dependency order (children before parents) to avoid FK violations.
+    // Update this list if new tables are added to the schema.
+    const tables = [
+      'question_upvotes',
+      'questions',
+      'chat_messages',
+      'whiteboard_sessions',
+      'transactions',
+      'wallet',
+      'room_participants',
+      'recordings',
+      'audit_logs',
+      'teacher_subjects',
+      'student_subject_access',
+      'subjects',
+      'meetings',
+      'rooms',
+      'auth_providers',
+      'users',
+    ];
 
     for (const table of tables) {
       await this.$executeRawUnsafe(`TRUNCATE TABLE "${table}" CASCADE;`);

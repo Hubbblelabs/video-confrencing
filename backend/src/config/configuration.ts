@@ -5,10 +5,20 @@ export const appConfig = registerAs('app', () => ({
   port: parseInt(process.env['PORT'] || '3000', 10),
 }));
 
-export const jwtConfig = registerAs('jwt', () => ({
-  secret: process.env['JWT_SECRET'] || 'change-me',
-  expiration: parseInt(process.env['JWT_EXPIRATION'] || '3600', 10),
-}));
+export const jwtConfig = registerAs('jwt', () => {
+  const secret = process.env['JWT_SECRET'];
+  if (!secret) {
+    if (process.env['NODE_ENV'] === 'production') {
+      throw new Error('JWT_SECRET environment variable is required in production');
+    }
+    // In development, warn loudly instead of silently using an insecure default
+    console.warn('[WARN] JWT_SECRET is not set — using insecure development default. Set JWT_SECRET before going to production.');
+  }
+  return {
+    secret: secret || 'dev-only-insecure-secret',
+    expiration: parseInt(process.env['JWT_EXPIRATION'] || '3600', 10),
+  };
+});
 
 export const postgresConfig = registerAs('postgres', () => ({
   url: process.env['DATABASE_URL'],

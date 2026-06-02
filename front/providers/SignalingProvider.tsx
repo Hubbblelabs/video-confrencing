@@ -1,11 +1,14 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
+import type { Socket } from 'socket.io-client';
 import { useSignaling } from '../hooks/useSignaling';
 import { useRoomStore } from '../store/room.store';
 import { useAuthStore } from '../store/auth.store';
 import { useParticipantsStore } from '../store/participants.store';
 import { useMediaStore } from '../store/media.store';
+
+type AuthedSocket = Socket & { isAuthenticated?: boolean };
 import type { NewProducerEvent, UserJoinedEvent, UserLeftEvent, UserKickedEvent, AllMutedEvent, RoleChangedEvent, ProducerClosedEvent, ProducerPausedEvent, ProducerResumedEvent, HandRaisedEvent, ReactionEvent } from '../types';
 
 type CustomNewProducerHandler = ((data: NewProducerEvent) => Promise<void>) | null;
@@ -95,7 +98,6 @@ export function SignalingProvider({ children }: { children: React.ReactNode }) {
             useParticipantsStore.getState().removeConsumer(data.userId, data.producerId);
         },
         onProducerPaused: (data: ProducerPausedEvent) => {
-            console.log('App: onProducerPaused', data);
             const store = useParticipantsStore.getState();
             if (data.kind === 'audio') {
                 store.setParticipantMuted(data.userId, true);
@@ -104,7 +106,6 @@ export function SignalingProvider({ children }: { children: React.ReactNode }) {
             }
         },
         onProducerResumed: (data: ProducerResumedEvent) => {
-            console.log('App: onProducerResumed', data);
             const store = useParticipantsStore.getState();
             if (data.kind === 'audio') {
                 store.setParticipantMuted(data.userId, false);
@@ -119,7 +120,6 @@ export function SignalingProvider({ children }: { children: React.ReactNode }) {
             useParticipantsStore.getState().setParticipantReaction(data.userId, data.reaction);
         },
         onPeerMediaUpdate: (data: { userId: string } & { audioEnabled: boolean; videoEnabled: boolean }) => {
-            console.log('CLIENT RECEIVE peer-media-update', data);
             const store = useParticipantsStore.getState();
             store.setParticipantMuted(data.userId, !data.audioEnabled);
             store.setParticipantVideoOff(data.userId, !data.videoEnabled);
@@ -151,7 +151,7 @@ export function SignalingProvider({ children }: { children: React.ReactNode }) {
 
         await new Promise<void>((resolve, reject) => {
             const checkReady = () => {
-                if (socket.connected && (socket as any).isAuthenticated) {
+                if (socket.connected && (socket as AuthedSocket).isAuthenticated) {
                     cleanup();
                     resolve();
                     return true;
@@ -163,7 +163,6 @@ export function SignalingProvider({ children }: { children: React.ReactNode }) {
             function onAuthenticated() { checkReady(); }
             function onError(err: Error) { cleanup(); reject(err); }
             function cleanup() {
-                // Socket is captured from outer scope
                 socket?.off('connect', onConnect);
                 socket?.off('authenticated', onAuthenticated);
                 socket?.off('connect_error', onError);
@@ -183,19 +182,14 @@ export function SignalingProvider({ children }: { children: React.ReactNode }) {
         setWasRejected(false);
         setRejectionMessage('');
 
-        socket.emit('waitingRoom:join', { roomId: id }, async (response: any) => {
-            console.log('JOIN_WAITING_ROOM response:', response);
+        socket.emit('waitingRoom:join', { roomId: id }, async (response: { success: boolean; error?: string; isHost?: boolean; roomId?: string }) => {
             if (!response.success) {
                 setIsInWaitingRoom(false);
                 setWaitingRoomId(null);
                 useRoomStore.getState().setError(response.error || 'Failed to join waiting room');
             } else if (response.isHost) {
-                // If the user is the host, bypass the waiting room and join immediately
-                console.log('User is host, joining directly');
-                if (joiningRef.current) {
-                    console.warn('Join already in progress, skipping duplicate host join');
-                    return;
-                }
+                if (joiningRef.current) return;
+
                 joiningRef.current = true;
                 try {
                     const joined = await signaling.joinRoom(id);
@@ -226,8 +220,7 @@ export function SignalingProvider({ children }: { children: React.ReactNode }) {
 
                     setIsInWaitingRoom(false);
                     setWaitingRoomId(null);
-                } catch (error) {
-                    console.error('Failed to join room directly as host:', error);
+                } catch {
                     setIsInWaitingRoom(false);
                     setWaitingRoomId(null);
                     useRoomStore.getState().setError('Failed to join room');
@@ -246,7 +239,7 @@ export function SignalingProvider({ children }: { children: React.ReactNode }) {
 
         await new Promise<void>((resolve, reject) => {
             const checkReady = () => {
-                if (socket.connected && (socket as any).isAuthenticated) {
+                if (socket.connected && (socket as AuthedSocket).isAuthenticated) {
                     cleanup();
                     resolve();
                     return true;
@@ -258,8 +251,6 @@ export function SignalingProvider({ children }: { children: React.ReactNode }) {
             function onAuthenticated() { checkReady(); }
             function onError(err: Error) { cleanup(); reject(err); }
             function cleanup() {
-                // Socket is captured from outer scope
-                // Socket is captured from outer scope
                 socket?.off('connect', onConnect);
                 socket?.off('authenticated', onAuthenticated);
                 socket?.off('connect_error', onError);
@@ -308,10 +299,7 @@ export function SignalingProvider({ children }: { children: React.ReactNode }) {
 
         const handleAdmitted = async (data: { roomId: string; message: string }) => {
             if (!isInWaitingRoom || data.roomId !== waitingRoomId) return;
-            if (joiningRef.current) {
-                console.warn('Join already in progress, skipping duplicate admitted join');
-                return;
-            }
+            if (joiningRef.current) return;
             joiningRef.current = true;
             try {
                 const joined = await signaling.joinRoom(data.roomId);
@@ -342,8 +330,7 @@ export function SignalingProvider({ children }: { children: React.ReactNode }) {
 
                 setIsInWaitingRoom(false);
                 setWaitingRoomId(null);
-            } catch (error) {
-                console.error('Failed to join room after admission:', error);
+            } catch {
                 setIsInWaitingRoom(false);
                 setWaitingRoomId(null);
                 useRoomStore.getState().setError('Failed to join room');

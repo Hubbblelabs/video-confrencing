@@ -150,7 +150,7 @@ export function SubjectManagement() {
         setTeacherDialogOpen(true);
         setTeachersLoading(true);
         try {
-            const teachers = await adminUsersApi.getAll(token, 'TEACHER' as any);
+            const teachers = await adminUsersApi.getAll(token, 'TEACHER');
             setAllTeachers(teachers);
         } catch {
             toast.error('Failed to load teachers');
@@ -196,7 +196,7 @@ export function SubjectManagement() {
         setStudentDialogOpen(true);
         setStudentsLoading(true);
         try {
-            const students = await adminUsersApi.getAll(token, 'STUDENT' as any);
+            const students = await adminUsersApi.getAll(token, 'STUDENT');
             setAllStudents(students);
         } catch {
             toast.error('Failed to load students');

@@ -84,6 +84,7 @@ export class RoomsController {
     }
 
     @Get('upcoming')
+    @Roles(UserRole.ADMIN, UserRole.TEACHER)
     async getUpcoming() {
         return this.roomsService.getMeetingSchedule({
             startDate: new Date(),

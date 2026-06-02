@@ -1,5 +1,7 @@
 // Admin API endpoints for meeting management
 
+import { API_BASE_URL as API_BASE } from '../constants';
+
 export interface AdminMeeting {
     id: string;
     title: string;
@@ -33,8 +35,6 @@ export interface ScheduleMeetingRequest {
     allowScreenShare?: boolean;
     allowWhiteboard?: boolean;
 }
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 function getAuthHeaders(token: string) {
     return {

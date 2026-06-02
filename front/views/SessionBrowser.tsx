@@ -5,6 +5,7 @@ import { ArrowLeft, Loader2, SearchX, Compass } from 'lucide-react';
 import { SessionCard } from '../components/sessions/SessionCard';
 import { SessionFilters } from '../components/sessions/SessionFilters';
 import { sessionsApi } from '../services/api.service';
+import type { Session } from '../types/api.types';
 import { useAuthStore } from '../store/auth.store';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
@@ -12,7 +13,7 @@ import { useRouter } from 'next/navigation';
 export function SessionBrowser() {
     const router = useRouter();
     const token = useAuthStore((s) => s.token);
-    const [sessions, setSessions] = useState<any[]>([]);
+    const [sessions, setSessions] = useState<Session[]>([]);
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
@@ -44,7 +45,7 @@ export function SessionBrowser() {
             }, token || undefined);
 
             const now = new Date();
-            const activeSessions = data.sessions.filter((session: any) => {
+            const activeSessions = data.sessions.filter((session: Session) => {
                 const s = session.status?.toLowerCase();
                 if (s === 'active' || s === 'waiting') return true;
                 if (s === 'scheduled') {
@@ -135,7 +136,7 @@ export function SessionBrowser() {
                         categories={categories}
                         onSearch={(q) => setFilters(f => ({ ...f, query: q }))}
                         onCategoryChange={(c) => setFilters(f => ({ ...f, category: c }))}
-                        onSortChange={(s) => setFilters(f => ({ ...f, sortBy: s as any }))}
+                        onSortChange={(s) => setFilters(f => ({ ...f, sortBy: s }))}
                     />
                 </div>
             </div>

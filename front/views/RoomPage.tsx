@@ -157,7 +157,9 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
         await webrtc.produceTrack(videoTrack, { label: 'video' });
       }
     } catch (err) {
-      console.error('Failed to produce local tracks:', err);
+      useRoomStore.getState().setError(
+        err instanceof Error ? err.message : 'Failed to initialize media',
+      );
     }
   }, [webrtc]);
 
@@ -217,7 +219,6 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
 
   const handleToggleMic = useCallback(() => {
     const nowOn = media.toggleMic();
-    console.log('CLIENT EMIT media-state-change (mic)', { nowOn });
     if (nowOn) {
       const stream = useMediaStore.getState().localStream;
       const newTrack = stream?.getAudioTracks()[0];
@@ -241,7 +242,6 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
 
   const handleToggleCamera = useCallback(async () => {
     const nowOn = await media.toggleCamera();
-    console.log('CLIENT EMIT media-state-change (camera)', { nowOn });
     if (nowOn) {
       const stream = useMediaStore.getState().localStream;
       const newTrack = stream?.getVideoTracks()[0];
@@ -334,7 +334,11 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
 
   const handleKick = useCallback(async (targetUserId: string) => {
     if (!roomId) return;
-    try { await signaling.kickUser(roomId, targetUserId); } catch (err) { console.error('Kick failed:', err); }
+    try {
+      await signaling.kickUser(roomId, targetUserId);
+    } catch (err) {
+      useRoomStore.getState().setError(err instanceof Error ? err.message : 'Failed to kick user');
+    }
   }, [roomId, signaling]);
 
   const togglePanel = (panel: 'participants' | 'chat' | 'waiting') => {
@@ -378,9 +382,13 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
             </span>
             <button
               onClick={() => {
-                navigator.clipboard.writeText(useRoomStore.getState().roomCode || roomId || '');
+                const code = useRoomStore.getState().roomCode || roomId || '';
+                navigator.clipboard.writeText(code).catch(() => {
+                  // Clipboard API not available (HTTP context); ignore silently
+                });
               }}
               className="p-1 hover:bg-white/10 rounded transition-colors text-white/40 hover:text-white/80"
+              aria-label="Copy room code"
               title="Copy Code"
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -488,7 +496,7 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
                 localDisplayName={displayName ?? 'You'}
                 isHost={isHost}
                 onKick={handleKick}
-                onMuteAll={() => signaling.muteAll(roomId!)}
+                onMuteAll={() => { if (roomId) signaling.muteAll(roomId); }}
                 onStartPrivateMessage={handleStartPrivateMessage}
               />
             )}
@@ -516,7 +524,7 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
         onToggleScreen={handleToggleScreen}
         onLeave={handleLeave}
         isHost={isHost}
-        onMuteAll={() => signaling.muteAll(roomId!)}
+        onMuteAll={() => { if (roomId) signaling.muteAll(roomId); }}
         showWhiteboard={showWhiteboard}
         onToggleWhiteboard={() => {
           const newState = !showWhiteboard;
@@ -534,7 +542,7 @@ export function RoomPage({ signaling, existingProducers, onNewProducerRef, onLea
         onReaction={handleReaction}
         allowScreenShare={allowScreenShare}
         allowWhiteboard={allowWhiteboard}
-        onUpdateRoomSettings={(settings) => signaling.updateRoomSettings(roomId!, settings)}
+        onUpdateRoomSettings={(settings) => { if (roomId) signaling.updateRoomSettings(roomId, settings); }}
       />
 
       {showSummary && isHost && (

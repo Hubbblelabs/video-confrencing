@@ -6,7 +6,9 @@ import {
     UseGuards,
     Req,
     Query,
+    BadRequestException,
 } from '@nestjs/common';
+import { v4 as uuidv4 } from 'uuid';
 import { BillingService } from './billing.service';
 import { JwtAuthGuard, RolesGuard, Roles } from '../auth/guards';
 import { UserRole } from '../shared/enums';
@@ -28,10 +30,14 @@ export class BillingController {
 
     @Post('topup')
     async topup(@Req() req: any, @Body() body: { amount: number }) {
+        if (!Number.isInteger(body.amount) || body.amount <= 0 || body.amount > 10000) {
+            throw new BadRequestException('Amount must be a positive integer up to 10000');
+        }
         return this.billingService.addCredits({
             userId: req.user.id,
             amount: body.amount,
-            providerTransactionId: 'mock_' + Date.now(),
+            // TODO: Replace with real payment provider transaction ID
+            providerTransactionId: `dev_${uuidv4()}`,
             metadata: { method: 'mock_topup' },
         });
     }

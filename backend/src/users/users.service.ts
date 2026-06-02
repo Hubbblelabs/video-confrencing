@@ -81,14 +81,14 @@ export class UsersService {
       if (existing) {
         throw new ConflictException('Email already in use');
       }
+
+      user.email = dto.email;
+      // Email changed: require re-verification
+      user.emailVerified = false;
     }
 
     if (dto.displayName) {
       user.displayName = dto.displayName;
-    }
-
-    if (dto.email) {
-      user.email = dto.email;
     }
 
     if (dto.password) {
@@ -123,9 +123,10 @@ export class UsersService {
 
   async delete(id: string): Promise<void> {
     const user = await this.findOne(id);
-
-    await this.userRepo.remove(user);
-    this.logger.log(`User deleted: ${id}`);
+    // Soft-delete: deactivate instead of removing to preserve audit trail
+    user.isActive = false;
+    await this.userRepo.save(user);
+    this.logger.log(`User deactivated: ${id}`);
   }
 
   async getStatistics() {

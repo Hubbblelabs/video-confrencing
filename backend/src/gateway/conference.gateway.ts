@@ -204,6 +204,8 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
 
         if (result.roomClosed) {
           await this.webrtc.cleanupRoomMedia(roomId);
+          // Clean up waiting room state on last-person-leaves room close
+          this.waitingRooms.delete(roomId);
           this.server.to(roomId).emit(WsEvents.ROOM_CLOSED, { roomId });
         } else {
           this.server.to(roomId).emit(WsEvents.USER_LEFT, {
@@ -352,6 +354,9 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
 
     await this.webrtc.cleanupRoomMedia(payload.roomId);
     await this.rooms.closeRoom(payload.roomId, socket.data.userId);
+
+    // Clean up waiting room state to prevent memory leak
+    this.waitingRooms.delete(payload.roomId);
 
     this.server.to(payload.roomId).emit(WsEvents.ROOM_CLOSED, { roomId: payload.roomId });
 
@@ -616,8 +621,7 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
     try {
       await this.rooms.updateParticipantMedia(roomId, userId, kind as 'audio' | 'video', true);
     } catch (error) {
-      const logger = new Logger('ConferenceGateway');
-      logger.error(`Failed to update participant media state: ${(error as Error).message}`);
+      this.logger.error(`Failed to update participant media state: ${(error as Error).message}`);
     }
 
     // Broadcast to other users in the room
@@ -650,8 +654,7 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
     try {
       await this.rooms.updateParticipantMedia(roomId, userId, kind as 'audio' | 'video', false);
     } catch (error) {
-      const logger = new Logger('ConferenceGateway');
-      logger.error(`Failed to update participant media state: ${(error as Error).message}`);
+      this.logger.error(`Failed to update participant media state: ${(error as Error).message}`);
     }
 
     // Broadcast to other users in the room
@@ -1035,7 +1038,18 @@ export class ConferenceGateway implements OnGatewayConnection, OnGatewayDisconne
   ) {
     this.assertAuthenticated(socket);
 
-    const question = await this.qnaService.markAnswered(payload.questionId, true);
+    // Only hosts, co-hosts, teachers, and admins may mark questions as answered
+    const isPrivileged =
+      socket.data.userRole === UserRole.TEACHER ||
+      socket.data.userRole === UserRole.ADMIN ||
+      socket.data.role === RoomRole.HOST ||
+      socket.data.role === RoomRole.CO_HOST;
+
+    if (!isPrivileged) {
+      return { success: false, error: 'Only the host or teacher can mark questions as answered' };
+    }
+
+    await this.qnaService.markAnswered(payload.questionId, true);
     this.server.to(payload.roomId).emit(WsEvents.QNA_QUESTION_ANSWERED, {
       questionId: payload.questionId,
       isAnswered: true

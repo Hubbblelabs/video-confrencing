@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSubjectDto, UpdateSubjectDto } from './dto';
+import { UserRole } from '../shared/enums';
 
 @Injectable()
 export class SubjectsService {
@@ -139,7 +140,7 @@ export class SubjectsService {
         if (!user) {
             throw new NotFoundException(`User with ID ${teacherId} not found`);
         }
-        if (user.role !== 'TEACHER') {
+        if (user.role !== UserRole.TEACHER) {
             throw new BadRequestException('User is not a teacher');
         }
 
@@ -212,7 +213,7 @@ export class SubjectsService {
         if (!user) {
             throw new NotFoundException(`User with ID ${studentId} not found`);
         }
-        if (user.role !== 'STUDENT') {
+        if (user.role !== UserRole.STUDENT) {
             throw new BadRequestException('User is not a student');
         }
 

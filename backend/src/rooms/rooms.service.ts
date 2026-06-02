@@ -72,7 +72,7 @@ export class RoomsService {
     };
 
     const pipeline = this.redis.pipeline();
-    pipeline.hmset(RedisKeys.room(saved.id), roomState);
+    pipeline.hset(RedisKeys.room(saved.id), roomState);
     pipeline.expire(RedisKeys.room(saved.id), RedisKeys.ROOM_TTL);
     pipeline.sadd(RedisKeys.activeRooms, saved.id);
     pipeline.set(RedisKeys.roomCodeToId(roomCode), saved.id, 'EX', RedisKeys.ROOM_TTL);
@@ -93,15 +93,16 @@ export class RoomsService {
    * Resolves a Room ID from a potential Room Code or UUID.
    */
   async resolveRoomId(idOrCode: string): Promise<string | null> {
-    // If it looks like a UUID, check if it exists directly
-    if (idOrCode.length > 20 && idOrCode.includes('-')) {
+    // UUID v4 pattern: 8-4-4-4-12 hex chars
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (UUID_RE.test(idOrCode)) {
       const exists = await this.redis.exists(RedisKeys.room(idOrCode));
       if (exists) return idOrCode;
     }
 
-    // Otherwise, try to lookup by code
+    // Otherwise, try to lookup by room code
     const mappedId = await this.redis.get(RedisKeys.roomCodeToId(idOrCode));
-    return mappedId || (idOrCode.length > 20 ? idOrCode : null);
+    return mappedId || null;
   }
 
   /**
@@ -150,7 +151,7 @@ export class RoomsService {
       };
 
       const pipeline = this.redis.pipeline();
-      pipeline.hmset(RedisKeys.room(actualRoomId), roomState);
+      pipeline.hset(RedisKeys.room(actualRoomId), roomState);
       pipeline.expire(RedisKeys.room(actualRoomId), RedisKeys.ROOM_TTL);
       pipeline.sadd(RedisKeys.activeRooms, actualRoomId);
       pipeline.set(RedisKeys.roomCodeToId(roomCode), actualRoomId, 'EX', RedisKeys.ROOM_TTL);
@@ -180,7 +181,8 @@ export class RoomsService {
     }
 
     const currentCount = await this.redis.hlen(RedisKeys.roomParticipants(actualRoomId));
-    const maxP = parseInt(roomData['maxParticipants'] || '100', 10);
+    const rawMax = roomData['maxParticipants'];
+    const maxP = rawMax != null && rawMax !== '' ? parseInt(rawMax, 10) : 100;
 
     if (currentCount >= maxP) {
       throw new WsRoomException('Room is full');
@@ -319,7 +321,7 @@ export class RoomsService {
           `Attendance record updated for user ${params.userId} in room ${params.roomId}. Duration: ${durationSeconds}s`,
         );
 
-        // Deduct credits: 1 credit per minute (rounded up)
+        // Deduct 1 credit per minute, rounded up (61s = 2 credits — by design)
         const creditsToDeduct = Math.ceil(durationSeconds / 60);
         if (creditsToDeduct > 0) {
           try {
@@ -890,7 +892,7 @@ export class RoomsService {
     };
 
     const pipeline = this.redis.pipeline();
-    pipeline.hmset(RedisKeys.room(meeting.id), roomState);
+    pipeline.hset(RedisKeys.room(meeting.id), roomState);
     pipeline.expire(RedisKeys.room(meeting.id), RedisKeys.ROOM_TTL);
     pipeline.sadd(RedisKeys.activeRooms, meeting.id);
     pipeline.set(RedisKeys.roomCodeToId(meeting.roomCode), meeting.id, 'EX', RedisKeys.ROOM_TTL);

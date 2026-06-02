@@ -1,4 +1,4 @@
-import { Controller, Get, Query, Param, ParseUUIDPipe, ParseIntPipe, UsePipes, ValidationPipe } from '@nestjs/common';
+import { Controller, Get, Query, Param, ParseUUIDPipe, ParseIntPipe } from '@nestjs/common';
 import { SessionsService } from './sessions.service';
 
 @Controller('sessions')

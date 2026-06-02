@@ -64,7 +64,7 @@ export class QnaService {
 
         return questions.map(q => ({
             ...q,
-            isUpvoted: q.upvotes?.length > 0,
+            isUpvoted: Array.isArray(q.upvotes) && q.upvotes.length > 0,
             upvoteCount: q._count.upvotes
         }));
     }

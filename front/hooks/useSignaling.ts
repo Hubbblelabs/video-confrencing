@@ -1,5 +1,7 @@
 import { useRef, useCallback, useEffect } from 'react';
 import { io, type Socket } from 'socket.io-client';
+
+type AuthedSocket = Socket & { isAuthenticated?: boolean };
 import { WS_URL, WS_EVENTS } from '../constants';
 import { useAuthStore } from '../store/auth.store';
 import { useRoomStore } from '../store/room.store';
@@ -96,8 +98,7 @@ export function useSignaling(listeners: SignalingListeners = {}) {
     });
 
     socket.on(WS_EVENTS.AUTHENTICATED, () => {
-      // Mark socket as ready for operations
-      (socket as Socket & { isAuthenticated?: boolean }).isAuthenticated = true;
+      (socket as AuthedSocket).isAuthenticated = true;
     });
 
     socket.on('disconnect', (reason) => {
@@ -182,7 +183,6 @@ export function useSignaling(listeners: SignalingListeners = {}) {
     });
 
     socket.on(WS_EVENTS.PEER_MEDIA_UPDATE, (data: { userId: string; audioEnabled: boolean; videoEnabled: boolean }) => {
-      console.log('CLIENT RECEIVE peer-media-update', data);
       listenersRef.current.onPeerMediaUpdate?.(data);
     });
 
@@ -335,7 +335,6 @@ export function useSignaling(listeners: SignalingListeners = {}) {
   const emitMediaState = useCallback(async (roomId: string, audioEnabled: boolean, videoEnabled: boolean): Promise<void> => {
     const socket = socketRef.current;
     if (!socket?.connected) return;
-    console.log('CLIENT EMIT media-state-change', { roomId, audioEnabled, videoEnabled });
     await emitWithAck<{ success: boolean }>(socket, WS_EVENTS.MEDIA_STATE_CHANGE, { roomId, audioEnabled, videoEnabled });
   }, []);
 

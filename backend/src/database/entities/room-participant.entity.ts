@@ -9,6 +9,7 @@ import {
   Index,
 } from 'typeorm';
 import { UserEntity } from './user.entity';
+import { MeetingEntity } from './meeting.entity';
 
 export enum ParticipantRole {
   HOST = 'HOST',
@@ -76,4 +77,8 @@ export class RoomParticipantEntity {
   @ManyToOne(() => UserEntity, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'userId' })
   user!: UserEntity;
+
+  @ManyToOne(() => MeetingEntity, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'roomId' })
+  room!: MeetingEntity;
 }

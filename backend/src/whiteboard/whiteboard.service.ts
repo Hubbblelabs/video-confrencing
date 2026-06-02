@@ -96,9 +96,8 @@ export class WhiteboardService {
         slideCount: true,
         createdAt: true,
         updatedAt: true,
-        pdfBase64: false,
-        slidesData: false,
-      } as any,
+        // pdfBase64 and slidesData are intentionally excluded (heavy data, use findOne for single fetch)
+      },
     });
   }
 
@@ -115,9 +114,8 @@ export class WhiteboardService {
         slideCount: true,
         createdAt: true,
         updatedAt: true,
-        pdfBase64: false,
-        slidesData: false,
-      } as any,
+        // pdfBase64 and slidesData are intentionally excluded (heavy data, use findOne for single fetch)
+      },
     });
   }
 }

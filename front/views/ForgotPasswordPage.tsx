@@ -18,8 +18,8 @@ export function ForgotPasswordPage({ onBack }: { onBack: () => void }) {
         try {
             await authApi.forgotPassword(email);
             setSuccess(true);
-        } catch (err: any) {
-            setError(err.message || 'Failed to send reset link');
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to send reset link');
         } finally {
             setLoading(false);
         }

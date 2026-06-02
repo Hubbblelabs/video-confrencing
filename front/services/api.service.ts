@@ -15,6 +15,11 @@ import type {
   JoinRoomRequest,
   Room,
   User,
+  ResetPasswordRequest,
+  SessionsParams,
+  SessionsResponse,
+  Session,
+  TeacherProfile,
 } from '../types/api.types';
 
 // ─────────────────────────────────────────────────────────────
@@ -162,7 +167,7 @@ export const authApi = {
   /**
    * Reset password with token
    */
-  resetPassword: async (data: any): Promise<void> => {
+  resetPassword: async (data: ResetPasswordRequest): Promise<void> => {
     return client.post<void>('/auth/reset-password', data);
   },
 
@@ -256,28 +261,28 @@ export const sessionsApi = {
   /**
    * Get all sessions with filters
    */
-  getSessions: async (params: any, token?: string): Promise<{ sessions: any[]; total: number }> => {
+  getSessions: async (params: SessionsParams, token?: string): Promise<SessionsResponse> => {
     const query = new URLSearchParams();
-    Object.entries(params).forEach(([key, value]) => {
+    (Object.entries(params) as [string, string | number | undefined][]).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
         query.append(key, String(value));
       }
     });
-    return client.get<{ sessions: any[]; total: number }>(`/sessions?${query.toString()}`, token);
+    return client.get<SessionsResponse>(`/sessions?${query.toString()}`, token);
   },
 
   /**
    * Get session by ID
    */
-  getSession: async (id: string, token?: string): Promise<any> => {
-    return client.get<any>(`/sessions/${id}`, token);
+  getSession: async (id: string, token?: string): Promise<Session> => {
+    return client.get<Session>(`/sessions/${id}`, token);
   },
 
   /**
    * Get teacher profile
    */
-  getTeacher: async (id: string, token?: string): Promise<any> => {
-    return client.get<any>(`/sessions/teacher/${id}`, token);
+  getTeacher: async (id: string, token?: string): Promise<TeacherProfile> => {
+    return client.get<TeacherProfile>(`/sessions/teacher/${id}`, token);
   },
 };
 
@@ -287,9 +292,17 @@ export const sessionsApi = {
 
 export function decodeJWT<T = Record<string, unknown>>(token: string): T {
   try {
-    const payload = token.split('.')[1];
-    return JSON.parse(atob(payload));
-  } catch (error) {
+    const base64Url = token.split('.')[1];
+    if (!base64Url) throw new Error('Malformed token');
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join(''),
+    );
+    return JSON.parse(jsonPayload) as T;
+  } catch {
     throw new Error('Invalid JWT token');
   }
 }

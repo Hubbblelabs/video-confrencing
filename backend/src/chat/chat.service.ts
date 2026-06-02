@@ -1,7 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { ChatMessage, User } from '@prisma/client'; // Assuming types are generated
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()

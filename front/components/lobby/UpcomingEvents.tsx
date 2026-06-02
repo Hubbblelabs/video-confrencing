@@ -2,17 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuthStore } from '../../store/auth.store';
 import { Calendar, Clock, Video, ChevronRight, Radio } from 'lucide-react';
 import { sessionsApi } from '../../services/api.service';
-
-interface Session {
-    id: string;
-    title: string;
-    roomCode: string;
-    scheduledStart: string | null;
-    status: string;
-    host?: {
-        displayName: string;
-    };
-}
+import type { Session } from '../../types/api.types';
 
 export function UpcomingEvents({ onJoinRoom }: { onJoinRoom: (code: string) => void }) {
     const token = useAuthStore((s) => s.token);
@@ -32,7 +22,7 @@ export function UpcomingEvents({ onJoinRoom }: { onJoinRoom: (code: string) => v
                 }, token);
 
                 const now = new Date();
-                const relevant = data.sessions.filter((s: any) => {
+                const relevant = data.sessions.filter((s) => {
                     if (s.status === 'active' || s.status === 'waiting') return true;
                     if (s.status === 'scheduled') {
                         if (!s.scheduledStart) return true;
@@ -42,8 +32,8 @@ export function UpcomingEvents({ onJoinRoom }: { onJoinRoom: (code: string) => v
                 });
 
                 setSessions(relevant);
-            } catch (err) {
-                console.error('Failed to fetch upcoming sessions', err);
+            } catch {
+                // Silently ignore — component shows empty state
             } finally {
                 setLoading(false);
             }
@@ -120,7 +110,8 @@ export function UpcomingEvents({ onJoinRoom }: { onJoinRoom: (code: string) => v
                         </div>
 
                         <button
-                            onClick={() => onJoinRoom(session.roomCode)}
+                            onClick={() => session.roomCode && onJoinRoom(session.roomCode)}
+                            disabled={!session.roomCode}
                             className="mt-6 w-full py-2.5 rounded-xl bg-muted/30 group-hover:bg-primary group-hover:text-white transition-all duration-300 flex items-center justify-center gap-2 text-sm font-medium"
                         >
                             <Video className="w-4 h-4" />

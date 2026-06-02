@@ -1,3 +1,5 @@
+import { API_BASE_URL as API_BASE } from '../constants';
+
 export interface Wallet {
     id: string;
     userId: string;
@@ -14,15 +16,13 @@ export interface Transaction {
     amount: number;
     status: 'pending' | 'success' | 'failed';
     providerTransactionId: string | null;
-    metadata: any;
+    metadata: Record<string, unknown> | null;
     createdAt: string;
     meeting?: {
         title: string;
         roomCode: string;
     };
 }
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 function getAuthHeaders(token: string) {
     return {

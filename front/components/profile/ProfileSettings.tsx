@@ -41,8 +41,8 @@ export function ProfileSettings({ open, onOpenChange, trigger }: ProfileSettings
             setAuth(response.accessToken); // Update store with new token
             toast.success("Profile updated successfully");
             if (onOpenChange) onOpenChange(false);
-        } catch (error: any) {
-            toast.error(error.message || "Failed to update profile");
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Failed to update profile");
         } finally {
             setIsLoading(false);
         }
